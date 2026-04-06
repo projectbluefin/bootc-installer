@@ -105,6 +105,25 @@ _FALLBACK_FLATPAKS = _MANIFEST["fallback_flatpaks"]
 _APP_NAME = _MANIFEST.get("app_name", "bootc Installer")
 
 
+# ── Icon helpers ─────────────────────────────────────────────────────────────
+
+def _find_icon_for_imgref(imgref: str) -> "str | None":
+    """Search the manifest tree for imgref and return its inherited icon, or None."""
+    def _search(nodes, icon_ctx=None):
+        for node in nodes:
+            node_icon = node.get("icon", icon_ctx)
+            if node.get("imgref") == imgref:
+                return node_icon
+            if "children" in node:
+                result = _search(node["children"], node_icon)
+                if result is not None:
+                    return result
+        return None
+    if not imgref:
+        return None
+    return _search(_MANIFEST.get("images", []))
+
+
 # ── Pretty name helpers ───────────────────────────────────────────────────────
 
 def _imgref_to_pretty_name(imgref: str) -> str:

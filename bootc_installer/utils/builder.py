@@ -144,7 +144,10 @@ class Builder:
 
     @property
     def distro_info(self):
+        from bootc_installer.defaults.image import _DEFAULT_IMAGE, _find_icon_for_imgref
+        default_image_icon = _find_icon_for_imgref(_DEFAULT_IMAGE) if _DEFAULT_IMAGE else None
         return {
             "name": self.__recipe.raw["distro_name"],
             "logo": self.__recipe.raw["distro_logo"],
+            "default_image_icon": default_image_icon,
         }

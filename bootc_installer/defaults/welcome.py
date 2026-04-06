@@ -17,6 +17,7 @@
 from gi.repository import Adw, GLib, Gtk
 import os
 
+from bootc_installer.views.done import apply_icon
 from bootc_installer.windows.dialog_recovery import VanillaRecoveryDialog
 from bootc_installer.windows.dialog_poweroff import VanillaPoweroffDialog
 
@@ -39,9 +40,10 @@ class VanillaDefaultWelcome(Adw.Bin):
         self.delta = False
 
         distro_name = self.__distro_info.get("name", "TunaOS")
-        distro_logo = self.__distro_info.get("logo", "org.bootcinstaller.Installer")
+        fallback_logo = self.__distro_info.get("logo", "org.bootcinstaller.Installer")
+        icon_spec = self.__distro_info.get("default_image_icon") or fallback_logo
 
-        self.page_header.icon_name = distro_logo
+        apply_icon(self.page_header, icon_spec)
         self.page_header.title = f"Welcome to {distro_name}!"
 
         # signals
