@@ -61,9 +61,26 @@ class VanillaInstaller(Adw.Application):
         logger.info("VanillaInstaller.__init__")
         super().__init__(
             application_id="org.bootcinstaller.Installer",
-            flags=Gio.ApplicationFlags.FLAGS_NONE,
+            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
         )
         self.create_action("quit", self.close, ["<primary>q"])
+        self._autoinstall_recipe: str | None = None
+        # Register --autoinstall option for GApplication option parsing.
+        self.add_main_option(
+            "autoinstall", ord("a"),
+            0,  # GOptionFlags.NONE
+            20,  # GOptionArg.STRING
+            "Skip the wizard and install using RECIPE_JSON directly",
+            "RECIPE_JSON",
+        )
+
+    def do_command_line(self, command_line):
+        options = command_line.get_options_dict()
+        if options.contains("autoinstall"):
+            self._autoinstall_recipe = options.lookup_value("autoinstall").get_string()
+            logger.info(f"--autoinstall mode: recipe={self._autoinstall_recipe}")
+        self.activate()
+        return 0
 
     def do_activate(self):
         logger.info("do_activate called")
@@ -71,7 +88,11 @@ class VanillaInstaller(Adw.Application):
         if not win:
             try:
                 logger.info("Checking system requirements")
-                if "IGNORE_RAM" not in os.environ and not Systeminfo.is_ram_enough():
+                if self._autoinstall_recipe:
+                    # Skip wizard, go straight to the main window in autoinstall mode.
+                    win = VanillaWindow(application=self,
+                                       autoinstall_recipe=self._autoinstall_recipe)
+                elif "IGNORE_RAM" not in os.environ and not Systeminfo.is_ram_enough():
                     logger.info("Not enough RAM")
                     win = VanillaRamWindow(application=self)
                 elif "IGNORE_CPU" not in os.environ and not Systeminfo.is_cpu_enough():

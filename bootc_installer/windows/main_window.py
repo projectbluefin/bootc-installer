@@ -43,8 +43,10 @@ class VanillaWindow(Adw.ApplicationWindow):
     btn_exit = Gtk.Template.Child()
     toasts = Gtk.Template.Child()
 
-    def __init__(self, **kwargs):
+    def __init__(self, autoinstall_recipe: str | None = None, **kwargs):
         super().__init__(**kwargs)
+
+        self.__autoinstall_recipe = autoinstall_recipe
 
         # this starts the builder and generates the widgets
         # to put in the carousel
@@ -70,6 +72,10 @@ class VanillaWindow(Adw.ApplicationWindow):
 
         # some variables to track state
         self.install_mode = 0
+
+        # Autoinstall mode: skip the wizard and start immediately.
+        if self.__autoinstall_recipe:
+            GLib.idle_add(self._start_autoinstall)
 
     def __connect_signals(self):
         self.btn_back.connect("clicked", self.back)
@@ -285,6 +291,22 @@ class VanillaWindow(Adw.ApplicationWindow):
             self.__view_progress.update_carousel(carousel)
         self.next()
         self.__view_progress.start(recipe)
+
+    def _start_autoinstall(self):
+        """Called via GLib.idle_add when --autoinstall was passed.
+
+        Navigates directly to the progress view and starts fisherman with the
+        pre-built recipe file, bypassing the entire wizard.
+        """
+        logger.info(f"Autoinstall: starting with recipe {self.__autoinstall_recipe}")
+        # Jump directly to the progress page (last carousel page before done).
+        n = self.carousel.get_n_pages()
+        progress_index = n - 2  # progress is second-to-last (before done)
+        if progress_index >= 0:
+            page = self.carousel.get_nth_page(progress_index)
+            self.carousel.scroll_to(page, False)
+        self.__view_progress.start(self.__autoinstall_recipe)
+        return False  # remove idle callback
 
     def next(self, widget=None, fn=None, *args):
         logger.info("Going to next page")

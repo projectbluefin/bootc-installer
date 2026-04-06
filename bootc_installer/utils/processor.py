@@ -137,6 +137,14 @@ class Processor:
         unified_storage = sys_recipe.get("unifiedStorage", False)
         composefs_backend = bool(merged.get("composefs_backend", False))
         image_type = merged.get("image_type", "bootc") or "bootc"
+        bootloader = merged.get("bootloader", "") or ""
+        image_filesystem = merged.get("image_filesystem", "") or ""
+
+        # Image-level filesystem requirement overrides the disk-step selection.
+        if image_filesystem in ("xfs", "btrfs"):
+            filesystem = image_filesystem
+            if filesystem == "btrfs":
+                btrfs_subvolumes = disk_info.get("btrfsSubvolumes", False) if isinstance(disk_info, dict) else False
 
         # --- User account ---
         user_info = merged.get("user", {})
@@ -159,6 +167,7 @@ class Processor:
             "selinuxDisabled": selinux_disabled,
             "unifiedStorage": unified_storage,
             "composeFsBackend": composefs_backend,
+            "bootloader": bootloader,
             "hostname": hostname,
             "flatpaks": flatpaks,
             "user": {
