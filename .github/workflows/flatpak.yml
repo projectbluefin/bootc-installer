@@ -9,11 +9,23 @@ on:
 
 jobs:
   flatpak:
-    name: Build
+    name: Build (${{ matrix.variant }})
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
+
+    strategy:
+      matrix:
+        include:
+          - variant: production
+            app-id: org.bootcinstaller.Installer
+            manifest: flatpak/org.bootcinstaller.Installer.json
+            bundle: org.bootcinstaller.Installer.flatpak
+          - variant: debug
+            app-id: org.bootcinstaller.Installer.Devel
+            manifest: flatpak/org.bootcinstaller.Installer.Devel.json
+            bundle: org.bootcinstaller.Installer.Devel.flatpak
 
     steps:
       - uses: actions/checkout@v4
@@ -22,15 +34,15 @@ jobs:
 
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: org.bootcinstaller.Installer.flatpak
-          manifest-path: flatpak/org.bootcinstaller.Installer.json
-          cache-key: flatpak-builder-${{ github.sha }}
+          bundle: ${{ matrix.bundle }}
+          manifest-path: ${{ matrix.manifest }}
+          cache-key: flatpak-builder-${{ matrix.variant }}-${{ github.sha }}
 
       - name: Upload bundle as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: org.bootcinstaller.Installer.flatpak
-          path: org.bootcinstaller.Installer.flatpak
+          name: ${{ matrix.bundle }}
+          path: ${{ matrix.bundle }}
           retention-days: 30
 
       - name: Publish continuous pre-release (main branch)
@@ -41,10 +53,10 @@ jobs:
           name: Continuous Build
           prerelease: true
           body: "Latest build from the `main` branch. Updated automatically on every push."
-          files: org.bootcinstaller.Installer.flatpak
+          files: ${{ matrix.bundle }}
 
       - name: Attach bundle to tagged release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: org.bootcinstaller.Installer.flatpak
+          files: ${{ matrix.bundle }}
