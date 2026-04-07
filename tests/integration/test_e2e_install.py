@@ -151,8 +151,9 @@ def _find_free_nbd() -> str:
         if not Path(dev).exists():
             continue
         r = _run(["lsblk", "-n", "-o", "SIZE", dev])
-        # If lsblk shows no size (empty), it's free.
-        if r.returncode == 0 and r.stdout.strip() == "":
+        # Free NBD devices report "0B"; in-use ones report their actual size.
+        size = r.stdout.strip()
+        if r.returncode == 0 and (size == "" or size == "0B"):
             return dev
     raise RuntimeError("No free /dev/nbd* device found (is nbd kernel module loaded?)")
 
@@ -165,6 +166,7 @@ class NbdDisk:
         self.raw_path: str = ""
         self.device: str = ""
         self._tmpdir: tempfile.TemporaryDirectory | None = None
+        self._connected: bool = False
 
     def __enter__(self):
         self._tmpdir = tempfile.TemporaryDirectory(dir="/var/tmp", prefix="e2e-disk-")
@@ -177,14 +179,25 @@ class NbdDisk:
 
         self.device = _find_free_nbd()
         _check(["qemu-nbd", "--connect", self.device, "--format=raw", self.raw_path])
+        self._connected = True
         # Give the kernel a moment to create partition block devices.
         time.sleep(1)
         print(f"\n  [NbdDisk] {self.raw_path} → {self.device}")
         return self
 
+    def disconnect(self):
+        """Disconnect the NBD device, releasing the file lock.
+
+        Call this before passing raw_path to QEMU — QEMU cannot open a file
+        that qemu-nbd already holds a write lock on.
+        """
+        if self._connected:
+            _run(["qemu-nbd", "--disconnect", self.device])
+            self._connected = False
+
     def __exit__(self, *_):
         try:
-            _run(["qemu-nbd", "--disconnect", self.device])
+            self.disconnect()
         except Exception as e:
             print(f"  [NbdDisk] Warning: disconnect failed: {e}")
         finally:
@@ -234,8 +247,89 @@ def _verify_partitions(device: str):
     """Assert that the device has at least 3 partitions."""
     r = _check(["lsblk", "-n", "-o", "NAME,SIZE,FSTYPE", device])
     print(f"\n  [lsblk]\n{r.stdout}")
-    parts = [l for l in r.stdout.splitlines() if l.strip() and device.split("/")[-1] not in l.split()[0].rstrip("0123456789")]
+    base = device.split("/")[-1]  # e.g. "nbd0" or "sda"
+    parts = []
+    for l in r.stdout.splitlines():
+        if not l.strip():
+            continue
+        # Strip lsblk tree-drawing chars to get the bare device name.
+        name = l.split()[0].lstrip("├─└│ ")
+        # A partition name differs from the base device (e.g. nbd0p1 != nbd0).
+        if name != base:
+            parts.append(l)
     assert len(parts) >= 3, f"Expected ≥3 partitions, got:\n{r.stdout}"
+
+
+def _pick_test_flatpaks(n: int = 2) -> list:
+    """Return up to n flatpak app IDs available in the system install.
+
+    Returns an empty list if flatpak is unavailable or no apps are installed.
+    """
+    r = subprocess.run(
+        ["flatpak", "list", "--system", "--columns=application"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        return []
+    return [line.strip() for line in r.stdout.splitlines() if line.strip()][:n]
+
+
+def _root_partition(device: str) -> tuple:
+    """Return (device_path, fstype) for the root (xfs/btrfs) partition, or (None, None)."""
+    r = subprocess.run(
+        ["lsblk", "-n", "-o", "NAME,FSTYPE", device],
+        capture_output=True, text=True,
+    )
+    result = (None, None)
+    for line in r.stdout.splitlines():
+        cols = line.split()
+        if len(cols) >= 2 and cols[1] in ("xfs", "btrfs"):
+            # Strip tree-drawing characters to get the bare device name.
+            name = cols[0].lstrip("├─└│ ")
+            result = (f"/dev/{name}", cols[1])
+    return result  # last match is the root partition
+
+
+def _verify_flatpaks(device: str, expected_apps: list):
+    """Mount the root partition of the installed disk and assert flatpak apps are present.
+
+    This is a regression test for the Flatpak copy step: fisherman must copy
+    the requested app directories from /var/lib/flatpak on the host into
+    <target>/var/lib/flatpak on the installed system.
+    """
+    if not expected_apps:
+        return
+
+    root_dev, fstype = _root_partition(device)
+    if not root_dev:
+        pytest.fail(f"Could not find xfs/btrfs root partition on {device} for flatpak verification")
+
+    mount_dir = tempfile.mkdtemp(dir="/var/tmp", prefix="e2e-flatpak-verify-")
+    try:
+        mount_cmd = ["mount", "-o", "ro", root_dev, mount_dir]
+        if fstype == "btrfs":
+            # subvol=/ ensures we mount the btrfs top-level volume regardless
+            # of which subvolume is set as default by bootc.
+            mount_cmd = ["mount", "-t", "btrfs", "-o", "ro,subvol=/", root_dev, mount_dir]
+        _check(mount_cmd)
+        try:
+            flatpak_dir = Path(mount_dir) / "var" / "lib" / "flatpak" / "app"
+            assert flatpak_dir.exists(), (
+                f"No flatpak app dir found at {flatpak_dir}. "
+                f"Flatpak copy step may have been skipped or failed."
+            )
+            for app_id in expected_apps:
+                app_path = flatpak_dir / app_id
+                available = sorted(p.name for p in flatpak_dir.iterdir()) if flatpak_dir.exists() else []
+                assert app_path.exists(), (
+                    f"Flatpak {app_id!r} not found in installed system.\n"
+                    f"Apps present: {available}"
+                )
+                print(f"  ✓ flatpak {app_id} present in installed system")
+        finally:
+            subprocess.run(["umount", mount_dir], capture_output=True)
+    finally:
+        shutil.rmtree(mount_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
@@ -269,17 +363,18 @@ def _boot_verify(raw_path: str, vnc_display: int = 10, timeout: int = BOOT_TIMEO
         "-drive", f"if=pflash,format=raw,file={vars_copy}",
         "-drive", f"format=raw,file={raw_path}",
         "-vga", "std",
-        "-display", f"vnc=127.0.0.1:{vnc_display},to=9",
+        "-display", f"vnc=0.0.0.0:{vnc_display},to=9",
         "-qmp", f"unix:{qmp_sock},server=on,wait=off",
         "-net", "nic", "-net", "user",
-        "-daemonize",
     ]
+    full_cmd = ["sudo", "--non-interactive"] + cmd if os.geteuid() != 0 else cmd
 
     print(f"\n  [boot_verify] starting QEMU on VNC :{vnc_display} (port {vnc_port})")
-    try:
-        subprocess.check_call(["sudo", "--non-interactive"] + cmd if os.geteuid() != 0 else cmd)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"QEMU failed to start: {e}")
+    qemu_proc = subprocess.Popen(full_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Brief wait to catch immediate startup failures.
+    time.sleep(2)
+    if qemu_proc.poll() is not None:
+        raise RuntimeError(f"QEMU exited immediately (rc={qemu_proc.returncode})")
 
     # Poll VNC until the display is no longer blank / uninitialized.
     deadline = time.monotonic() + timeout
@@ -310,7 +405,11 @@ def _boot_verify(raw_path: str, vnc_display: int = 10, timeout: int = BOOT_TIMEO
                 break
 
     # Kill QEMU.
-    subprocess.run(["pkill", "-f", f"file={raw_path}"], capture_output=True)
+    qemu_proc.terminate()
+    try:
+        qemu_proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        qemu_proc.kill()
     try:
         Path(vars_copy).unlink()
     except FileNotFoundError:
@@ -353,6 +452,9 @@ def _install_image(recipe_template: dict, label: str, vnc_offset: int):
             print(f"\n  ✓ {label} install succeeded")
 
             if BOOT_VERIFY:
+                # Disconnect qemu-nbd before starting QEMU — both tools need
+                # exclusive write access to the raw file.
+                disk.disconnect()
                 _boot_verify(disk.raw_path, vnc_display=vnc_offset)
                 print(f"  ✓ {label} boot verification succeeded")
         finally:
