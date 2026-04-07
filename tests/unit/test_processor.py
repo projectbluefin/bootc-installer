@@ -373,3 +373,63 @@ class TestMisc:
         path = Processor.gen_install_recipe("log", finals, sys_recipe)
         r = _load(path)
         assert r["image"] == "ghcr.io/sys/image:tag"
+
+
+class TestApplyIcon:
+    """Regression tests for done.py apply_icon — no GTK required (uses mocks)."""
+
+    @staticmethod
+    def _get_apply_icon():
+        """Import apply_icon with all gi dependencies stubbed out."""
+        import sys
+        import types
+        from unittest.mock import MagicMock
+
+        gi_stub = types.ModuleType("gi")
+        repo_stub = types.ModuleType("gi.repository")
+        gi_stub.repository = repo_stub
+        gi_stub.require_version = lambda *a, **kw: None
+        for name in ("Adw", "Gio", "GLib", "Gtk", "GObject"):
+            setattr(repo_stub, name, MagicMock())
+
+        mods_to_patch = {
+            "gi": gi_stub,
+            "gi.repository": repo_stub,
+            "bootc_installer.widgets.page_header": MagicMock(),
+        }
+        with pytest.MonkeyPatch().context() as mp:
+            for mod, stub in mods_to_patch.items():
+                mp.setitem(sys.modules, mod, stub)
+            # Remove cached module so we get a fresh import with stubs
+            sys.modules.pop("bootc_installer.views.done", None)
+            from bootc_installer.views.done import apply_icon
+            # Keep module around so patching log works
+            import bootc_installer.views.done as done_mod
+        return apply_icon, done_mod
+
+    def test_resource_uri_calls_set_from_resource(self):
+        from unittest.mock import MagicMock
+        apply_icon, _ = self._get_apply_icon()
+        header = MagicMock()
+        apply_icon(header, "resource:///org/bootcinstaller/Installer/images/dakota.png")
+        header.set_from_resource.assert_called_once_with(
+            "/org/bootcinstaller/Installer/images/dakota.png"
+        )
+
+    def test_icon_name_sets_icon_name(self):
+        from unittest.mock import MagicMock
+        apply_icon, _ = self._get_apply_icon()
+        header = MagicMock()
+        apply_icon(header, "object-select-symbolic")
+        header.set_from_resource.assert_not_called()
+        assert header.icon_name == "object-select-symbolic"
+
+    def test_exception_is_logged_not_silenced(self):
+        """apply_icon must log failures — not silently swallow them."""
+        from unittest.mock import MagicMock, patch
+        apply_icon, done_mod = self._get_apply_icon()
+        header = MagicMock()
+        header.set_from_resource.side_effect = Exception("resource not found")
+        with patch.object(done_mod, "log") as mock_log:
+            apply_icon(header, "resource:///org/bootcinstaller/Installer/images/missing.png")
+            mock_log.warning.assert_called_once()

@@ -36,3 +36,6 @@ class TunaPageHeader(Gtk.Box):
 
     def set_paintable(self, paintable):
         self._icon.set_paintable(paintable)
+
+    def set_from_resource(self, resource_path):
+        self._icon.set_from_resource(resource_path)

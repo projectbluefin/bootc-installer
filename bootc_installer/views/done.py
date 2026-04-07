@@ -3,7 +3,7 @@ import os
 import subprocess
 from gettext import gettext as _
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk
 
 from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
 from bootc_installer.windows.dialog_output import VanillaDialogOutput
@@ -16,12 +16,11 @@ def apply_icon(page_header, icon_spec):
     try:
         if icon_spec.startswith("resource://"):
             resource_path = icon_spec[len("resource://"):]
-            texture = Gdk.Texture.new_from_resource(resource_path)
-            page_header.set_paintable(texture)
+            page_header.set_from_resource(resource_path)
         else:
             page_header.icon_name = icon_spec
-    except Exception:
-        pass  # keep the default icon on any failure
+    except Exception as e:
+        log.warning("Could not apply icon %r: %s", icon_spec, e)
 
 
 def do_reboot(in_flatpak):
