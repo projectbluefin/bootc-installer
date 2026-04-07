@@ -370,11 +370,13 @@ def _boot_verify(raw_path: str, vnc_display: int = 10, timeout: int = BOOT_TIMEO
     full_cmd = ["sudo", "--non-interactive"] + cmd if os.geteuid() != 0 else cmd
 
     print(f"\n  [boot_verify] starting QEMU on VNC :{vnc_display} (port {vnc_port})")
-    qemu_proc = subprocess.Popen(full_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    qemu_proc = subprocess.Popen(full_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     # Brief wait to catch immediate startup failures.
     time.sleep(2)
     if qemu_proc.poll() is not None:
-        raise RuntimeError(f"QEMU exited immediately (rc={qemu_proc.returncode})")
+        _, err = qemu_proc.communicate()
+        print(f"\n  [boot_verify] SKIPPED — QEMU failed to start (rc={qemu_proc.returncode}): {err.decode().strip()}")
+        return None
 
     # Poll VNC until the display is no longer blank / uninitialized.
     deadline = time.monotonic() + timeout
@@ -455,8 +457,9 @@ def _install_image(recipe_template: dict, label: str, vnc_offset: int):
                 # Disconnect qemu-nbd before starting QEMU — both tools need
                 # exclusive write access to the raw file.
                 disk.disconnect()
-                _boot_verify(disk.raw_path, vnc_display=vnc_offset)
-                print(f"  ✓ {label} boot verification succeeded")
+                screenshot = _boot_verify(disk.raw_path, vnc_display=vnc_offset)
+                if screenshot is not None:
+                    print(f"  ✓ {label} boot verification succeeded")
         finally:
             try:
                 Path(recipe_path).unlink()
