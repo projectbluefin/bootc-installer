@@ -155,3 +155,23 @@ class TestImagesCatalogIntegrity(unittest.TestCase):
         catalog = self._load_catalog()
         bad = [s for s in self._all_names_and_descs(catalog) if "Gaming" in s]
         self.assertEqual(bad, [], f"'Gaming' label found (use Nvidia+CUDA): {bad}")
+
+    def test_default_image_present_and_valid(self):
+        """default_image must be set and must exist as a leaf imgref in the tree.
+
+        Without it _DEFAULT_IMAGE is '' and __select_default() never fires,
+        leaving the image step with no selection and breaking the UI and tests.
+        """
+        catalog = self._load_catalog()
+        default = catalog.get("default_image", "")
+        self.assertTrue(default, "default_image is missing or empty in images.json")
+
+        def all_imgrefs(nodes):
+            for n in nodes:
+                if "imgref" in n:
+                    yield n["imgref"]
+                yield from all_imgrefs(n.get("children", []))
+
+        found = list(all_imgrefs(catalog.get("images", [])))
+        self.assertIn(default, found,
+                      f"default_image {default!r} is not a leaf imgref in the tree")
