@@ -139,6 +139,7 @@ class Processor:
         image_type = merged.get("image_type", "bootc") or "bootc"
         bootloader = merged.get("bootloader", "") or ""
         image_filesystem = merged.get("image_filesystem", "") or ""
+        flatpak_var_path = merged.get("flatpak_var_path", "") or ""
 
         # Image-level filesystem requirement overrides the disk-step selection.
         if image_filesystem in ("xfs", "btrfs"):
@@ -181,6 +182,8 @@ class Processor:
             recipe["customMounts"] = custom_mounts
         if image_type and image_type != "bootc":
             recipe["imageType"] = image_type
+        if flatpak_var_path:
+            recipe["flatpakVarPath"] = flatpak_var_path
 
         logger.info(f"Generated fisherman recipe: disk={disk_device}, image={image}, encryption={encryption_type}")
 

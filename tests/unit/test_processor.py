@@ -23,7 +23,8 @@ def _load(path: str) -> dict:
 
 def _auto_finals(disk="/dev/vda", fs="xfs", image="ghcr.io/tuna-os/yellowfin:gnome",
                  hostname="testhost", encryption=None, user=None, flatpaks=None,
-                 composefs=False, image_type="bootc", bootloader="", image_filesystem=""):
+                 composefs=False, image_type="bootc", bootloader="", image_filesystem="",
+                 flatpak_var_path=""):
     d = {
         "disk": {"auto": {"disk": disk, "pretty_size": "100 GB", "size": 100_000_000_000}},
         "selected_image": image,
@@ -33,6 +34,7 @@ def _auto_finals(disk="/dev/vda", fs="xfs", image="ghcr.io/tuna-os/yellowfin:gno
         "image_type": image_type,
         "bootloader": bootloader,
         "image_filesystem": image_filesystem,
+        "flatpak_var_path": flatpak_var_path,
     }
     if encryption:
         d["encryption"] = encryption
@@ -300,11 +302,29 @@ class TestComposefs:
             composefs=True,
             bootloader="systemd",
             image_filesystem="btrfs",
+            flatpak_var_path="state/os/default/var",
         ), _SYS_RECIPE)
         r = _load(path)
         assert r["composeFsBackend"] is True
         assert r["bootloader"] == "systemd"
         assert r["filesystem"] == "btrfs"
+        assert r["flatpakVarPath"] == "state/os/default/var"
+
+    def test_flatpak_var_path_absent_when_empty(self):
+        """flatpakVarPath should be omitted from the recipe when not set."""
+        path = Processor.gen_install_recipe("log", _auto_finals(
+            flatpak_var_path="",
+        ), _SYS_RECIPE)
+        r = _load(path)
+        assert "flatpakVarPath" not in r
+
+    def test_flatpak_var_path_propagated(self):
+        """flatpak_var_path from image metadata must appear in the recipe."""
+        path = Processor.gen_install_recipe("log", _auto_finals(
+            flatpak_var_path="state/os/default/var",
+        ), _SYS_RECIPE)
+        r = _load(path)
+        assert r["flatpakVarPath"] == "state/os/default/var"
 
 
 # ── Misc / edge cases ──────────────────────────────────────────────────────────
