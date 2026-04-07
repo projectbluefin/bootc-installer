@@ -1,0 +1,41 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaConfirm: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      hexpand: true;
+
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+          title: _("Confirm Installation");
+          subtitle: _("The following changes will be made to your system");
+        }
+      }
+
+      Adw.PreferencesGroup group_changes {}
+
+      Adw.PreferencesGroup {
+        Button btn_confirm {
+          label: _("Install");
+          valign: center;
+          halign: center;
+
+          styles [
+            "destructive-action",
+            "pill",
+          ]
+        }
+      }
+    }
+  }
+}

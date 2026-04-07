@@ -1,0 +1,62 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDone: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+          icon-name: "software-installed-symbolic";
+          title: _("Finished!");
+          subtitle: _("Restart your device to enjoy your new experience");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Box {
+          halign: center;
+          spacing: 10;
+
+          Button btn_log {
+            label: _("Show Log");
+            halign: center;
+
+            styles [
+              "pill",
+            ]
+          }
+
+          Button btn_reboot {
+            label: _("Reboot Now");
+            halign: center;
+
+            styles [
+              "pill",
+              "suggested-action",
+            ]
+          }
+
+          Button btn_close {
+            label: _("Close");
+            halign: center;
+            visible: false;
+
+            styles [
+              "pill",
+              "suggested-action",
+            ]
+          }
+        }
+      }
+    }
+  }
+}

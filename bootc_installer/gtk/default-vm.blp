@@ -1,0 +1,52 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDefaultVm: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+          icon-name: "video-display-symbolic";
+          title: _("VM Tools");
+          subtitle: _("Choose whether to install VM Tools for better compatibility and performance");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Box {
+          valign: center;
+          spacing: 10;
+          halign: center;
+
+          Button btn_no {
+            label: _("Skip");
+            halign: center;
+
+            styles [
+              "pill",
+            ]
+          }
+
+          Button btn_yes {
+            label: _("Install");
+            halign: center;
+
+            styles [
+              "pill",
+              "suggested-action",
+            ]
+          }
+        }
+      }
+    }
+  }
+}

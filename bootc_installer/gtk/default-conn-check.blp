@@ -1,0 +1,37 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDefaultConnCheck: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+          icon-name: "content-loading-symbolic";
+          title: _("Checking Connection");
+          subtitle: _("Please wait until the connection check is done");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Button btn_recheck {
+          label: "Check Again";
+          halign: center;
+          visible: false;
+
+          styles [
+            "pill",
+          ]
+        }
+      }
+    }
+  }
+}

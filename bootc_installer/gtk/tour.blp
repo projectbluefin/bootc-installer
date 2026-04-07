@@ -1,0 +1,25 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaTour: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+  vexpand: true;
+
+  Box {
+    orientation: vertical;
+    vexpand: true;
+    hexpand: true;
+
+    $TunaPageHeader page_header {
+      margin-top: 24;
+      margin-bottom: 12;
+    }
+
+    Picture assets_svg {
+      can-shrink: true;
+      vexpand: true;
+    }
+  }
+}

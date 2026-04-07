@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from tuna_installer.utils.processor import Processor
+from bootc_installer.utils.processor import Processor
 
 # A minimal system recipe (the tuna recipe.json, NOT the fisherman recipe).
 _SYS_RECIPE = {}
@@ -23,7 +23,7 @@ def _load(path: str) -> dict:
 
 def _auto_finals(disk="/dev/vda", fs="xfs", image="ghcr.io/tuna-os/yellowfin:gnome",
                  hostname="testhost", encryption=None, user=None, flatpaks=None,
-                 composefs=False, image_type="bootc"):
+                 composefs=False, image_type="bootc", bootloader="", image_filesystem=""):
     d = {
         "disk": {"auto": {"disk": disk, "pretty_size": "100 GB", "size": 100_000_000_000}},
         "selected_image": image,
@@ -31,6 +31,8 @@ def _auto_finals(disk="/dev/vda", fs="xfs", image="ghcr.io/tuna-os/yellowfin:gno
         "flatpaks": flatpaks or [],
         "composefs_backend": composefs,
         "image_type": image_type,
+        "bootloader": bootloader,
+        "image_filesystem": image_filesystem,
     }
     if encryption:
         d["encryption"] = encryption
@@ -251,6 +253,43 @@ class TestComposefs:
             "log", _auto_finals(image_type="ostree"), _SYS_RECIPE)
         r = _load(path)
         assert r.get("imageType") == "ostree"
+
+    def test_bootloader_default_empty(self):
+        path = Processor.gen_install_recipe("log", _auto_finals(), _SYS_RECIPE)
+        r = _load(path)
+        assert r.get("bootloader", "") == ""
+
+    def test_bootloader_systemd_propagates(self):
+        path = Processor.gen_install_recipe(
+            "log", _auto_finals(bootloader="systemd"), _SYS_RECIPE)
+        r = _load(path)
+        assert r["bootloader"] == "systemd"
+
+    def test_image_filesystem_overrides_disk_filesystem(self):
+        # Even if disk step says xfs, if the image requires btrfs it wins.
+        path = Processor.gen_install_recipe(
+            "log", _auto_finals(fs="xfs", image_filesystem="btrfs"), _SYS_RECIPE)
+        r = _load(path)
+        assert r["filesystem"] == "btrfs"
+
+    def test_image_filesystem_empty_does_not_override(self):
+        path = Processor.gen_install_recipe(
+            "log", _auto_finals(fs="xfs", image_filesystem=""), _SYS_RECIPE)
+        r = _load(path)
+        assert r["filesystem"] == "xfs"
+
+    def test_dakota_recipe_fields(self):
+        """Simulate a Dakota image selection producing the full expected recipe."""
+        path = Processor.gen_install_recipe("log", _auto_finals(
+            image="ghcr.io/projectbluefin/dakota:latest",
+            composefs=True,
+            bootloader="systemd",
+            image_filesystem="btrfs",
+        ), _SYS_RECIPE)
+        r = _load(path)
+        assert r["composeFsBackend"] is True
+        assert r["bootloader"] == "systemd"
+        assert r["filesystem"] == "btrfs"
 
 
 # ── Misc / edge cases ──────────────────────────────────────────────────────────

@@ -1,0 +1,37 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaLayoutPreferences: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+        }
+      }
+
+      Adw.PreferencesGroup prefs_list {}
+
+      Adw.PreferencesGroup {
+        Button btn_next {
+          visible: false;
+          label: _("Next");
+          halign: center;
+
+          styles [
+            "pill",
+            "suggested-action",
+          ]
+        }
+      }
+    }
+  }
+}

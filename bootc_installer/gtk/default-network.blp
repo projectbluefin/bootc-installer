@@ -1,0 +1,94 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDefaultNetwork: Adw.Bin {
+  hexpand: true;
+  vexpand: true;
+
+  Overlay {
+    vexpand: true;
+    hexpand: true;
+
+    [overlay]
+    Button btn_next {
+      visible: false;
+      sensitive: false;
+      margin-end: 12;
+      margin-start: 12;
+      icon-name: "go-next-symbolic";
+      halign: end;
+      valign: center;
+      tooltip-text: _("Next");
+
+      styles [
+        "circular",
+        "suggested-action",
+      ]
+    }
+
+    ScrolledWindow {
+      hscrollbar-policy: never;
+      vexpand: true;
+      hexpand: true;
+
+      Adw.PreferencesPage {
+        Adw.PreferencesGroup {
+          $TunaPageHeader page_header {
+            margin-top: 24;
+            icon-name: "network-wireless-symbolic";
+            title: _("Internet");
+            subtitle: _("An active internet connection is required to install the system");
+          }
+        }
+
+        Adw.PreferencesGroup wired_group {
+          title: _("Wired");
+        }
+
+        Adw.PreferencesGroup wireless_group {
+          title: _("Wireless Networks");
+        }
+
+        Adw.PreferencesGroup advanced_group {
+          title: _("Advanced");
+
+          Adw.ActionRow hidden_network_row {
+            title: _("Connect to Hidden Network...");
+
+            [prefix]
+            Overlay {
+              vexpand: false;
+              hexpand: false;
+              margin-end: 10;
+
+              Image {
+                icon-name: "network-wireless-signal-none-symbolic";
+              }
+
+              [overlay]
+              Image {
+                valign: end;
+                halign: start;
+                margin-start: 10;
+                margin-bottom: 10;
+                icon-name: "background-app-ghost-symbolic";
+                pixel-size: 14;
+              }
+            }
+          }
+
+          Adw.ActionRow proxy_settings_row {
+            title: _("Open Proxy Settings...");
+
+            [prefix]
+            Image {
+              margin-start: 5;
+              margin-end: 5;
+              icon-name: "preferences-system-network-proxy-symbolic";
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,77 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDefaultUsers: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+
+  Overlay {
+    vexpand: true;
+    hexpand: true;
+
+    [overlay]
+    Button btn_next {
+      visible: false;
+      margin-end: 12;
+      margin-start: 12;
+      icon-name: "go-next-symbolic";
+      halign: end;
+      valign: center;
+      tooltip-text: _("Next");
+      sensitive: false;
+
+      styles [
+        "circular",
+        "suggested-action",
+      ]
+    }
+
+    ScrolledWindow {
+      hscrollbar-policy: never;
+      vexpand: true;
+      hexpand: true;
+
+      Adw.PreferencesPage {
+        Adw.PreferencesGroup {
+          $TunaPageHeader page_header {
+            margin-top: 24;
+            title: _("Create User");
+            subtitle: _("Provide details for your user account");
+          }
+        }
+
+        Adw.PreferencesGroup {
+          Adw.Avatar {
+            valign: center;
+            size: 128;
+            show-initials: true;
+            text: bind fullname_entry.text;
+          }
+        }
+
+        Adw.PreferencesGroup {
+          Adw.EntryRow fullname_entry {
+            title: _("Name");
+            input-purpose: name;
+          }
+
+          Adw.EntryRow username_entry {
+            title: _("Username");
+            input-purpose: name;
+          }
+
+          Adw.PasswordEntryRow password_entry {
+            title: _("Password");
+            input-purpose: password;
+          }
+
+          Adw.PasswordEntryRow password_confirmation {
+            title: _("Confirm Password");
+            input-purpose: password;
+          }
+        }
+      }
+    }
+  }
+}
