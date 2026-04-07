@@ -110,6 +110,20 @@
           "path": ".."
         }
       ]
+    },
+    {
+      "name": "devel-assets",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm644 data/org.bootcinstaller.Installer.Devel.desktop /app/share/applications/org.bootcinstaller.Installer.Devel.desktop",
+        "install -Dm644 data/icons/hicolor/scalable/apps/org.bootcinstaller.Installer.Devel.svg /app/share/icons/hicolor/scalable/apps/org.bootcinstaller.Installer.Devel.svg"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".."
+        }
+      ]
     }
   ]
 }
