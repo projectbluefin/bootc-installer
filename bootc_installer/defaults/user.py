@@ -42,7 +42,7 @@ class VanillaDefaultUsers(Adw.Bin):
             logger.warning("skip_screen: image_step is None — showing user step by default")
             return False
         nuc = image_step.selected_needs_user_creation
-        logger.debug("skip_screen: selected_needs_user_creation=%s → skip=%s", nuc, not nuc)
+        logger.info("skip_screen: selected_needs_user_creation=%s → skip=%s", nuc, not nuc)
         return not nuc
 
     def test_auto_advance(self):
