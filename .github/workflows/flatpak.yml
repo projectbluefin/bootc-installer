@@ -2,7 +2,7 @@ name: Flatpak
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ["v*"]
   pull_request:
     branches: [main]
@@ -22,10 +22,19 @@ jobs:
             app-id: org.bootcinstaller.Installer
             manifest: flatpak/org.bootcinstaller.Installer.json
             bundle: org.bootcinstaller.Installer.flatpak
+            branch_filter: refs/heads/main
           - variant: debug
             app-id: org.bootcinstaller.Installer.Devel
             manifest: flatpak/org.bootcinstaller.Installer.Devel.json
             bundle: org.bootcinstaller.Installer.Devel.flatpak
+            branch_filter: refs/heads/dev
+
+    # dev push → Devel only; main push → production only.
+    # Tagged releases and PRs build both variants.
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      github.ref == matrix.branch_filter
 
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +54,7 @@ jobs:
           path: ${{ matrix.bundle }}
           retention-days: 30
 
-      - name: Publish continuous pre-release (main branch)
+      - name: Publish continuous pre-release (main branch → production)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
@@ -53,6 +62,16 @@ jobs:
           name: Continuous Build
           prerelease: true
           body: "Latest build from the `main` branch. Updated automatically on every push."
+          files: ${{ matrix.bundle }}
+
+      - name: Publish dev pre-release (dev branch → Devel)
+        if: github.ref == 'refs/heads/dev'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous-dev
+          name: Dev Build
+          prerelease: true
+          body: "Latest build from the `dev` branch. May be unstable."
           files: ${{ matrix.bundle }}
 
       - name: Attach bundle to tagged release
