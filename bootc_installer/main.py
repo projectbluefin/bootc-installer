@@ -69,7 +69,7 @@ class VanillaInstaller(Adw.Application):
     def __init__(self):
         logger.info("VanillaInstaller.__init__")
         super().__init__(
-            application_id="org.bootcinstaller.Installer",
+            application_id=os.environ.get("BOOTC_APP_ID", "org.bootcinstaller.Installer"),
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
         )
         self.create_action("quit", self.close, ["<primary>q"])

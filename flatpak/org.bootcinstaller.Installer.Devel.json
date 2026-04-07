@@ -15,7 +15,8 @@
     "--system-talk-name=org.freedesktop.login1",
     "--system-talk-name=org.freedesktop.PolicyKit1",
     "--allow=devel",
-    "--env=BOOTC_INSTALLER_DEBUG=1"
+    "--env=BOOTC_INSTALLER_DEBUG=1",
+    "--env=BOOTC_APP_ID=org.bootcinstaller.Installer.Devel"
   ],
   "build-options": {
     "env": {
