@@ -149,13 +149,16 @@ class VanillaWindow(Adw.ApplicationWindow):
                     if "protected" in property_list[i]:
                         continue
                     else:
-                        self.carousel.remove(widget)
+                        try:
+                            self.carousel.remove(widget)
+                        except Exception as e:
+                            logger.debug("(%s) carousel.remove skipped (not present): %s", widget.__gtype_name__, e)
                 if "custom_image" in property_list[i] and mode == 0:
                     continue
                 if "default_image" in property_list[i] and mode == 1:
                     continue
                 if getattr(widget, "skip_screen", False):
-                    logger.info("(%s) Skipping single-image screen", widget.__gtype_name__)
+                    logger.info("(%s) Skipping screen (skip_screen=True)", widget.__gtype_name__)
                     continue
                 logger.info("(%s) Adding widget to carousel", widget.__gtype_name__)
                 self.carousel.append(widget)

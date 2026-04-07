@@ -39,8 +39,11 @@ class VanillaDefaultUsers(Adw.Bin):
         """Skip this step unless the selected image requires user creation."""
         image_step = getattr(self.__window, "image_step", None)
         if image_step is None:
+            logger.warning("skip_screen: image_step is None — showing user step by default")
             return False
-        return not image_step.selected_needs_user_creation
+        nuc = image_step.selected_needs_user_creation
+        logger.debug("skip_screen: selected_needs_user_creation=%s → skip=%s", nuc, not nuc)
+        return not nuc
 
     def test_auto_advance(self):
         self.btn_next.emit("clicked")
