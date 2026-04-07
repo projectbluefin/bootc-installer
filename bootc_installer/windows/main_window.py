@@ -29,6 +29,11 @@ from bootc_installer.views.confirm import VanillaConfirm
 from bootc_installer.views.done import VanillaDone
 from bootc_installer.views.progress import VanillaProgress
 
+try:
+    from bootc_installer._version import VERSION as _APP_VERSION
+except ImportError:
+    _APP_VERSION = "unknown"
+
 logger = logging.getLogger("Installer::Window")
 
 
@@ -41,10 +46,13 @@ class VanillaWindow(Adw.ApplicationWindow):
     btn_back = Gtk.Template.Child()
     btn_next = Gtk.Template.Child()
     btn_exit = Gtk.Template.Child()
+    btn_about = Gtk.Template.Child()
     toasts = Gtk.Template.Child()
 
     def __init__(self, autoinstall_recipe: str | None = None, **kwargs):
         super().__init__(**kwargs)
+
+        logger.info("bootc Installer version: %s", _APP_VERSION)
 
         self.__autoinstall_recipe = autoinstall_recipe
 
@@ -81,6 +89,7 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.btn_back.connect("clicked", self.back)
         self.btn_next.connect("clicked", self.__on_header_next)
         self.btn_exit.connect("clicked", self.__on_exit_clicked)
+        self.btn_about.connect("clicked", self.__on_about_clicked)
         self.connect("close-request", self.__on_close_request)
         self.carousel.connect("page-changed", self.__on_page_changed)
         self.__reconnect_update_finals()
@@ -236,6 +245,17 @@ class VanillaWindow(Adw.ApplicationWindow):
     def __is_done(self):
         cur_index = int(self.carousel.get_position())
         return self.carousel.get_nth_page(cur_index) is self.__view_done
+
+    def __on_about_clicked(self, *args):
+        dialog = Adw.AboutDialog(
+            application_name=_("bootc Installer"),
+            version=_APP_VERSION,
+            website="https://github.com/tuna-os/tuna-installer",
+            copyright="© 2024–2026 TunaOS contributors",
+            license_type=Gtk.License.GPL_3_0,
+            developer_name="TunaOS",
+        )
+        dialog.present(self)
 
     def __on_exit_clicked(self, *args):
         if self.__is_done():
