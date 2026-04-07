@@ -37,7 +37,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 logger_boot.info("gi.require_version done")
 
-from gi.repository import Adw, Gio
+from gi.repository import Adw, Gio, GLib
 logger_boot.info("Adw/Gio imported")
 
 from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — must load before blueprints
@@ -68,8 +68,8 @@ class VanillaInstaller(Adw.Application):
         # Register --autoinstall option for GApplication option parsing.
         self.add_main_option(
             "autoinstall", ord("a"),
-            0,  # GOptionFlags.NONE
-            20,  # GOptionArg.STRING
+            GLib.OptionFlags.NONE,
+            GLib.OptionArg.STRING,
             "Skip the wizard and install using RECIPE_JSON directly",
             "RECIPE_JSON",
         )

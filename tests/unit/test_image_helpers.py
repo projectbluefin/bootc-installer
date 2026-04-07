@@ -114,3 +114,64 @@ class TestDistroInfoDefaultImageIcon(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestImagesCatalogIntegrity(unittest.TestCase):
+    """Regression tests for fisherman/data/images.json content."""
+
+    _CATALOG_PATH = os.path.join(
+        os.path.dirname(__file__), "..", "..", "fisherman", "data", "images.json"
+    )
+
+    def _all_names_and_descs(self, node):
+        """Yield every name/desc string in the tree recursively."""
+        if isinstance(node, dict):
+            if "name" in node:
+                yield node["name"]
+            if "desc" in node:
+                yield node["desc"]
+            if "subtitle" in node:
+                yield node["subtitle"]
+            if "title" in node:
+                yield node["title"]
+            for child in node.get("children", []):
+                yield from self._all_names_and_descs(child)
+        elif isinstance(node, list):
+            for item in node:
+                yield from self._all_names_and_descs(item)
+
+    def _load_catalog(self):
+        with open(self._CATALOG_PATH) as f:
+            return _json.load(f)
+
+    def test_no_bare_ampersand_in_names(self):
+        """Names must not contain bare & — it breaks Pango markup rendering."""
+        catalog = self._load_catalog()
+        bad = [s for s in self._all_names_and_descs(catalog) if "&" in s and "&amp;" not in s]
+        self.assertEqual(bad, [], f"Bare & found in catalog strings: {bad}")
+
+    def test_no_gaming_label_in_names(self):
+        """GDX images are Nvidia+CUDA, not 'Gaming'."""
+        catalog = self._load_catalog()
+        bad = [s for s in self._all_names_and_descs(catalog) if "Gaming" in s]
+        self.assertEqual(bad, [], f"'Gaming' label found (use Nvidia+CUDA): {bad}")
+
+    def test_default_image_present_and_valid(self):
+        """default_image must be set and must exist as a leaf imgref in the tree.
+
+        Without it _DEFAULT_IMAGE is '' and __select_default() never fires,
+        leaving the image step with no selection and breaking the UI and tests.
+        """
+        catalog = self._load_catalog()
+        default = catalog.get("default_image", "")
+        self.assertTrue(default, "default_image is missing or empty in images.json")
+
+        def all_imgrefs(nodes):
+            for n in nodes:
+                if "imgref" in n:
+                    yield n["imgref"]
+                yield from all_imgrefs(n.get("children", []))
+
+        found = list(all_imgrefs(catalog.get("images", [])))
+        self.assertIn(default, found,
+                      f"default_image {default!r} is not a leaf imgref in the tree")
