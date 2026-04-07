@@ -7,23 +7,20 @@
 
 ## Installing
 
-Download the latest Flatpak bundle from the [Continuous Build release](https://github.com/tuna-os/tuna-installer/releases/tag/continuous):
-
-| Bundle | Description |
-|---|---|
-| `org.bootcinstaller.Installer.flatpak` | Production build |
-| `org.bootcinstaller.Installer.Devel.flatpak` | Debug build — full verbose logging to `~/.cache/tuna-installer/installer-debug.log` |
+### Production
 
 ```bash
-flatpak install --user --bundle org.bootcinstaller.Installer.flatpak
+curl -Lo installer.flatpak \
+  https://github.com/tuna-os/tuna-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
+  && flatpak install --user --bundle installer.flatpak
 ```
 
-Or in one line:
+### Devel (latest `dev` branch build)
 
 ```bash
-curl -Lo tuna-installer.flatpak \
-  https://github.com/tuna-os/tuna-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
-  && flatpak install --user --bundle tuna-installer.flatpak
+curl -Lo installer-devel.flatpak \
+  https://github.com/tuna-os/tuna-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
+  && flatpak install --user --bundle installer-devel.flatpak
 ```
 
 ---
