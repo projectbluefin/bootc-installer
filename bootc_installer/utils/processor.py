@@ -134,7 +134,7 @@ class Processor:
 
         # --- SELinux / unified storage / composefs / image type ---
         selinux_disabled = sys_recipe.get("selinuxDisabled", False)
-        unified_storage = sys_recipe.get("unifiedStorage", False)
+        unified_storage = sys_recipe.get("unifiedStorage", True)
         composefs_backend = bool(merged.get("composefs_backend", False))
         image_type = merged.get("image_type", "bootc") or "bootc"
         bootloader = merged.get("bootloader", "") or ""

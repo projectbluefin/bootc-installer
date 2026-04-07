@@ -229,6 +229,21 @@ class TestUserSpec:
         assert r["user"]["groups"] == []
 
 
+# ── unified storage tests ─────────────────────────────────────────────────────
+
+class TestUnifiedStorage:
+    def test_unified_storage_true_by_default(self):
+        path = Processor.gen_install_recipe("log", _auto_finals(), _SYS_RECIPE)
+        r = _load(path)
+        assert r.get("unifiedStorage") is True
+
+    def test_sys_recipe_can_disable_unified_storage(self):
+        sys = {**_SYS_RECIPE, "unifiedStorage": False}
+        path = Processor.gen_install_recipe("log", _auto_finals(), sys)
+        r = _load(path)
+        assert r.get("unifiedStorage") is False
+
+
 # ── composefs + image_type tests ──────────────────────────────────────────────
 
 class TestComposefs:
