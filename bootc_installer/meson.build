@@ -119,3 +119,5 @@ custom_target(
   install: true,
   install_dir: moduledir,
 )
+
+install_data(['__init__.py', 'main.py'], install_dir: moduledir)
