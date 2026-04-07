@@ -67,26 +67,28 @@ class TestDoReboot(unittest.TestCase):
 
 class TestApplyIcon(unittest.TestCase):
 
-    def test_resource_uri_loads_texture(self):
-        status_page = MagicMock()
-        mock_texture = MagicMock()
-        with patch("bootc_installer.views.done.Gdk.Texture.new_from_resource", return_value=mock_texture) as mock_load:
-            apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/tunaos.svg")
-        mock_load.assert_called_once_with("/org/bootcinstaller/Installer/images/tunaos.svg")
-        status_page.set_paintable.assert_called_once_with(mock_texture)
+    def test_resource_uri_calls_set_from_resource(self):
+        page_header = MagicMock()
+        apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/tunaos.svg")
+        page_header.set_from_resource.assert_called_once_with(
+            "/org/bootcinstaller/Installer/images/tunaos.svg"
+        )
 
     def test_icon_theme_name_calls_set_icon_name(self):
         page_header = MagicMock()
-        apply_icon(page_header, "software-installed-symbolic")
-        assert page_header.icon_name == "software-installed-symbolic"
-        page_header.set_paintable.assert_not_called()
+        apply_icon(page_header, "object-select-symbolic")
+        assert page_header.icon_name == "object-select-symbolic"
+        page_header.set_from_resource.assert_not_called()
 
-    def test_apply_icon_silently_ignores_errors(self):
+    def test_apply_icon_logs_errors(self):
+        """apply_icon must log failures rather than silently swallow them."""
+        from unittest.mock import patch as _patch
         status_page = MagicMock()
-        with patch("bootc_installer.views.done.Gdk.Texture.new_from_resource", side_effect=Exception("bad resource")):
+        status_page.set_from_resource.side_effect = Exception("bad resource")
+        import bootc_installer.views.done as done_mod
+        with _patch.object(done_mod, "log") as mock_log:
             apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/missing.svg")
-        # Should not raise; status_page.set_paintable must not have been called
-        status_page.set_paintable.assert_not_called()
+        mock_log.warning.assert_called_once()
 
 
 class TestMainWindowIconExtraction(unittest.TestCase):
