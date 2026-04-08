@@ -26,7 +26,7 @@ class VanillaRecoveryDialog(Adw.Window):
 
     row_console = Gtk.Template.Child()
     row_documentation = Gtk.Template.Child()
-    row_gparted = Gtk.Template.Child()
+    row_partition = Gtk.Template.Child()
     row_handbook = Gtk.Template.Child()
     row_web = Gtk.Template.Child()
 
@@ -37,24 +37,30 @@ class VanillaRecoveryDialog(Adw.Window):
         # signals
         self.row_console.connect("activated", self.__on_console_activated)
         self.row_documentation.connect("activated", self.__on_documentation_activated)
-        self.row_gparted.connect("activated", self.__on_gparted_activated)
+        self.row_partition.connect("activated", self.__on_partition_activated)
         self.row_handbook.connect("activated", self.__on_handbook_activated)
         self.row_web.connect("activated", self.__on_web_activated)
 
     def __on_console_activated(self, row):
-        GLib.spawn_command_line_async("kgx")
+        GLib.spawn_command_line_async("flatpak-spawn --host /usr/bin/xdg-terminal-exec")
 
     def __on_documentation_activated(self, row):
-        webbrowser.open("https://docs.vanillaos.org/collections/docs")
+        webbrowser.open("https://docs.projectbluefin.io/")
 
-    def __on_gparted_activated(self, row):
+    def __on_partition_activated(self, row):
         try:
-            GLib.spawn_command_line_async("gparted")
+            GLib.spawn_command_line_async("flatpak-spawn --host /usr/bin/gnome-disks")
         except:
-            GLib.spawn_command_line_async("/usr/sbin/gparted")
+            GLib.spawn_command_line_async("flatpak-spawn --host /usr/bin/partitionmanager")
 
     def __on_handbook_activated(self, row):
-        webbrowser.open("https://docs.vanillaos.org/collections/handbook")
+        try:
+            GLib.spawn_command_line_async("xdg-open https://app.dosu.dev/e3630b91-3a35-46b9-a8d3-b0c1b3ef6331/ask")
+        except:
+            webbrowser.open("https://app.dosu.dev/e3630b91-3a35-46b9-a8d3-b0c1b3ef6331/ask")
 
     def __on_web_activated(self, row):
-        webbrowser.open("https://vanillaos.org")
+        try:
+            GLib.spawn_command_line_async("xdg-open https://universal-blue.org/")
+        except:
+            webbrowser.open("https://universal-blue.org/")
