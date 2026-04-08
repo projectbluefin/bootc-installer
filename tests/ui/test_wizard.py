@@ -136,10 +136,13 @@ class TestImageStep:
         assert "selected_image" in finals or "custom_image" in finals
 
     def test_default_image_selected(self, window):
+        """With no default_image in catalog, tree starts collapsed and nothing is pre-selected."""
         step = window.image_step
         finals = step.get_finals()
         image = finals.get("selected_image") or finals.get("custom_image")
-        assert image, "No default image was auto-selected"
+        assert not image, (
+            "No image should be pre-selected when default_image is absent from catalog"
+        )
 
     def test_composefs_backend_in_finals(self, window):
         step = window.image_step
@@ -174,7 +177,14 @@ class TestDiskStepButtonState:
         the page btn_next defaulted to sensitive=True and the window mirrored
         that onto the header Next button — making it clickable before any disk
         was chosen.
+
+        Skipped when Adw.ButtonRow is unavailable (libadwaita < 1.6, e.g. Ubuntu 24.04).
         """
+        try:
+            Adw.ButtonRow  # noqa: B018 — probe for ≥1.6 widget
+        except AttributeError:
+            pytest.skip("Adw.ButtonRow requires libadwaita >= 1.6")
+
         from unittest.mock import MagicMock, patch
 
         from bootc_installer.defaults.disk import VanillaDefaultDisk

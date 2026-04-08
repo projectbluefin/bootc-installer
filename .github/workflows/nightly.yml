@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch: [main, dev]
+        branch: [prod, dev]
     name: "Go Tests (${{ matrix.branch }})"
     runs-on: ubuntu-latest
 
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch: [main, dev]
+        branch: [prod, dev]
     name: "Python Unit Tests (${{ matrix.branch }})"
     runs-on: ubuntu-latest
 
@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch: [main, dev]
+        branch: [prod, dev]
     name: "Python UI Tests (${{ matrix.branch }})"
     runs-on: ubuntu-latest
 

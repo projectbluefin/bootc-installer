@@ -2,9 +2,9 @@ name: Go Tests
 
 on:
   push:
-    branches: [main, dev]
+    branches: [prod, dev]
   pull_request:
-    branches: [main, dev]
+    branches: [prod, dev]
   workflow_dispatch:
 
 jobs:
