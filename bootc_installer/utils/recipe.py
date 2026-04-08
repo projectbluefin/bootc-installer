@@ -26,6 +26,7 @@ logger = logging.getLogger("Installer::RecipeLoader")
 
 class RecipeLoader:
     recipe_paths = [
+        "/etc/bootc-installer/recipe.json",
         "/etc/tunaos-installer/recipe.json",
         "/etc/vanilla-installer/recipe.json",
         "/app/share/bootc-installer/recipe.json",

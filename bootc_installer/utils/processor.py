@@ -124,7 +124,7 @@ class Processor:
         if not image:
             logger.warning("No image/imgref found in finals or sys_recipe!")
 
-        target_imgref = f"docker://{image}" if image else ""
+        target_imgref = image
 
         # --- Hostname ---
         hostname = merged.get("hostname", sys_recipe.get("hostname", "tunaos"))

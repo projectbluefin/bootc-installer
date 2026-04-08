@@ -12,7 +12,7 @@
 ```bash
 curl -Lo installer.flatpak \
   https://github.com/tuna-os/tuna-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
-  && flatpak install --user --bundle installer.flatpak
+  && sudo flatpak uninstall -y org.bootcinstaller.Installer org.tunaos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
 ### Devel (latest `dev` branch build)
@@ -20,7 +20,7 @@ curl -Lo installer.flatpak \
 ```bash
 curl -Lo installer-devel.flatpak \
   https://github.com/tuna-os/tuna-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
-  && flatpak install --user --bundle installer-devel.flatpak
+  && sudo flatpak uninstall -y org.bootcinstaller.Installer.Devel 2>/dev/null; sudo flatpak install --bundle -y installer-devel.flatpak
 ```
 
 ---

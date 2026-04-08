@@ -68,7 +68,7 @@ _mock_gio_data.get_data.return_value = _json.dumps(_FIXTURE_MANIFEST).encode()
 sys.modules["gi.repository"].Gio.resources_lookup_data.return_value = _mock_gio_data
 sys.modules["gi.repository"].Gio.ResourceLookupFlags.NONE = 0
 
-from bootc_installer.defaults.image import _find_icon_for_imgref  # noqa: E402
+from bootc_installer.defaults.image import _find_icon_for_imgref, _resolve_aliases  # noqa: E402
 
 
 class TestFindIconForImgref(unittest.TestCase):
@@ -112,8 +112,44 @@ class TestDistroInfoDefaultImageIcon(unittest.TestCase):
         self.assertTrue(icon.startswith("resource://"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestResolveAliases(unittest.TestCase):
+    """Unit tests for the @alias resolution helper."""
+
+    def test_string_value_replaced(self):
+        aliases = {"brew_url": "https://example.com/flatpaks.Brewfile"}
+        manifest = {"images": [{"name": "Foo", "flatpaks": "@brew_url"}]}
+        _resolve_aliases(manifest, aliases)
+        self.assertEqual(manifest["images"][0]["flatpaks"], "https://example.com/flatpaks.Brewfile")
+
+    def test_list_value_replaced(self):
+        aliases = {"foo": "bar"}
+        obj = ["@foo", "baz", "@foo"]
+        _resolve_aliases(obj, aliases)
+        self.assertEqual(obj, ["bar", "baz", "bar"])
+
+    def test_non_alias_string_left_unchanged(self):
+        aliases = {"foo": "bar"}
+        manifest = {"name": "NoAlias", "flatpaks": "https://example.com/file"}
+        _resolve_aliases(manifest, aliases)
+        self.assertEqual(manifest["flatpaks"], "https://example.com/file")
+
+    def test_unknown_alias_left_as_is(self):
+        aliases = {"known": "value"}
+        manifest = {"key": "@unknown"}
+        _resolve_aliases(manifest, aliases)
+        self.assertEqual(manifest["key"], "@unknown")
+
+    def test_nested_dict_resolved(self):
+        aliases = {"url": "https://host/path"}
+        manifest = {"a": {"b": {"flatpaks": "@url"}}}
+        _resolve_aliases(manifest, aliases)
+        self.assertEqual(manifest["a"]["b"]["flatpaks"], "https://host/path")
+
+    def test_empty_aliases_no_change(self):
+        aliases = {}
+        manifest = {"key": "@something"}
+        _resolve_aliases(manifest, aliases)
+        self.assertEqual(manifest["key"], "@something")
 
 
 class TestImagesCatalogIntegrity(unittest.TestCase):
@@ -144,6 +180,16 @@ class TestImagesCatalogIntegrity(unittest.TestCase):
         with open(self._CATALOG_PATH) as f:
             return _json.load(f)
 
+    def _all_imgrefs(self, nodes, registry_ctx=""):
+        """Yield every effective imgref in the tree, resolving registry+tag nodes."""
+        for n in nodes:
+            registry = n.get("registry", registry_ctx)
+            if "imgref" in n:
+                yield n["imgref"]
+            elif "tag" in n and registry:
+                yield f"{registry}:{n['tag']}"
+            yield from self._all_imgrefs(n.get("children", []), registry)
+
     def test_no_bare_ampersand_in_names(self):
         """Names must not contain bare & — it breaks Pango markup rendering."""
         catalog = self._load_catalog()
@@ -157,21 +203,61 @@ class TestImagesCatalogIntegrity(unittest.TestCase):
         self.assertEqual(bad, [], f"'Gaming' label found (use Nvidia+CUDA): {bad}")
 
     def test_default_image_present_and_valid(self):
-        """default_image must be set and must exist as a leaf imgref in the tree.
+        """If default_image is set it must exist as a leaf in the tree.
 
-        Without it _DEFAULT_IMAGE is '' and __select_default() never fires,
-        leaving the image step with no selection and breaking the UI and tests.
+        An absent or empty default_image is valid — the tree starts fully
+        collapsed with nothing pre-selected (btn_next disabled until the
+        user picks an image).  Distros can override via their own images.json.
         """
         catalog = self._load_catalog()
         default = catalog.get("default_image", "")
-        self.assertTrue(default, "default_image is missing or empty in images.json")
+        if not default:
+            return  # fully-collapsed mode — no default required
 
-        def all_imgrefs(nodes):
-            for n in nodes:
-                if "imgref" in n:
-                    yield n["imgref"]
-                yield from all_imgrefs(n.get("children", []))
-
-        found = list(all_imgrefs(catalog.get("images", [])))
+        found = list(self._all_imgrefs(catalog.get("images", [])))
         self.assertIn(default, found,
                       f"default_image {default!r} is not a leaf imgref in the tree")
+
+    def test_aliases_resolve_without_unknown_refs(self):
+        """Every @alias_name in the catalog must have a corresponding alias definition."""
+        catalog = self._load_catalog()
+        aliases = catalog.get("aliases", {})
+
+        def _collect_alias_refs(obj):
+            if isinstance(obj, dict):
+                for key, val in obj.items():
+                    if key == "aliases":
+                        continue  # skip the definitions dict itself
+                    yield from _collect_alias_refs(val)
+            elif isinstance(obj, list):
+                for item in obj:
+                    yield from _collect_alias_refs(item)
+            elif isinstance(obj, str) and obj.startswith("@"):
+                yield obj[1:]
+
+        unknown = [name for name in _collect_alias_refs(catalog) if name not in aliases]
+        self.assertEqual(unknown, [], f"Unknown alias references in images.json: {unknown}")
+
+    def test_registry_tag_nodes_produce_valid_imgrefs(self):
+        """Every ``tag`` node must have a ``registry`` in scope (itself or ancestor)."""
+        catalog = self._load_catalog()
+
+        def _check(nodes, registry_ctx=""):
+            for n in nodes:
+                registry = n.get("registry", registry_ctx)
+                if "tag" in n and not "imgref" in n:
+                    self.assertTrue(
+                        registry,
+                        f"Node '{n.get('name')}' has 'tag' but no registry in scope"
+                    )
+                    imgref = f"{registry}:{n['tag']}"
+                    self.assertIn(":", imgref,
+                                  f"Composed imgref '{imgref}' missing colon")
+                _check(n.get("children", []), registry)
+
+        _check(catalog.get("images", []))
+
+
+if __name__ == "__main__":
+    unittest.main()
+

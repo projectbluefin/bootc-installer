@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import tempfile
+from unittest.mock import patch as _mock_patch
 
 import pytest
 
@@ -73,12 +74,25 @@ def window():
 
     old_recipe_env = os.environ.get("VANILLA_CUSTOM_RECIPE")
     os.environ["VANILLA_CUSTOM_RECIPE"] = recipe_path
+
+    # On an ostree-booted dev machine, RecipeLoader detects "live ISO mode"
+    # and strips the image step. Patch os.path.exists in the recipe module
+    # to simulate running inside a Flatpak (/.flatpak-info present), which
+    # keeps live_iso_mode=False so the image step is retained for tests.
+    _real_exists = os.path.exists
+    def _flatpak_exists(p):
+        if p == "/.flatpak-info":
+            return True
+        return _real_exists(p)
+
     try:
         app = Adw.Application(
             application_id="org.bootcinstaller.InstallerTest",
             flags=Gio.ApplicationFlags.NON_UNIQUE,
         )
-        win = VanillaWindow(application=app)
+        with _mock_patch("bootc_installer.utils.recipe.os.path.exists",
+                         side_effect=_flatpak_exists):
+            win = VanillaWindow(application=app)
         win.present()
         _pump()
         yield win
@@ -151,6 +165,32 @@ class TestImageStep:
 
 
 # ── Wizard navigation ──────────────────────────────────────────────────────────
+
+class TestDiskStepButtonState:
+    def test_next_button_insensitive_before_selection(self):
+        """btn_next must start insensitive so the header Next is greyed out.
+
+        Regression test: the blueprint previously omitted sensitive: false, so
+        the page btn_next defaulted to sensitive=True and the window mirrored
+        that onto the header Next button — making it clickable before any disk
+        was chosen.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from bootc_installer.defaults.disk import VanillaDefaultDisk
+
+        mock_window = MagicMock()
+        mock_window.recipe = {"min_disk_size": 51200}
+
+        with patch("bootc_installer.defaults.disk.DisksManager") as MockDM:
+            MockDM.return_value.all_disks.return_value = []
+            widget = VanillaDefaultDisk(mock_window, {}, "disk", {})
+            _pump()
+
+        assert not widget.btn_next.get_sensitive(), (
+            "btn_next must be insensitive on load so the header Next is greyed out"
+        )
+
 
 class TestWizardNavigation:
     def test_can_advance_from_image_step(self, window):

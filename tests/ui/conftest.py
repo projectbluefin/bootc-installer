@@ -24,7 +24,10 @@ if repo_root not in sys.path:
 import gi  # noqa: E402
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-gi.require_version("Vte", "3.91")
+try:
+    gi.require_version("Vte", "3.91")
+except ValueError:
+    pass  # VTE not installed in this environment; tests that need it will fail at import
 
 from gi.repository import Adw, Gio  # noqa: E402
 
