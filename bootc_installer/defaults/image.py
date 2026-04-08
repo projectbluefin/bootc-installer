@@ -280,7 +280,7 @@ class VanillaDefaultImage(Adw.Bin):
         self.__step = step
         self.delta = False
 
-        self.__selected_imgref = _DEFAULT_IMAGE
+        self.__selected_imgref = _DEFAULT_IMAGE or None
         self.__selected_flatpaks = None  # per-image flatpak list (None = use fallback)
         self.__selected_flatpak_var_path = ""  # override for writable var path (e.g. GnomeOS)
         self.__selected_carousel = None  # per-image carousel slides (None = use recipe default)

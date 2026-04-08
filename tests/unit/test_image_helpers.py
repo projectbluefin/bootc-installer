@@ -203,14 +203,16 @@ class TestImagesCatalogIntegrity(unittest.TestCase):
         self.assertEqual(bad, [], f"'Gaming' label found (use Nvidia+CUDA): {bad}")
 
     def test_default_image_present_and_valid(self):
-        """default_image must be set and must exist as a leaf in the tree.
+        """If default_image is set it must exist as a leaf in the tree.
 
-        Handles both explicit ``imgref`` leaves and ``registry``+``tag`` shorthand
-        nodes so refactored groups are covered.
+        An absent or empty default_image is valid — the tree starts fully
+        collapsed with nothing pre-selected (btn_next disabled until the
+        user picks an image).  Distros can override via their own images.json.
         """
         catalog = self._load_catalog()
         default = catalog.get("default_image", "")
-        self.assertTrue(default, "default_image is missing or empty in images.json")
+        if not default:
+            return  # fully-collapsed mode — no default required
 
         found = list(self._all_imgrefs(catalog.get("images", [])))
         self.assertIn(default, found,
