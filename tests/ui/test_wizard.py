@@ -215,12 +215,20 @@ class TestWizardNavigation:
 
 # ── Full flow: finals → processor ─────────────────────────────────────────────
 
+def _set_custom_image(image_step, imgref: str):
+    """Expand the custom image row and type an imgref so get_finals() returns it."""
+    image_step.row_custom.set_expanded(True)
+    image_step.image_url_entry.set_text(imgref)
+    _pump()
+
+
 class TestEndToEnd:
     def test_recipe_generated_from_auto_disk(self, window):
         """Simulate auto-disk selection and verify processor produces valid JSON."""
         from bootc_installer.utils.processor import Processor
 
-        # Build a finals list that mimics what the wizard collects.
+        # Select an image so the recipe is valid (no default in catalog).
+        _set_custom_image(window.image_step, "ghcr.io/tuna-os/yellowfin:gnome50")
         image_finals = window.image_step.get_finals()
         disk_finals = {
             "disk": {"auto": {"disk": "/dev/vda", "pretty_size": "100 GB",
@@ -247,6 +255,8 @@ class TestEndToEnd:
         """Manual partition layout produces customMounts in the recipe."""
         from bootc_installer.utils.processor import Processor
 
+        # Select an image so the recipe is valid (no default in catalog).
+        _set_custom_image(window.image_step, "ghcr.io/tuna-os/yellowfin:gnome50")
         image_finals = window.image_step.get_finals()
         disk_finals = {
             "disk": {
