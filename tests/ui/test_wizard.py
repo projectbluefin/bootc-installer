@@ -152,6 +152,32 @@ class TestImageStep:
 
 # ── Wizard navigation ──────────────────────────────────────────────────────────
 
+class TestDiskStepButtonState:
+    def test_next_button_insensitive_before_selection(self):
+        """btn_next must start insensitive so the header Next is greyed out.
+
+        Regression test: the blueprint previously omitted sensitive: false, so
+        the page btn_next defaulted to sensitive=True and the window mirrored
+        that onto the header Next button — making it clickable before any disk
+        was chosen.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from bootc_installer.defaults.disk import VanillaDefaultDisk
+
+        mock_window = MagicMock()
+        mock_window.recipe = {"min_disk_size": 51200}
+
+        with patch("bootc_installer.defaults.disk.DisksManager") as MockDM:
+            MockDM.return_value.all_disks.return_value = []
+            widget = VanillaDefaultDisk(mock_window, {}, "disk", {})
+            _pump()
+
+        assert not widget.btn_next.get_sensitive(), (
+            "btn_next must be insensitive on load so the header Next is greyed out"
+        )
+
+
 class TestWizardNavigation:
     def test_can_advance_from_image_step(self, window):
         """Clicking Next on the image step rebuilds downstream UI and advances."""
