@@ -116,7 +116,7 @@ class VanillaWindow(Adw.ApplicationWindow):
         if target is None and self.__builder.widgets:
             target = self.__builder.widgets[-1]
 
-        if target is not None:
+        if target is not None and hasattr(target, "btn_next"):
             self.__update_finals_handler = target.btn_next.connect("clicked", self.update_finals)
             self.__update_finals_widget = target
 

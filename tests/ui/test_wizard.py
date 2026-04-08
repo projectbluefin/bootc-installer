@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import tempfile
+from unittest.mock import patch as _mock_patch
 
 import pytest
 
@@ -73,12 +74,25 @@ def window():
 
     old_recipe_env = os.environ.get("VANILLA_CUSTOM_RECIPE")
     os.environ["VANILLA_CUSTOM_RECIPE"] = recipe_path
+
+    # On an ostree-booted dev machine, RecipeLoader detects "live ISO mode"
+    # and strips the image step. Patch os.path.exists in the recipe module
+    # to simulate running inside a Flatpak (/.flatpak-info present), which
+    # keeps live_iso_mode=False so the image step is retained for tests.
+    _real_exists = os.path.exists
+    def _flatpak_exists(p):
+        if p == "/.flatpak-info":
+            return True
+        return _real_exists(p)
+
     try:
         app = Adw.Application(
             application_id="org.bootcinstaller.InstallerTest",
             flags=Gio.ApplicationFlags.NON_UNIQUE,
         )
-        win = VanillaWindow(application=app)
+        with _mock_patch("bootc_installer.utils.recipe.os.path.exists",
+                         side_effect=_flatpak_exists):
+            win = VanillaWindow(application=app)
         win.present()
         _pump()
         yield win
