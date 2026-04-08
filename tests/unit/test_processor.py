@@ -66,6 +66,16 @@ class TestAutoDisk:
         r = _load(path)
         assert r["image"] == img
 
+    def test_target_imgref_no_docker_prefix(self):
+        # Regression: targetImgref must be a bare reference, not docker://ghcr.io/...
+        # If docker:// is prepended here, bootc stores it verbatim and subsequent
+        # `bootc update` calls prepend it again → double prefix → broken updates.
+        img = "ghcr.io/projectbluefin/dakota:latest"
+        path = Processor.gen_install_recipe("log", _auto_finals(image=img), _SYS_RECIPE)
+        r = _load(path)
+        assert r["targetImgref"] == img
+        assert not r["targetImgref"].startswith("docker://")
+
     def test_hostname_propagated(self):
         path = Processor.gen_install_recipe("log", _auto_finals(hostname="mybox"), _SYS_RECIPE)
         r = _load(path)
