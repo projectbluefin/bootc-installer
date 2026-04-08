@@ -96,8 +96,8 @@ DAKOTA_RECIPE = {
 
 AURORA_RECIPE = {
     **_BASE_RECIPE,
-    "filesystem": "xfs",
-    "btrfsSubvolumes": False,
+    "filesystem": "btrfs",
+    "btrfsSubvolumes": True,
     "image": "ghcr.io/ublue-os/aurora:stable",
     "targetImgref": "docker://ghcr.io/ublue-os/aurora:stable",
     "composeFsBackend": False,
@@ -107,8 +107,8 @@ AURORA_RECIPE = {
 
 BLUEFIN_RECIPE = {
     **_BASE_RECIPE,
-    "filesystem": "xfs",
-    "btrfsSubvolumes": False,
+    "filesystem": "btrfs",
+    "btrfsSubvolumes": True,
     "image": "ghcr.io/ublue-os/bluefin:stable",
     "targetImgref": "docker://ghcr.io/ublue-os/bluefin:stable",
     "composeFsBackend": False,
@@ -118,8 +118,8 @@ BLUEFIN_RECIPE = {
 
 BAZZITE_RECIPE = {
     **_BASE_RECIPE,
-    "filesystem": "xfs",
-    "btrfsSubvolumes": False,
+    "filesystem": "btrfs",
+    "btrfsSubvolumes": True,
     "image": "ghcr.io/ublue-os/bazzite:stable",
     "targetImgref": "docker://ghcr.io/ublue-os/bazzite:stable",
     "composeFsBackend": False,
