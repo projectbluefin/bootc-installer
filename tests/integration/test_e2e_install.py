@@ -94,6 +94,39 @@ DAKOTA_RECIPE = {
     "selinuxDisabled": False,
 }
 
+AURORA_RECIPE = {
+    **_BASE_RECIPE,
+    "filesystem": "btrfs",
+    "btrfsSubvolumes": True,
+    "image": "ghcr.io/ublue-os/aurora:stable",
+    "targetImgref": "docker://ghcr.io/ublue-os/aurora:stable",
+    "composeFsBackend": False,
+    "bootloader": "",
+    "selinuxDisabled": False,
+}
+
+BLUEFIN_RECIPE = {
+    **_BASE_RECIPE,
+    "filesystem": "btrfs",
+    "btrfsSubvolumes": True,
+    "image": "ghcr.io/ublue-os/bluefin:stable",
+    "targetImgref": "docker://ghcr.io/ublue-os/bluefin:stable",
+    "composeFsBackend": False,
+    "bootloader": "",
+    "selinuxDisabled": False,
+}
+
+BAZZITE_RECIPE = {
+    **_BASE_RECIPE,
+    "filesystem": "btrfs",
+    "btrfsSubvolumes": True,
+    "image": "ghcr.io/ublue-os/bazzite:stable",
+    "targetImgref": "docker://ghcr.io/ublue-os/bazzite:stable",
+    "composeFsBackend": False,
+    "bootloader": "",
+    "selinuxDisabled": False,
+}
+
 
 # ---------------------------------------------------------------------------
 # Skip conditions
@@ -481,6 +514,21 @@ def test_dakota_install():
     _install_image(DAKOTA_RECIPE, "Dakota", vnc_offset=12)
 
 
+def test_aurora_install():
+    """Aurora stable (grub2 + XFS) installs and optionally boots to GDM."""
+    _install_image(AURORA_RECIPE, "Aurora", vnc_offset=13)
+
+
+def test_bluefin_install():
+    """Bluefin stable (grub2 + XFS) installs and optionally boots to GDM."""
+    _install_image(BLUEFIN_RECIPE, "Bluefin", vnc_offset=14)
+
+
+def test_bazzite_install():
+    """Bazzite stable (grub2 + XFS) installs and optionally boots to GDM."""
+    _install_image(BAZZITE_RECIPE, "Bazzite", vnc_offset=15)
+
+
 # ---------------------------------------------------------------------------
 # Build helper (run standalone)
 # ---------------------------------------------------------------------------
@@ -504,8 +552,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="E2E install test runner")
-    parser.add_argument("--images", default="yellowfin,dakota",
-                        help="Comma-separated list of images to test (yellowfin, dakota)")
+    parser.add_argument("--images", default="yellowfin,dakota,aurora,bluefin,bazzite",
+                        help="Comma-separated list of images to test (yellowfin, dakota, aurora, bluefin, bazzite)")
     parser.add_argument("--boot-verify", action="store_true",
                         help="Boot each installed disk in QEMU and verify display")
     parser.add_argument("--build", action="store_true",
@@ -531,9 +579,11 @@ if __name__ == "__main__":
     results = {}
 
     for name in images:
-        recipe = {"yellowfin": YELLOWFIN_RECIPE, "dakota": DAKOTA_RECIPE}.get(name)
+        recipe = {"yellowfin": YELLOWFIN_RECIPE, "dakota": DAKOTA_RECIPE,
+                  "aurora": AURORA_RECIPE, "bluefin": BLUEFIN_RECIPE,
+                  "bazzite": BAZZITE_RECIPE}.get(name)
         if recipe is None:
-            print(f"Unknown image: {name!r} (choose from: yellowfin, dakota)")
+            print(f"Unknown image: {name!r} (choose from: yellowfin, dakota, aurora, bluefin, bazzite)")
             continue
         print(f"\n{'='*60}\nTesting {name}\n{'='*60}")
         try:

@@ -1,0 +1,110 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  go-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [prod, dev]
+    name: "Go Tests (${{ matrix.branch }})"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: fisherman/fisherman
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+          cache-dependency-path: fisherman/fisherman/go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -count=1 -timeout=60s ./...
+
+      - name: Run tests with race detector
+        run: go test -race -count=1 -timeout=60s ./...
+
+  python-unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [prod, dev]
+    name: "Python Unit Tests (${{ matrix.branch }})"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install pytest
+
+      - run: pytest tests/unit/ -v --tb=short
+
+  python-ui:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [prod, dev]
+    name: "Python UI Tests (${{ matrix.branch }})"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            python3-pytest \
+            python3-gi \
+            python3-gi-cairo \
+            gir1.2-gtk-4.0 \
+            gir1.2-adw-1 \
+            gir1.2-vte-3.91 \
+            blueprint-compiler \
+            meson \
+            ninja-build \
+            libglib2.0-dev \
+            desktop-file-utils \
+            appstream \
+            gettext \
+            xvfb
+
+      - name: Build GResources
+        run: |
+          meson setup build \
+            -Dbuild-fisherman=false \
+            --prefix=/tmp/tuna-install
+          ninja -C build
+          RESOURCE=$(find build -name "bootc-installer.gresource" | head -1)
+          echo "TUNA_RESOURCE=${RESOURCE}" >> $GITHUB_ENV
+
+      - name: Run UI integration tests (Xvfb)
+        env:
+          GTK_A11Y: none
+          NO_AT_BRIDGE: "1"
+        run: xvfb-run -a python3 -m pytest tests/ui/ -v --tb=short -p no:cacheprovider

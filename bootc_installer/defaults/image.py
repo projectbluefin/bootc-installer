@@ -98,7 +98,45 @@ def _load_manifest():
         return {"fallback_flatpaks": [], "images": []}
 
 
+def _resolve_aliases(obj: object, aliases: dict) -> None:
+    """Recursively replace ``@alias_name`` strings with values from *aliases*.
+
+    Any string value (in a dict or list) that starts with ``@`` is treated as
+    an alias reference.  Unknown aliases are left as-is so the parser can
+    surface a meaningful error later rather than silently corrupting data.
+
+    This runs once at manifest-load time so the rest of the codebase never
+    needs to know about the alias syntax.
+    """
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if isinstance(value, str) and value.startswith("@"):
+                resolved = aliases.get(value[1:])
+                if resolved is not None:
+                    obj[key] = resolved
+                else:
+                    logger.warning(f"images.json: unknown alias '{value}'")
+            else:
+                _resolve_aliases(value, aliases)
+    elif isinstance(obj, list):
+        for i, value in enumerate(obj):
+            if isinstance(value, str) and value.startswith("@"):
+                resolved = aliases.get(value[1:])
+                if resolved is not None:
+                    obj[i] = resolved
+                else:
+                    logger.warning(f"images.json: unknown alias '{value}'")
+            else:
+                _resolve_aliases(value, aliases)
+
+
 _MANIFEST = _load_manifest()
+
+# Resolve @alias references before anything else reads the manifest.
+_aliases = _MANIFEST.get("aliases", {})
+if _aliases:
+    _resolve_aliases(_MANIFEST, _aliases)
+
 _IMAGE_TREE = _MANIFEST["images"]
 _DEFAULT_IMAGE = _MANIFEST.get("default_image", "")
 _FALLBACK_FLATPAKS = _MANIFEST["fallback_flatpaks"]
@@ -242,7 +280,7 @@ class VanillaDefaultImage(Adw.Bin):
         self.__step = step
         self.delta = False
 
-        self.__selected_imgref = _DEFAULT_IMAGE
+        self.__selected_imgref = _DEFAULT_IMAGE or None
         self.__selected_flatpaks = None  # per-image flatpak list (None = use fallback)
         self.__selected_flatpak_var_path = ""  # override for writable var path (e.g. GnomeOS)
         self.__selected_carousel = None  # per-image carousel slides (None = use recipe default)
@@ -296,9 +334,9 @@ class VanillaDefaultImage(Adw.Bin):
                     img.get("description", ""), "", [exp])
             self.list_images.append(exp)
 
-    def __build_node(self, parent, node, ancestors, search_ctx, flatpaks_ctx=None, icon_ctx=None, carousel_ctx=None, needs_user_ctx=False, composefs_ctx=False, image_type_ctx="bootc", bootloader_ctx="", image_filesystem_ctx="", flatpak_var_path_ctx=""):
+    def __build_node(self, parent, node, ancestors, search_ctx, flatpaks_ctx=None, icon_ctx=None, carousel_ctx=None, needs_user_ctx=False, composefs_ctx=False, image_type_ctx="bootc", bootloader_ctx="", image_filesystem_ctx="", flatpak_var_path_ctx="", registry_ctx=""):
         """Recursively build ExpanderRow groups and ActionRow leaves."""
-        # Inherit flatpaks, icon, carousel, needs_user_creation, composefs, image_type, bootloader, image_filesystem, and flatpak_var_path from nearest ancestor.
+        # Inherit flatpaks, icon, carousel, needs_user_creation, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, and registry from nearest ancestor.
         node_flatpaks = node.get("flatpaks", flatpaks_ctx)
         node_icon = node.get("icon", icon_ctx)
         node_carousel = node.get("carousel", carousel_ctx)
@@ -308,9 +346,23 @@ class VanillaDefaultImage(Adw.Bin):
         node_bootloader = node.get("bootloader", bootloader_ctx)
         node_image_filesystem = node.get("filesystem", image_filesystem_ctx)
         node_flatpak_var_path = node.get("flatpak_var_path", flatpak_var_path_ctx)
+        node_registry = node.get("registry", registry_ctx)
 
-        if "imgref" in node:
-            self.__add_leaf(parent, node["name"], node["imgref"],
+        # A leaf can use "tag" instead of a full "imgref" when a "registry" is
+        # available from this node or an ancestor.  The full imgref is composed
+        # as "registry:tag" so the rest of the code never sees the shorthand.
+        imgref = node.get("imgref")
+        if imgref is None and "tag" in node:
+            if node_registry:
+                imgref = f"{node_registry}:{node['tag']}"
+            else:
+                logger.warning(
+                    f"images.json: node '{node.get('name')}' has 'tag' but no "
+                    f"'registry' in scope — skipping leaf"
+                )
+
+        if imgref is not None:
+            self.__add_leaf(parent, node["name"], imgref,
                             node.get("desc", ""), search_ctx, ancestors,
                             node_flatpaks, node_icon, node_carousel, node_needs_user,
                             node_composefs, node_image_type, node_bootloader, node_image_filesystem,
@@ -336,7 +388,7 @@ class VanillaDefaultImage(Adw.Bin):
         child_ancestors = ancestors + [exp]
 
         for child in node.get("children", []):
-            self.__build_node(exp, child, child_ancestors, child_ctx, node_flatpaks, node_icon, node_carousel, node_needs_user, node_composefs, node_image_type, node_bootloader, node_image_filesystem, node_flatpak_var_path)
+            self.__build_node(exp, child, child_ancestors, child_ctx, node_flatpaks, node_icon, node_carousel, node_needs_user, node_composefs, node_image_type, node_bootloader, node_image_filesystem, node_flatpak_var_path, node_registry)
 
         if parent is self.list_images:
             parent.append(exp)

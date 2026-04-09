@@ -109,7 +109,8 @@ class Processor:
 
         # --- Image / OCI ref ---
         # In Flatpak mode: finals contain "selected_image" or "custom_image" from the UI.
-        # In live ISO mode: the image step is skipped; recipe["imgref"] holds the local image.
+        # In live ISO mode: the image step is skipped; recipe["imgref"] holds the remote
+        # tracking ref and optional "local_imgref" holds the install source override.
         image = merged.get("custom_image", "") or merged.get("selected_image", "")
         if not image:
             image = sys_recipe.get("imgref", "")
@@ -124,7 +125,21 @@ class Processor:
         if not image:
             logger.warning("No image/imgref found in finals or sys_recipe!")
 
+        # target_imgref is always the remote registry reference written into the
+        # installed system so that bootc upgrade tracks the correct upstream image.
         target_imgref = image
+
+        # local_imgref (live ISO only) is an optional install *source* override — e.g.
+        # "containers-storage:ghcr.io/org/image:tag" for offline installs from a
+        # pre-populated squashfs.  It is passed to fisherman as --source-imgref while
+        # target_imgref (the remote ref) is passed as --target-imgref unchanged.
+        local_imgref = sys_recipe.get("local_imgref", "")
+        if local_imgref:
+            logger.info(
+                f"local_imgref override: install source={local_imgref}, "
+                f"installed system tracks={target_imgref}"
+            )
+            image = local_imgref
 
         # --- Hostname ---
         hostname = merged.get("hostname", sys_recipe.get("hostname", "tunaos"))
@@ -140,6 +155,26 @@ class Processor:
         bootloader = merged.get("bootloader", "") or ""
         image_filesystem = merged.get("image_filesystem", "") or ""
         flatpak_var_path = merged.get("flatpak_var_path", "") or ""
+
+        # Live ISO mode: image_step is absent so image-level fields are missing
+        # from merged. Fall back to images.json on the host.
+        if not image_filesystem:
+            _in_flatpak = os.path.exists("/.flatpak-info")
+            _etc = "/run/host/etc" if _in_flatpak else "/etc"
+            _images_json = f"{_etc}/bootc-installer/images.json"
+            try:
+                with open(_images_json) as _f:
+                    _idata = json.load(_f)
+                _imgs = _idata.get("images", [_idata]) if "images" in _idata else [_idata]
+                _img = _imgs[0]
+                image_filesystem  = _img.get("filesystem", "") or ""
+                composefs_backend = bool(_img.get("composefs", composefs_backend))
+                bootloader        = _img.get("bootloader", bootloader) or bootloader
+                flatpak_var_path  = _img.get("flatpak_var_path", flatpak_var_path) or flatpak_var_path
+                logger.info("Live ISO fallback from images.json: filesystem=%s composefs=%s bootloader=%s",
+                            image_filesystem, composefs_backend, bootloader)
+            except Exception as _e:
+                logger.warning("Live ISO: could not read %s: %s", _images_json, _e)
 
         # Image-level filesystem requirement overrides the disk-step selection.
         if image_filesystem in ("xfs", "btrfs"):
