@@ -156,6 +156,26 @@ class Processor:
         image_filesystem = merged.get("image_filesystem", "") or ""
         flatpak_var_path = merged.get("flatpak_var_path", "") or ""
 
+        # Live ISO mode: image_step is absent so image-level fields are missing
+        # from merged. Fall back to images.json on the host.
+        if not image_filesystem:
+            _in_flatpak = os.path.exists("/.flatpak-info")
+            _etc = "/run/host/etc" if _in_flatpak else "/etc"
+            _images_json = f"{_etc}/bootc-installer/images.json"
+            try:
+                with open(_images_json) as _f:
+                    _idata = json.load(_f)
+                _imgs = _idata.get("images", [_idata]) if "images" in _idata else [_idata]
+                _img = _imgs[0]
+                image_filesystem  = _img.get("filesystem", "") or ""
+                composefs_backend = bool(_img.get("composefs", composefs_backend))
+                bootloader        = _img.get("bootloader", bootloader) or bootloader
+                flatpak_var_path  = _img.get("flatpak_var_path", flatpak_var_path) or flatpak_var_path
+                logger.info("Live ISO fallback from images.json: filesystem=%s composefs=%s bootloader=%s",
+                            image_filesystem, composefs_backend, bootloader)
+            except Exception as _e:
+                logger.warning("Live ISO: could not read %s: %s", _images_json, _e)
+
         # Image-level filesystem requirement overrides the disk-step selection.
         if image_filesystem in ("xfs", "btrfs"):
             filesystem = image_filesystem

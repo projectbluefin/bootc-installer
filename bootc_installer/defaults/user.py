@@ -1,9 +1,15 @@
 import re
+import json
 import logging
+import os
 
 from gi.repository import Adw, Gtk
 
 logger = logging.getLogger("Installer::User")
+
+_IN_FLATPAK = os.path.exists("/.flatpak-info")
+_ETC = "/run/host/etc" if _IN_FLATPAK else "/etc"
+_IMAGES_JSON = f"{_ETC}/bootc-installer/images.json"
 
 # Groups added to every created user.
 _DEFAULT_GROUPS = ["wheel"]
@@ -39,8 +45,17 @@ class VanillaDefaultUsers(Adw.Bin):
         """Skip this step unless the selected image requires user creation."""
         image_step = getattr(self.__window, "image_step", None)
         if image_step is None:
-            logger.warning("skip_screen: image_step is None — showing user step by default")
-            return False
+            # Live ISO mode: no image selection step; read needs_user_creation from images.json
+            try:
+                with open(_IMAGES_JSON) as f:
+                    data = json.load(f)
+                images = data.get("images", [data]) if "images" in data else [data]
+                nuc = images[0].get("needs_user_creation", True)
+                logger.info("skip_screen (live ISO): needs_user_creation=%s from images.json → skip=%s", nuc, not nuc)
+                return not nuc
+            except Exception as e:
+                logger.warning("skip_screen: image_step is None and images.json unreadable (%s) — showing user step", e)
+                return False
         nuc = image_step.selected_needs_user_creation
         logger.info("skip_screen: selected_needs_user_creation=%s → skip=%s", nuc, not nuc)
         return not nuc
