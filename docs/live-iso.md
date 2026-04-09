@@ -121,14 +121,26 @@ the Devel app ID instead.
 
 ## Polkit setup
 
-fisherman runs via `pkexec` and requires polkit approval for the
-`org.tunaos.Installer.install` action. On a live ISO, liveuser must be allowed
-to trigger this without a password.
+fisherman runs via `pkexec` and requires polkit approval. On a live ISO,
+liveuser must be allowed to trigger this without a password.
 
-### 1. Create the action policy
+### The exec action ID issue
 
-Write the polkit action definition directly so it is not dependent on the
-Flatpak being installed at build time:
+tuna-installer copies the fisherman binary from the Flatpak bundle to a
+**temporary path** (e.g. `/var/home/liveuser/.cache/bootc-installer/fisherman`)
+and calls `pkexec` on that path. Because the path does not match any
+`org.freedesktop.policykit.exec.path` annotation, polkit fires the generic
+**`org.freedesktop.policykit.exec`** action instead of
+`org.tunaos.Installer.install`.
+
+The custom polkit action definition (with `exec.path=/usr/local/bin/fisherman`)
+therefore **never fires** in practice. The JS rules approach below is what
+actually grants passwordless execution.
+
+### 1. Create the action policy (for completeness)
+
+Write the polkit action definition so it is not dependent on the Flatpak being
+installed at build time:
 
 ```xml
 <!-- /usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy -->
@@ -152,30 +164,33 @@ Flatpak being installed at build time:
 </policyconfig>
 ```
 
-### 2. Symlink fisherman to `/usr/local/bin`
+### 2. JS rules — the effective grant
 
-The polkit action's `exec.path` annotation points to `/usr/local/bin/fisherman`.
-Create this symlink after the installer Flatpak is pre-installed on the squashfs:
+A JS rule is required to cover both `org.tunaos.Installer.install` **and**
+`org.freedesktop.policykit.exec` (the action actually fired when pkexec is
+called on the temp fisherman path):
+
+```javascript
+// /etc/polkit-1/rules.d/99-live-installer.rules
+polkit.addRule(function(action, subject) {
+    if ((action.id === "org.tunaos.Installer.install" ||
+         action.id === "org.freedesktop.policykit.exec") &&
+            subject.user === "liveuser" && subject.local) {
+        return polkit.Result.YES;
+    }
+});
+```
+
+> **Security note:** Granting `org.freedesktop.policykit.exec` to liveuser is
+> safe on a live ISO — liveuser already has passwordless sudo in the live
+> session, and the session is ephemeral and single-purpose.
+
+### 3. Symlink fisherman to `/usr/local/bin`
 
 ```bash
 INSTALLER_APP_DIR=$(find /var/lib/flatpak/app/org.bootcinstaller.Installer \
     -name fisherman -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
 ln -sf "${INSTALLER_APP_DIR}/fisherman" /usr/local/bin/fisherman
-```
-
-### 3. JS rules fallback
-
-A belt-and-suspenders JS rule handles edge cases where logind has not yet
-marked the session active (e.g. GDM autologin):
-
-```javascript
-// /etc/polkit-1/rules.d/99-live-installer.rules
-polkit.addRule(function(action, subject) {
-    if (action.id === "org.tunaos.Installer.install" &&
-            subject.user === "liveuser" && subject.local) {
-        return polkit.Result.YES;
-    }
-});
 ```
 
 ---
@@ -295,30 +310,52 @@ upperdir.
 
 ---
 
-## Lock screen disable
+## Lock screen and sleep disable
 
 On a live ISO the screen should never lock (the user has not set a password and
-a locked screen is unrecoverable). Lock dconf keys:
+a locked screen is unrecoverable). Also disable sleep/suspend so a long install
+is not interrupted.
+
+**Important:** Check which system-db name your base image's dconf profile uses.
+Project Bluefin / Dakota uses `system-db:distro`, so overrides must go in
+`/etc/dconf/db/distro.d/`. Writing to `local.d/` will be silently ignored if
+the profile does not reference `system-db:local`. Do **not** overwrite the
+profile file — that would lose the base image's own dconf settings.
 
 ```bash
-mkdir -p /etc/dconf/db/local.d /etc/dconf/db/local.d/locks
+# Check the base image profile to find the right db name:
+#   cat /etc/dconf/profile/user  → look for "system-db:XXX"
+DB_NAME=distro   # or "local" depending on your base image
 
-cat > /etc/dconf/db/local.d/00-live-iso << 'EOF'
+mkdir -p /etc/dconf/db/${DB_NAME}.d /etc/dconf/db/${DB_NAME}.d/locks
+
+cat > /etc/dconf/db/${DB_NAME}.d/50-live-iso << 'EOF'
 [org/gnome/desktop/screensaver]
 lock-enabled=false
 idle-activation-enabled=false
 
 [org/gnome/desktop/session]
 idle-delay=uint32 0
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+sleep-inactive-ac-timeout=0
+sleep-inactive-battery-timeout=0
 EOF
 
-cat > /etc/dconf/db/local.d/locks/live-iso << 'EOF'
+cat > /etc/dconf/db/${DB_NAME}.d/locks/live-iso << 'EOF'
 /org/gnome/desktop/screensaver/lock-enabled
 /org/gnome/desktop/screensaver/idle-activation-enabled
 /org/gnome/desktop/session/idle-delay
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
 EOF
 
 dconf update
+
+# Also mask systemd sleep targets as belt-and-suspenders
+systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 ```
 
 ---
@@ -340,12 +377,14 @@ AutomaticLogin=liveuser
 - [ ] `/etc/bootc-installer/images.json` with `needs_user_creation: false` and correct `bootloader`/`filesystem`/`composefs`/`flatpak_var_path`
 - [ ] `/etc/bootc-installer/recipe.json` with distro branding
 - [ ] `/etc/xdg/autostart/tuna-installer.desktop` with `VANILLA_CUSTOM_RECIPE=/run/host/etc/...`
-- [ ] `/usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy` with `allow_active=yes`
-- [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS fallback
+- [ ] `/usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy`
+- [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS rule covering **both** `org.tunaos.Installer.install` and `org.freedesktop.policykit.exec`
 - [ ] `/usr/local/bin/fisherman` symlink into Flatpak bundle
 - [ ] `/etc/containers/storage.conf` with `driver = "vfs"`
 - [ ] `/usr/bin/skopeo` wrapper redirecting scratch to target `@scratch` btrfs subvolume
 - [ ] `/usr/bin/podman` pass-through wrapper
 - [ ] `/var/fisherman-tmp` pre-created directory
-- [ ] dconf lock-screen keys disabled
+- [ ] dconf lock-screen/sleep keys disabled (in the correct `distro.d/` or `local.d/` for your base image)
+- [ ] systemd sleep targets masked
 - [ ] GDM autologin configured for `liveuser`
+- [ ] `org.gnome.Tour.desktop` removed to prevent gnome-tour interfering with installer
