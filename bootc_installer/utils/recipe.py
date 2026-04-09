@@ -25,12 +25,22 @@ logger = logging.getLogger("Installer::RecipeLoader")
 
 
 class RecipeLoader:
-    recipe_paths = [
-        "/etc/bootc-installer/recipe.json",
-        "/etc/tunaos-installer/recipe.json",
-        "/etc/vanilla-installer/recipe.json",
-        "/app/share/bootc-installer/recipe.json",
-    ]
+    # When running inside a Flatpak sandbox, /etc is reserved by the runtime
+    # and inaccessible at /etc/.  The host filesystem /etc is available at
+    # /run/host/etc instead.  We detect this at class instantiation time and
+    # prefix all /etc/ recipe search paths accordingly.
+    _in_flatpak: bool = os.path.exists("/.flatpak-info")
+    _etc: str = "/run/host/etc" if os.path.exists("/.flatpak-info") else "/etc"
+
+    @property
+    def recipe_paths(self):
+        return [
+            f"{self._etc}/bootc-installer/recipe.json",
+            f"{self._etc}/tunaos-installer/recipe.json",
+            f"{self._etc}/vanilla-installer/recipe.json",
+            "/app/share/bootc-installer/recipe.json",
+        ]
+
     recipe_path = None
 
     def __init__(self):
@@ -38,10 +48,13 @@ class RecipeLoader:
         self.__load()
 
     def __load(self):
-        if "VANILLA_CUSTOM_RECIPE" in os.environ:
-            self.recipe_paths = [os.environ["VANILLA_CUSTOM_RECIPE"]]
+        paths = (
+            [os.environ["VANILLA_CUSTOM_RECIPE"]]
+            if "VANILLA_CUSTOM_RECIPE" in os.environ
+            else self.recipe_paths
+        )
 
-        for path in self.recipe_paths:
+        for path in paths:
             if os.path.exists(path):
                 self.recipe_path = path
                 with open(path, "r") as f:
@@ -51,17 +64,21 @@ class RecipeLoader:
                     return
                 logger.warning(f"Recipe at {path} failed validation, trying next...")
 
-        logger.error(f"No valid recipe found. Tried: {self.recipe_paths}")
+        logger.error(f"No valid recipe found. Tried: {paths}")
         sys.exit(1)
 
     def __enrich(self):
         """Post-load enrichment: detect live ISO mode and inject local bootc image."""
-        in_flatpak = os.path.exists("/.flatpak-info")
         is_ostree_booted = os.path.exists("/run/ostree-booted")
         # Also detect squashfs-based live ISOs (dracut dmsquash-live) which do not
         # set /run/ostree-booted because they are not ostree deployments.
         is_live_squashfs = os.path.exists("/run/initramfs/live")
-        live_iso_mode = not in_flatpak and (is_ostree_booted or is_live_squashfs)
+        # A live ISO builder can drop a flag file at /etc/bootc-installer/live-iso-mode
+        # to explicitly activate live ISO mode.  This is the only reliable signal when
+        # the installer runs inside a Flatpak sandbox (where /.flatpak-info exists and
+        # /run/initramfs/live or /run/ostree-booted may be inaccessible).
+        is_live_flagged = os.path.exists(f"{self._etc}/bootc-installer/live-iso-mode")
+        live_iso_mode = is_live_flagged or (not self._in_flatpak and (is_ostree_booted or is_live_squashfs))
 
         if live_iso_mode:
             # local_imgref is an optional override for the install *source* used only
