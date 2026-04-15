@@ -229,7 +229,7 @@ class TestDiskStepFsToolCheck:
         return widget
 
     def test_banner_shown_when_xfs_tool_missing(self):
-        """fs_tool_error_banner becomes visible when mkfs.xfs is not on the host PATH."""
+        """fs_tool_error_banner becomes visible and row turns red when mkfs.xfs is missing."""
         import subprocess
         from unittest.mock import patch
 
@@ -244,9 +244,13 @@ class TestDiskStepFsToolCheck:
             "fs_tool_error_banner should be visible when mkfs.xfs is missing"
         )
         assert "xfsprogs" in widget.fs_tool_error_banner.get_title()
+        assert widget.filesystem_row.has_css_class("error"), (
+            "filesystem_row should have 'error' CSS class when mkfs.xfs is missing"
+        )
+        assert "xfsprogs" in widget.filesystem_row.get_subtitle()
 
     def test_banner_hidden_when_xfs_tool_present(self):
-        """fs_tool_error_banner stays hidden when mkfs.xfs is available on the host."""
+        """Banner hidden and row error class cleared when mkfs.xfs is available."""
         import subprocess
         from unittest.mock import patch
 
@@ -260,9 +264,13 @@ class TestDiskStepFsToolCheck:
         assert not widget.fs_tool_error_banner.get_visible(), (
             "fs_tool_error_banner should be hidden when mkfs.xfs is available"
         )
+        assert not widget.filesystem_row.has_css_class("error"), (
+            "filesystem_row should not have 'error' CSS class when mkfs.xfs is available"
+        )
+        assert widget.filesystem_row.get_subtitle() == ""
 
     def test_banner_shown_when_btrfs_tool_missing(self):
-        """fs_tool_error_banner becomes visible when mkfs.btrfs is not on the host PATH."""
+        """fs_tool_error_banner visible and row red when mkfs.btrfs is missing."""
         import subprocess
         from unittest.mock import patch
 
@@ -277,6 +285,8 @@ class TestDiskStepFsToolCheck:
             "fs_tool_error_banner should be visible when mkfs.btrfs is missing"
         )
         assert "btrfs-progs" in widget.fs_tool_error_banner.get_title()
+        assert widget.filesystem_row.has_css_class("error")
+        assert "btrfs-progs" in widget.filesystem_row.get_subtitle()
 
     def test_btn_next_blocked_when_tool_missing(self):
         """btn_next must be insensitive when the required mkfs tool is missing."""

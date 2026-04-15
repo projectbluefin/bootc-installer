@@ -785,10 +785,12 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__check_fs_tool(self.__get_selected_filesystem())
 
     def __check_fs_tool(self, fs):
-        """Show a banner and block Next if the required mkfs tool for *fs* is missing."""
+        """Highlight the filesystem row and block Next if the required mkfs tool is missing."""
         tool, pkg = self._FS_TOOLS.get(fs, (None, None))
         if tool is None:
             self.__fs_tool_ok = True
+            self.filesystem_row.remove_css_class("error")
+            self.filesystem_row.set_subtitle("")
             self.fs_tool_error_banner.set_visible(False)
             self.__update_next_button()
             return
@@ -803,8 +805,14 @@ class VanillaDefaultDisk(Adw.Bin):
             available = True  # assume available if check fails
         self.__fs_tool_ok = available
         if available:
+            self.filesystem_row.remove_css_class("error")
+            self.filesystem_row.set_subtitle("")
             self.fs_tool_error_banner.set_visible(False)
         else:
+            self.filesystem_row.add_css_class("error")
+            self.filesystem_row.set_subtitle(
+                _('Install the "{}" package on the host to use this filesystem').format(pkg)
+            )
             self.fs_tool_error_banner.set_title(
                 _('Missing host tool: "{}" — install the "{}" package').format(tool, pkg)
             )
