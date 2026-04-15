@@ -692,6 +692,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__partition_recipe = None
         self.__selected_disks_sum = 0
         self.__use_virtual_disk = False
+        self.__fs_tool_ok = True  # optimistic default; updated by __check_fs_tool
 
         self.min_disk_size = self.__window.recipe.get("min_disk_size", 51200)
         self.disk_space_err_label.set_label(
@@ -784,10 +785,12 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__check_fs_tool(self.__get_selected_filesystem())
 
     def __check_fs_tool(self, fs):
-        """Show a banner if the required mkfs tool for *fs* is missing on the host."""
+        """Show a banner and block Next if the required mkfs tool for *fs* is missing."""
         tool, pkg = self._FS_TOOLS.get(fs, (None, None))
         if tool is None:
+            self.__fs_tool_ok = True
             self.fs_tool_error_banner.set_visible(False)
+            self.__update_next_button()
             return
         try:
             result = subprocess.run(
@@ -798,6 +801,7 @@ class VanillaDefaultDisk(Adw.Bin):
             available = result.returncode == 0
         except Exception:
             available = True  # assume available if check fails
+        self.__fs_tool_ok = available
         if available:
             self.fs_tool_error_banner.set_visible(False)
         else:
@@ -805,6 +809,13 @@ class VanillaDefaultDisk(Adw.Bin):
                 _('Missing host tool: "{}" — install the "{}" package').format(tool, pkg)
             )
             self.fs_tool_error_banner.set_visible(True)
+        self.__update_next_button()
+
+    def __update_next_button(self):
+        """Enable Next only when a partition recipe exists and the fs tool is present."""
+        ok = self.__partition_recipe is not None and self.__fs_tool_ok
+        self.btn_next.set_visible(ok)
+        self.btn_next.set_sensitive(ok)
 
     def __get_selected_filesystem(self):
         if not self.filesystem_row.get_visible():
@@ -924,8 +935,7 @@ class VanillaDefaultDisk(Adw.Bin):
                 self.__registry_disks.append(entry)
 
     def __on_close_default_disk_part_modal(self, *args):
-        self.btn_next.set_visible(self.__partition_recipe is not None)
-        self.btn_next.set_sensitive(self.__partition_recipe is not None)
+        self.__update_next_button()
         self.confirm_partition_changes()
 
     def __on_auto_clicked(self, button):

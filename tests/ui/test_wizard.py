@@ -278,6 +278,42 @@ class TestDiskStepFsToolCheck:
         )
         assert "btrfs-progs" in widget.fs_tool_error_banner.get_title()
 
+    def test_btn_next_blocked_when_tool_missing(self):
+        """btn_next must be insensitive when the required mkfs tool is missing."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+        # Simulate a partition recipe being set (as if the user picked a disk)
+        widget._VanillaDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
+
+        missing = subprocess.CompletedProcess(args=[], returncode=1)
+        with patch("subprocess.run", return_value=missing):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert not widget.btn_next.get_sensitive(), (
+            "btn_next must be insensitive when mkfs.xfs is missing from host PATH"
+        )
+
+    def test_btn_next_unblocked_when_tool_present(self):
+        """btn_next becomes sensitive when tool is present and a partition recipe exists."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+        widget._VanillaDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
+
+        present = subprocess.CompletedProcess(args=[], returncode=0)
+        with patch("subprocess.run", return_value=present):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert widget.btn_next.get_sensitive(), (
+            "btn_next must be sensitive when mkfs.xfs is present and a partition recipe exists"
+        )
+
+
 
 class TestWizardNavigation:
     def test_can_advance_from_image_step(self, window):
