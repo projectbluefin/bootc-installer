@@ -672,6 +672,7 @@ class VanillaDefaultDisk(Adw.Bin):
     group_disks = Gtk.Template.Child()
     disk_space_err_box = Gtk.Template.Child()
     disk_space_err_label = Gtk.Template.Child()
+    filesystem_row = Gtk.Template.Child()
     hostname_entry = Gtk.Template.Child()
 
     _VIRTUAL_DISK_IMG = "/var/home/james/tuna-virtual-disk.img"
@@ -728,9 +729,41 @@ class VanillaDefaultDisk(Adw.Bin):
         self.btn_manual.connect("clicked", self.__on_manual_clicked)
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
 
+        # Populate filesystem picker and hostname from the selected image's metadata.
+        self.__filesystem_options = ["xfs"]
+        image_step = getattr(self.__window, "image_step", None)
+        if image_step is not None:
+            image_finals = image_step.get_finals()
+            supported = image_finals.get("supported_filesystems") or []
+            default_hostname = image_finals.get("default_hostname") or ""
+            if default_hostname:
+                self.hostname_entry.set_text(default_hostname)
+            self.__setup_filesystem_row(supported)
+
         # Auto-select virtual disk if still no physical disks are available
         if not self.__registry_disks:
             self.__select_virtual_disk()
+
+    def __setup_filesystem_row(self, filesystems):
+        """Show a filesystem picker when the selected image supports multiple rootfs types."""
+        self.__filesystem_options = filesystems if filesystems else ["xfs"]
+        if len(self.__filesystem_options) <= 1:
+            self.filesystem_row.set_visible(False)
+            return
+
+        _LABELS = {"xfs": "XFS", "btrfs": "Btrfs (with subvolumes)"}
+        model = Gtk.StringList.new([_LABELS.get(fs, fs.upper()) for fs in self.__filesystem_options])
+        self.filesystem_row.set_model(model)
+        self.filesystem_row.set_selected(0)
+        self.filesystem_row.set_visible(True)
+
+    def __get_selected_filesystem(self):
+        if not self.filesystem_row.get_visible():
+            return self.__filesystem_options[0] if self.__filesystem_options else "xfs"
+        idx = self.filesystem_row.get_selected()
+        if 0 <= idx < len(self.__filesystem_options):
+            return self.__filesystem_options[idx]
+        return "xfs"
 
     def __on_btn_exit_clicked(self, button):
         self.__window.get_application().quit()
@@ -819,9 +852,14 @@ class VanillaDefaultDisk(Adw.Bin):
             return None
 
     def get_finals(self):
+        fs = self.__get_selected_filesystem()
+        disk = dict(self.__partition_recipe) if self.__partition_recipe else {}
+        if "auto" in disk:
+            disk["filesystem"] = fs
+            disk["btrfsSubvolumes"] = (fs == "btrfs")
         result = {
-            "disk": self.__partition_recipe,
-            "hostname": self.hostname_entry.get_text().strip() or "tunaos",
+            "disk": disk,
+            "hostname": self.hostname_entry.get_text().strip() or "localhost",
         }
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG
