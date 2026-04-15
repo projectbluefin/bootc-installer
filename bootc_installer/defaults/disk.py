@@ -730,19 +730,32 @@ class VanillaDefaultDisk(Adw.Bin):
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
 
         # Populate filesystem picker and hostname from the selected image's metadata.
+        # We do the initial setup now, but also refresh when this page becomes active
+        # (image selection happens on the previous step, so __init__ runs too early).
         self.__filesystem_options = ["xfs"]
-        image_step = getattr(self.__window, "image_step", None)
-        if image_step is not None:
-            image_finals = image_step.get_finals()
-            supported = image_finals.get("supported_filesystems") or []
-            default_hostname = image_finals.get("default_hostname") or ""
-            if default_hostname:
-                self.hostname_entry.set_text(default_hostname)
-            self.__setup_filesystem_row(supported)
+        self.__window.carousel.connect("page-changed", self.__on_carousel_page_changed)
+        self.__refresh_from_image_step()
 
         # Auto-select virtual disk if still no physical disks are available
         if not self.__registry_disks:
             self.__select_virtual_disk()
+
+    def __on_carousel_page_changed(self, carousel, idx):
+        if carousel.get_nth_page(idx) is self:
+            self.__refresh_from_image_step()
+
+    def __refresh_from_image_step(self):
+        """Re-read image metadata and update filesystem picker and hostname."""
+        image_step = getattr(self.__window, "image_step", None)
+        if image_step is None:
+            return
+        finals = image_step.get_finals()
+        supported = finals.get("supported_filesystems") or []
+        default_hostname = finals.get("default_hostname") or ""
+        current = self.hostname_entry.get_text().strip()
+        if default_hostname and current in ("", "localhost"):
+            self.hostname_entry.set_text(default_hostname)
+        self.__setup_filesystem_row(supported)
 
     def __setup_filesystem_row(self, filesystems):
         """Show a filesystem picker when the selected image supports multiple rootfs types."""
