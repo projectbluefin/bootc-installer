@@ -39,12 +39,12 @@ class VanillaDefaultWelcome(Adw.Bin):
         self.__step = step
         self.delta = False
 
-        distro_name = self.__distro_info.get("name", "TunaOS")
         fallback_logo = self.__distro_info.get("logo", "org.bootcinstaller.Installer")
         icon_spec = self.__distro_info.get("default_image_icon") or fallback_logo
 
         apply_icon(self.page_header, icon_spec)
-        self.page_header.title = f"Welcome to {distro_name}!"
+        welcome_title = self.__distro_info.get("welcome_title") or "bootc Installer"
+        self.page_header.title = welcome_title
 
         # signals
         self.row_install.connect("activated", self.__install)

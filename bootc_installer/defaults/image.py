@@ -291,8 +291,10 @@ class VanillaDefaultImage(Adw.Bin):
         self.__selected_image_filesystem = ""       # filesystem required by image, or ""
         self.__selected_icon = None      # icon spec for selected image (str or None)
         self.__selected_pretty_name = _imgref_to_pretty_name(_DEFAULT_IMAGE)
+        self.__selected_default_hostname = ""       # suggested hostname from images.json
+        self.__selected_filesystems = []            # user-selectable filesystems from images.json
         self.__all_expanders = []   # every ExpanderRow widget
-        self.__leaf_rows = []       # [(row, check, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, search_str, [ancestor_exps])]
+        self.__leaf_rows = []       # [(row, check, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, default_hostname, filesystems, search_str, [ancestor_exps])]
 
         # Hidden anchor for the radio CheckButton group.
         self.__radio_anchor = Gtk.CheckButton()
@@ -334,9 +336,9 @@ class VanillaDefaultImage(Adw.Bin):
                     img.get("description", ""), "", [exp])
             self.list_images.append(exp)
 
-    def __build_node(self, parent, node, ancestors, search_ctx, flatpaks_ctx=None, icon_ctx=None, carousel_ctx=None, needs_user_ctx=False, composefs_ctx=False, image_type_ctx="bootc", bootloader_ctx="", image_filesystem_ctx="", flatpak_var_path_ctx="", registry_ctx=""):
+    def __build_node(self, parent, node, ancestors, search_ctx, flatpaks_ctx=None, icon_ctx=None, carousel_ctx=None, needs_user_ctx=False, composefs_ctx=False, image_type_ctx="bootc", bootloader_ctx="", image_filesystem_ctx="", flatpak_var_path_ctx="", registry_ctx="", default_hostname_ctx="", filesystems_ctx=None):
         """Recursively build ExpanderRow groups and ActionRow leaves."""
-        # Inherit flatpaks, icon, carousel, needs_user_creation, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, and registry from nearest ancestor.
+        # Inherit all per-image metadata from nearest ancestor that defines each field.
         node_flatpaks = node.get("flatpaks", flatpaks_ctx)
         node_icon = node.get("icon", icon_ctx)
         node_carousel = node.get("carousel", carousel_ctx)
@@ -347,6 +349,8 @@ class VanillaDefaultImage(Adw.Bin):
         node_image_filesystem = node.get("filesystem", image_filesystem_ctx)
         node_flatpak_var_path = node.get("flatpak_var_path", flatpak_var_path_ctx)
         node_registry = node.get("registry", registry_ctx)
+        node_default_hostname = node.get("default_hostname", default_hostname_ctx)
+        node_filesystems = node.get("filesystems", filesystems_ctx if filesystems_ctx is not None else [])
 
         # A leaf can use "tag" instead of a full "imgref" when a "registry" is
         # available from this node or an ancestor.  The full imgref is composed
@@ -366,7 +370,7 @@ class VanillaDefaultImage(Adw.Bin):
                             node.get("desc", ""), search_ctx, ancestors,
                             node_flatpaks, node_icon, node_carousel, node_needs_user,
                             node_composefs, node_image_type, node_bootloader, node_image_filesystem,
-                            node_flatpak_var_path)
+                            node_flatpak_var_path, node_default_hostname, node_filesystems)
             return
 
         exp = Adw.ExpanderRow(title=node["name"])
@@ -388,7 +392,7 @@ class VanillaDefaultImage(Adw.Bin):
         child_ancestors = ancestors + [exp]
 
         for child in node.get("children", []):
-            self.__build_node(exp, child, child_ancestors, child_ctx, node_flatpaks, node_icon, node_carousel, node_needs_user, node_composefs, node_image_type, node_bootloader, node_image_filesystem, node_flatpak_var_path, node_registry)
+            self.__build_node(exp, child, child_ancestors, child_ctx, node_flatpaks, node_icon, node_carousel, node_needs_user, node_composefs, node_image_type, node_bootloader, node_image_filesystem, node_flatpak_var_path, node_registry, node_default_hostname, node_filesystems)
 
         if parent is self.list_images:
             parent.append(exp)
@@ -398,7 +402,7 @@ class VanillaDefaultImage(Adw.Bin):
     def __add_leaf(self, parent, name, imgref, desc, search_ctx, ancestors,
                    flatpaks=None, icon=None, carousel=None, needs_user=False,
                    composefs=False, image_type="bootc", bootloader="", image_filesystem="",
-                   flatpak_var_path=""):
+                   flatpak_var_path="", default_hostname="", filesystems=None):
         search_str = f"{search_ctx} {name} {desc} {imgref}".lower()
 
         row = Adw.ActionRow(title=name, subtitle=imgref)
@@ -410,7 +414,7 @@ class VanillaDefaultImage(Adw.Bin):
         check.set_group(self.__radio_anchor)
         row.add_prefix(check)
         row.set_activatable_widget(check)
-        check.connect("toggled", self.__on_check_toggled, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path)
+        check.connect("toggled", self.__on_check_toggled, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, default_hostname, filesystems or [])
 
         # Leaf icon — only for nodes that explicitly define one (e.g. TunaOS variants).
         if icon:
@@ -419,10 +423,10 @@ class VanillaDefaultImage(Adw.Bin):
                 row.add_suffix(img)
 
         parent.add_row(row)
-        self.__leaf_rows.append((row, check, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, search_str, list(ancestors)))
+        self.__leaf_rows.append((row, check, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, default_hostname, filesystems or [], search_str, list(ancestors)))
 
     def __select_default(self):
-        for _row, check, imgref, _flatpaks, _icon, _carousel, _needs_user, _composefs, _image_type, _bootloader, _image_filesystem, _flatpak_var_path, _search, ancestors in self.__leaf_rows:
+        for _row, check, imgref, _flatpaks, _icon, _carousel, _needs_user, _composefs, _image_type, _bootloader, _image_filesystem, _flatpak_var_path, _hostname, _filesystems, _search, ancestors in self.__leaf_rows:
             if imgref == _DEFAULT_IMAGE:
                 check.set_active(True)
                 for exp in ancestors:
@@ -432,7 +436,7 @@ class VanillaDefaultImage(Adw.Bin):
 
     # ── Selection handlers ────────────────────────────────────────────────────
 
-    def __on_check_toggled(self, check, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path):
+    def __on_check_toggled(self, check, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, default_hostname, filesystems):
         if check.get_active():
             self.__selected_imgref = imgref
             self.__selected_icon = icon
@@ -444,6 +448,8 @@ class VanillaDefaultImage(Adw.Bin):
             self.__selected_image_filesystem = image_filesystem
             self.__selected_flatpak_var_path = flatpak_var_path or ""
             self.__selected_pretty_name = _imgref_to_pretty_name(imgref)
+            self.__selected_default_hostname = default_hostname or ""
+            self.__selected_filesystems = filesystems or []
             # flatpaks may be a list of app IDs or a URL string pointing to a remote list.
             if isinstance(flatpaks, str) and flatpaks.startswith("http"):
                 self.__selected_flatpaks = _fetch_remote_flatpak_list(flatpaks)
@@ -466,6 +472,8 @@ class VanillaDefaultImage(Adw.Bin):
             self.__selected_bootloader = ""
             self.__selected_image_filesystem = ""
             self.__selected_pretty_name = None
+            self.__selected_default_hostname = ""
+            self.__selected_filesystems = []
         self.__update_btn_next()
 
     def __on_url_changed(self, entry):
@@ -486,14 +494,14 @@ class VanillaDefaultImage(Adw.Bin):
             for exp in self.__all_expanders:
                 exp.set_visible(True)
                 exp.set_expanded(False)
-            for row, _, _, _, _, _, _, _, _, _, _, _, _, _ in self.__leaf_rows:
+            for row, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ in self.__leaf_rows:
                 row.set_visible(True)
             self.__expand_default_path()
             return
 
         # Determine which leaves match and which expanders are needed.
         visible_expanders = set()
-        for row, _, _, _flatpaks, _icon, _carousel, _needs_user, _composefs, _image_type, _bootloader, _image_filesystem, _flatpak_var_path, search_str, ancestors in self.__leaf_rows:
+        for row, _, _, _flatpaks, _icon, _carousel, _needs_user, _composefs, _image_type, _bootloader, _image_filesystem, _flatpak_var_path, _hostname, _filesystems, search_str, ancestors in self.__leaf_rows:
             if query in search_str:
                 row.set_visible(True)
                 for exp in ancestors:
@@ -509,7 +517,7 @@ class VanillaDefaultImage(Adw.Bin):
                 exp.set_visible(False)
 
     def __expand_default_path(self):
-        for _, _, imgref, _, _, _, _, _, _, _, _, _, _, ancestors in self.__leaf_rows:
+        for _, _, imgref, _, _, _, _, _, _, _, _, _, _, _, _, ancestors in self.__leaf_rows:
             if imgref == _DEFAULT_IMAGE:
                 for exp in ancestors:
                     exp.set_expanded(True)
@@ -569,5 +577,7 @@ class VanillaDefaultImage(Adw.Bin):
             "bootloader": self.__selected_bootloader,
             "image_filesystem": self.__selected_image_filesystem,
             "icon": self.__selected_icon,
+            "default_hostname": self.__selected_default_hostname,
+            "supported_filesystems": self.__selected_filesystems,
         }
 
