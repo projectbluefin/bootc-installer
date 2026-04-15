@@ -673,6 +673,7 @@ class VanillaDefaultDisk(Adw.Bin):
     disk_space_err_box = Gtk.Template.Child()
     disk_space_err_label = Gtk.Template.Child()
     filesystem_row = Gtk.Template.Child()
+    fs_tool_error_banner = Gtk.Template.Child()
     hostname_entry = Gtk.Template.Child()
 
     _VIRTUAL_DISK_IMG = "/var/home/james/tuna-virtual-disk.img"
@@ -757,11 +758,18 @@ class VanillaDefaultDisk(Adw.Bin):
             self.hostname_entry.set_text(default_hostname)
         self.__setup_filesystem_row(supported)
 
+    # Maps filesystem type → (required tool, package name)
+    _FS_TOOLS = {
+        "xfs": ("mkfs.xfs", "xfsprogs"),
+        "btrfs": ("mkfs.btrfs", "btrfs-progs"),
+    }
+
     def __setup_filesystem_row(self, filesystems):
         """Show a filesystem picker when the selected image supports multiple rootfs types."""
         self.__filesystem_options = filesystems if filesystems else ["xfs"]
         if len(self.__filesystem_options) <= 1:
             self.filesystem_row.set_visible(False)
+            self.__check_fs_tool(self.__filesystem_options[0] if self.__filesystem_options else "xfs")
             return
 
         _LABELS = {"xfs": "XFS", "btrfs": "Btrfs (with subvolumes)"}
@@ -769,6 +777,34 @@ class VanillaDefaultDisk(Adw.Bin):
         self.filesystem_row.set_model(model)
         self.filesystem_row.set_selected(0)
         self.filesystem_row.set_visible(True)
+        self.filesystem_row.connect("notify::selected", self.__on_filesystem_changed)
+        self.__check_fs_tool(self.__filesystem_options[0])
+
+    def __on_filesystem_changed(self, row, _pspec):
+        self.__check_fs_tool(self.__get_selected_filesystem())
+
+    def __check_fs_tool(self, fs):
+        """Show a banner if the required mkfs tool for *fs* is missing on the host."""
+        tool, pkg = self._FS_TOOLS.get(fs, (None, None))
+        if tool is None:
+            self.fs_tool_error_banner.set_visible(False)
+            return
+        try:
+            result = subprocess.run(
+                ["flatpak-spawn", "--host", "sh", "-c", f"command -v {tool}"],
+                capture_output=True,
+                timeout=3,
+            )
+            available = result.returncode == 0
+        except Exception:
+            available = True  # assume available if check fails
+        if available:
+            self.fs_tool_error_banner.set_visible(False)
+        else:
+            self.fs_tool_error_banner.set_title(
+                _('Missing host tool: "{}" — install the "{}" package').format(tool, pkg)
+            )
+            self.fs_tool_error_banner.set_visible(True)
 
     def __get_selected_filesystem(self):
         if not self.filesystem_row.get_visible():

@@ -119,6 +119,15 @@ template $VanillaDefaultDisk: Adw.Bin {
             visible: false;
           }
 
+          Adw.Banner fs_tool_error_banner {
+            visible: false;
+            button-label: "";
+
+            styles [
+              "error",
+            ]
+          }
+
           Adw.EntryRow hostname_entry {
             title: _("Hostname");
             text: "localhost";

@@ -202,6 +202,78 @@ class TestDiskStepButtonState:
         )
 
 
+class TestDiskStepFsToolCheck:
+    """fs_tool_error_banner shows when the required mkfs tool is missing on the host."""
+
+    def _make_disk_widget(self):
+        from unittest.mock import MagicMock, patch
+
+        from bootc_installer.defaults.disk import VanillaDefaultDisk
+        from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — registers GType
+
+        mock_window = MagicMock()
+        mock_window.recipe = {"min_disk_size": 51200}
+        mock_window.image_step.get_finals.return_value = {
+            "supported_filesystems": ["xfs", "btrfs"],
+            "default_hostname": "",
+        }
+        with patch("bootc_installer.defaults.disk.DisksManager") as MockDM:
+            MockDM.return_value.all_disks.return_value = []
+            widget = VanillaDefaultDisk(mock_window, {}, "disk", {})
+            _pump()
+        return widget
+
+    def test_banner_shown_when_xfs_tool_missing(self):
+        """fs_tool_error_banner becomes visible when mkfs.xfs is not on the host PATH."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+
+        missing = subprocess.CompletedProcess(args=[], returncode=1)
+        with patch("subprocess.run", return_value=missing):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert widget.fs_tool_error_banner.get_visible(), (
+            "fs_tool_error_banner should be visible when mkfs.xfs is missing"
+        )
+        assert "xfsprogs" in widget.fs_tool_error_banner.get_title()
+
+    def test_banner_hidden_when_xfs_tool_present(self):
+        """fs_tool_error_banner stays hidden when mkfs.xfs is available on the host."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+
+        present = subprocess.CompletedProcess(args=[], returncode=0)
+        with patch("subprocess.run", return_value=present):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert not widget.fs_tool_error_banner.get_visible(), (
+            "fs_tool_error_banner should be hidden when mkfs.xfs is available"
+        )
+
+    def test_banner_shown_when_btrfs_tool_missing(self):
+        """fs_tool_error_banner becomes visible when mkfs.btrfs is not on the host PATH."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+
+        missing = subprocess.CompletedProcess(args=[], returncode=1)
+        with patch("subprocess.run", return_value=missing):
+            widget._VanillaDefaultDisk__check_fs_tool("btrfs")
+            _pump()
+
+        assert widget.fs_tool_error_banner.get_visible(), (
+            "fs_tool_error_banner should be visible when mkfs.btrfs is missing"
+        )
+        assert "btrfs-progs" in widget.fs_tool_error_banner.get_title()
+
+
 class TestWizardNavigation:
     def test_can_advance_from_image_step(self, window):
         """Clicking Next on the image step rebuilds downstream UI and advances."""
