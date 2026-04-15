@@ -211,6 +211,11 @@ class TestDiskStepFsToolCheck:
         from bootc_installer.defaults.disk import VanillaDefaultDisk
         from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — registers GType
 
+        try:
+            Adw.ButtonRow  # noqa: B018 — probe for ≥1.6 widget used in VanillaDefaultDisk.__init__
+        except AttributeError:
+            pytest.skip("Adw.ButtonRow requires libadwaita >= 1.6")
+
         mock_window = MagicMock()
         mock_window.recipe = {"min_disk_size": 51200}
         mock_window.image_step.get_finals.return_value = {
