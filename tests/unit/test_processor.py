@@ -26,7 +26,11 @@ def _auto_finals(disk="/dev/vda", fs="xfs", image="ghcr.io/tuna-os/yellowfin:gno
                  composefs=False, image_type="bootc", bootloader="", image_filesystem="",
                  flatpak_var_path=""):
     d = {
-        "disk": {"auto": {"disk": disk, "pretty_size": "100 GB", "size": 100_000_000_000}},
+        "disk": {
+            "auto": {"disk": disk, "pretty_size": "100 GB", "size": 100_000_000_000},
+            "filesystem": fs,
+            "btrfsSubvolumes": fs == "btrfs",
+        },
         "selected_image": image,
         "hostname": hostname,
         "flatpaks": flatpaks or [],
@@ -99,7 +103,7 @@ class TestAutoDisk:
                    "encryption": {"use_encryption": False}}]
         path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
         r = _load(path)
-        assert r["hostname"] == "tunaos"
+        assert r["hostname"] == "tunaos"  # sys recipe still provides distro_name fallback
 
 
 # ── Encryption tests ───────────────────────────────────────────────────────────
@@ -304,6 +308,23 @@ class TestComposefs:
             "log", _auto_finals(fs="xfs", image_filesystem=""), _SYS_RECIPE)
         r = _load(path)
         assert r["filesystem"] == "xfs"
+
+    def test_disk_step_btrfs_selection(self):
+        # When the disk step picks btrfs (user chose it from filesystem dropdown),
+        # the recipe must reflect btrfs + subvolumes=True.
+        path = Processor.gen_install_recipe(
+            "log", _auto_finals(fs="btrfs"), _SYS_RECIPE)
+        r = _load(path)
+        assert r["filesystem"] == "btrfs"
+        assert r["btrfsSubvolumes"] is True
+
+    def test_disk_step_xfs_no_subvolumes(self):
+        # XFS selection must never set btrfsSubvolumes=True.
+        path = Processor.gen_install_recipe(
+            "log", _auto_finals(fs="xfs"), _SYS_RECIPE)
+        r = _load(path)
+        assert r["filesystem"] == "xfs"
+        assert r.get("btrfsSubvolumes", False) is False
 
     def test_dakota_recipe_fields(self):
         """Simulate a Dakota image selection producing the full expected recipe."""

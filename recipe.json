@@ -2,6 +2,7 @@
     "log_file": "/var/log/bootc-installer.log",
     "distro_name": "TunaOS",
     "distro_logo": "org.bootcinstaller.Installer",
+    "welcome_title": "",
     "tour": {
         "welcome": {
             "resource": "/org/bootcinstaller/Installer/assets/welcome.png",

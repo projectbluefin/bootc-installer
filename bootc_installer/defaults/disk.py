@@ -672,6 +672,8 @@ class VanillaDefaultDisk(Adw.Bin):
     group_disks = Gtk.Template.Child()
     disk_space_err_box = Gtk.Template.Child()
     disk_space_err_label = Gtk.Template.Child()
+    filesystem_row = Gtk.Template.Child()
+    fs_tool_error_banner = Gtk.Template.Child()
     hostname_entry = Gtk.Template.Child()
 
     _VIRTUAL_DISK_IMG = "/var/home/james/tuna-virtual-disk.img"
@@ -690,6 +692,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__partition_recipe = None
         self.__selected_disks_sum = 0
         self.__use_virtual_disk = False
+        self.__fs_tool_ok = True  # optimistic default; updated by __check_fs_tool
 
         self.min_disk_size = self.__window.recipe.get("min_disk_size", 51200)
         self.disk_space_err_label.set_label(
@@ -728,9 +731,107 @@ class VanillaDefaultDisk(Adw.Bin):
         self.btn_manual.connect("clicked", self.__on_manual_clicked)
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
 
+        # Populate filesystem picker and hostname from the selected image's metadata.
+        # We do the initial setup now, but also refresh when this page becomes active
+        # (image selection happens on the previous step, so __init__ runs too early).
+        self.__filesystem_options = ["xfs"]
+        self.__window.carousel.connect("page-changed", self.__on_carousel_page_changed)
+        self.__refresh_from_image_step()
+
         # Auto-select virtual disk if still no physical disks are available
         if not self.__registry_disks:
             self.__select_virtual_disk()
+
+    def __on_carousel_page_changed(self, carousel, idx):
+        if carousel.get_nth_page(idx) is self:
+            self.__refresh_from_image_step()
+
+    def __refresh_from_image_step(self):
+        """Re-read image metadata and update filesystem picker and hostname."""
+        image_step = getattr(self.__window, "image_step", None)
+        if image_step is None:
+            return
+        finals = image_step.get_finals()
+        supported = finals.get("supported_filesystems") or []
+        default_hostname = finals.get("default_hostname") or ""
+        current = self.hostname_entry.get_text().strip()
+        if default_hostname and current in ("", "localhost"):
+            self.hostname_entry.set_text(default_hostname)
+        self.__setup_filesystem_row(supported)
+
+    # Maps filesystem type → (required tool, package name)
+    _FS_TOOLS = {
+        "xfs": ("mkfs.xfs", "xfsprogs"),
+        "btrfs": ("mkfs.btrfs", "btrfs-progs"),
+    }
+
+    def __setup_filesystem_row(self, filesystems):
+        """Show a filesystem picker when the selected image supports multiple rootfs types."""
+        self.__filesystem_options = filesystems if filesystems else ["xfs"]
+        if len(self.__filesystem_options) <= 1:
+            self.filesystem_row.set_visible(False)
+            self.__check_fs_tool(self.__filesystem_options[0] if self.__filesystem_options else "xfs")
+            return
+
+        _LABELS = {"xfs": "XFS", "btrfs": "Btrfs (with subvolumes)"}
+        model = Gtk.StringList.new([_LABELS.get(fs, fs.upper()) for fs in self.__filesystem_options])
+        self.filesystem_row.set_model(model)
+        self.filesystem_row.set_selected(0)
+        self.filesystem_row.set_visible(True)
+        self.filesystem_row.connect("notify::selected", self.__on_filesystem_changed)
+        self.__check_fs_tool(self.__filesystem_options[0])
+
+    def __on_filesystem_changed(self, row, _pspec):
+        self.__check_fs_tool(self.__get_selected_filesystem())
+
+    def __check_fs_tool(self, fs):
+        """Highlight the filesystem row and block Next if the required mkfs tool is missing."""
+        tool, pkg = self._FS_TOOLS.get(fs, (None, None))
+        if tool is None:
+            self.__fs_tool_ok = True
+            self.filesystem_row.remove_css_class("error")
+            self.filesystem_row.set_subtitle("")
+            self.fs_tool_error_banner.set_visible(False)
+            self.__update_next_button()
+            return
+        try:
+            result = subprocess.run(
+                ["flatpak-spawn", "--host", "sh", "-c", f"command -v {tool}"],
+                capture_output=True,
+                timeout=3,
+            )
+            available = result.returncode == 0
+        except Exception:
+            available = True  # assume available if check fails
+        self.__fs_tool_ok = available
+        if available:
+            self.filesystem_row.remove_css_class("error")
+            self.filesystem_row.set_subtitle("")
+            self.fs_tool_error_banner.set_visible(False)
+        else:
+            self.filesystem_row.add_css_class("error")
+            self.filesystem_row.set_subtitle(
+                _('Install the "{}" package on the host to use this filesystem').format(pkg)
+            )
+            self.fs_tool_error_banner.set_title(
+                _('Missing host tool: "{}" — install the "{}" package').format(tool, pkg)
+            )
+            self.fs_tool_error_banner.set_visible(True)
+        self.__update_next_button()
+
+    def __update_next_button(self):
+        """Enable Next only when a partition recipe exists and the fs tool is present."""
+        ok = self.__partition_recipe is not None and self.__fs_tool_ok
+        self.btn_next.set_visible(ok)
+        self.btn_next.set_sensitive(ok)
+
+    def __get_selected_filesystem(self):
+        if not self.filesystem_row.get_visible():
+            return self.__filesystem_options[0] if self.__filesystem_options else "xfs"
+        idx = self.filesystem_row.get_selected()
+        if 0 <= idx < len(self.__filesystem_options):
+            return self.__filesystem_options[idx]
+        return "xfs"
 
     def __on_btn_exit_clicked(self, button):
         self.__window.get_application().quit()
@@ -819,9 +920,14 @@ class VanillaDefaultDisk(Adw.Bin):
             return None
 
     def get_finals(self):
+        fs = self.__get_selected_filesystem()
+        disk = dict(self.__partition_recipe) if self.__partition_recipe else {}
+        if "auto" in disk:
+            disk["filesystem"] = fs
+            disk["btrfsSubvolumes"] = (fs == "btrfs")
         result = {
-            "disk": self.__partition_recipe,
-            "hostname": self.hostname_entry.get_text().strip() or "tunaos",
+            "disk": disk,
+            "hostname": self.hostname_entry.get_text().strip() or "localhost",
         }
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG
@@ -837,8 +943,7 @@ class VanillaDefaultDisk(Adw.Bin):
                 self.__registry_disks.append(entry)
 
     def __on_close_default_disk_part_modal(self, *args):
-        self.btn_next.set_visible(self.__partition_recipe is not None)
-        self.btn_next.set_sensitive(self.__partition_recipe is not None)
+        self.__update_next_button()
         self.confirm_partition_changes()
 
     def __on_auto_clicked(self, button):

@@ -114,9 +114,23 @@ template $VanillaDefaultDisk: Adw.Bin {
         Adw.PreferencesGroup {
           title: _("System");
 
+          Adw.ComboRow filesystem_row {
+            title: _("Root Filesystem");
+            visible: false;
+          }
+
+          Adw.Banner fs_tool_error_banner {
+            visible: false;
+            button-label: "";
+
+            styles [
+              "error",
+            ]
+          }
+
           Adw.EntryRow hostname_entry {
             title: _("Hostname");
-            text: "tunaos";
+            text: "localhost";
           }
         }
       }

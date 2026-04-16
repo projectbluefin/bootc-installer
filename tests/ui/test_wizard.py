@@ -202,6 +202,129 @@ class TestDiskStepButtonState:
         )
 
 
+class TestDiskStepFsToolCheck:
+    """fs_tool_error_banner shows when the required mkfs tool is missing on the host."""
+
+    def _make_disk_widget(self):
+        from unittest.mock import MagicMock, patch
+
+        from bootc_installer.defaults.disk import VanillaDefaultDisk
+        from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — registers GType
+
+        try:
+            Adw.ButtonRow  # noqa: B018 — probe for ≥1.6 widget used in VanillaDefaultDisk.__init__
+        except AttributeError:
+            pytest.skip("Adw.ButtonRow requires libadwaita >= 1.6")
+
+        mock_window = MagicMock()
+        mock_window.recipe = {"min_disk_size": 51200}
+        mock_window.image_step.get_finals.return_value = {
+            "supported_filesystems": ["xfs", "btrfs"],
+            "default_hostname": "",
+        }
+        with patch("bootc_installer.defaults.disk.DisksManager") as MockDM:
+            MockDM.return_value.all_disks.return_value = []
+            widget = VanillaDefaultDisk(mock_window, {}, "disk", {})
+            _pump()
+        return widget
+
+    def test_banner_shown_when_xfs_tool_missing(self):
+        """fs_tool_error_banner becomes visible and row turns red when mkfs.xfs is missing."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+
+        missing = subprocess.CompletedProcess(args=[], returncode=1)
+        with patch("subprocess.run", return_value=missing):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert widget.fs_tool_error_banner.get_visible(), (
+            "fs_tool_error_banner should be visible when mkfs.xfs is missing"
+        )
+        assert "xfsprogs" in widget.fs_tool_error_banner.get_title()
+        assert widget.filesystem_row.has_css_class("error"), (
+            "filesystem_row should have 'error' CSS class when mkfs.xfs is missing"
+        )
+        assert "xfsprogs" in widget.filesystem_row.get_subtitle()
+
+    def test_banner_hidden_when_xfs_tool_present(self):
+        """Banner hidden and row error class cleared when mkfs.xfs is available."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+
+        present = subprocess.CompletedProcess(args=[], returncode=0)
+        with patch("subprocess.run", return_value=present):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert not widget.fs_tool_error_banner.get_visible(), (
+            "fs_tool_error_banner should be hidden when mkfs.xfs is available"
+        )
+        assert not widget.filesystem_row.has_css_class("error"), (
+            "filesystem_row should not have 'error' CSS class when mkfs.xfs is available"
+        )
+        assert widget.filesystem_row.get_subtitle() == ""
+
+    def test_banner_shown_when_btrfs_tool_missing(self):
+        """fs_tool_error_banner visible and row red when mkfs.btrfs is missing."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+
+        missing = subprocess.CompletedProcess(args=[], returncode=1)
+        with patch("subprocess.run", return_value=missing):
+            widget._VanillaDefaultDisk__check_fs_tool("btrfs")
+            _pump()
+
+        assert widget.fs_tool_error_banner.get_visible(), (
+            "fs_tool_error_banner should be visible when mkfs.btrfs is missing"
+        )
+        assert "btrfs-progs" in widget.fs_tool_error_banner.get_title()
+        assert widget.filesystem_row.has_css_class("error")
+        assert "btrfs-progs" in widget.filesystem_row.get_subtitle()
+
+    def test_btn_next_blocked_when_tool_missing(self):
+        """btn_next must be insensitive when the required mkfs tool is missing."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+        # Simulate a partition recipe being set (as if the user picked a disk)
+        widget._VanillaDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
+
+        missing = subprocess.CompletedProcess(args=[], returncode=1)
+        with patch("subprocess.run", return_value=missing):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert not widget.btn_next.get_sensitive(), (
+            "btn_next must be insensitive when mkfs.xfs is missing from host PATH"
+        )
+
+    def test_btn_next_unblocked_when_tool_present(self):
+        """btn_next becomes sensitive when tool is present and a partition recipe exists."""
+        import subprocess
+        from unittest.mock import patch
+
+        widget = self._make_disk_widget()
+        widget._VanillaDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
+
+        present = subprocess.CompletedProcess(args=[], returncode=0)
+        with patch("subprocess.run", return_value=present):
+            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            _pump()
+
+        assert widget.btn_next.get_sensitive(), (
+            "btn_next must be sensitive when mkfs.xfs is present and a partition recipe exists"
+        )
+
+
+
 class TestWizardNavigation:
     def test_can_advance_from_image_step(self, window):
         """Clicking Next on the image step rebuilds downstream UI and advances."""
