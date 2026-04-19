@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import subprocess
-import webbrowser
 from gettext import gettext as _
 
 from gi.repository import Adw, GLib, Gtk
@@ -64,19 +63,13 @@ class VanillaRecoveryDialog(Adw.Window):
         GLib.spawn_command_line_async("flatpak-spawn --host /usr/bin/xdg-terminal-exec")
 
     def __on_documentation_activated(self, row):
-        webbrowser.open("https://docs.projectbluefin.io/")
+        Gtk.show_uri(self, "https://docs.projectbluefin.io/", GLib.CURRENT_TIME)
 
     def __on_partition_activated(self, row):
         GLib.spawn_command_line_async("flatpak-spawn --host /usr/bin/gnome-disks")
 
     def __on_handbook_activated(self, row):
-        try:
-            GLib.spawn_command_line_async("xdg-open https://app.dosu.dev/e3630b91-3a35-46b9-a8d3-b0c1b3ef6331/ask")
-        except:
-            webbrowser.open("https://app.dosu.dev/e3630b91-3a35-46b9-a8d3-b0c1b3ef6331/ask")
+        Gtk.show_uri(self, "https://app.dosu.dev/e3630b91-3a35-46b9-a8d3-b0c1b3ef6331/ask", GLib.CURRENT_TIME)
 
     def __on_web_activated(self, row):
-        try:
-            GLib.spawn_command_line_async("xdg-open https://universal-blue.org/")
-        except:
-            webbrowser.open("https://universal-blue.org/")
+        Gtk.show_uri(self, "https://universal-blue.org/", GLib.CURRENT_TIME)
