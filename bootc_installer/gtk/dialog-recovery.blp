@@ -37,7 +37,7 @@ template $VanillaRecoveryDialog: Adw.Window {
         Adw.ActionRow row_documentation {
           icon-name: "folder-documents-symbolic";
           title: _("Documentation");
-          subtitle: _("Open the Vanilla OS documentation");
+          subtitle: _("Open the Bluefin documentation");
           activatable: true;
 
           [suffix]
@@ -51,9 +51,9 @@ template $VanillaRecoveryDialog: Adw.Window {
           }
         }
 
-        Adw.ActionRow row_gparted {
+        Adw.ActionRow row_partition {
           icon-name: "drive-harddisk-symbolic";
-          title: _("GParted");
+          title: _("Disks manager");
           subtitle: _("Manage disks and partitions");
           activatable: true;
 
@@ -70,8 +70,8 @@ template $VanillaRecoveryDialog: Adw.Window {
 
         Adw.ActionRow row_handbook {
           icon-name: "accessories-dictionary-symbolic";
-          title: _("Handbook");
-          subtitle: _("Read tutorials and guides about Vanilla OS");
+          title: _("Ask Bluefin");
+          subtitle: _("Ask Dosu any questions about Bluefin and atomic images");
           activatable: true;
 
           [suffix]
