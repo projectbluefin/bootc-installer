@@ -763,6 +763,7 @@ class VanillaDefaultDisk(Adw.Bin):
     _FS_TOOLS = {
         "xfs": ("mkfs.xfs", "xfsprogs"),
         "btrfs": ("mkfs.btrfs", "btrfs-progs"),
+        "zfs": ("zpool", "zfsutils-linux"),
     }
 
     def __setup_filesystem_row(self, filesystems):
@@ -773,7 +774,7 @@ class VanillaDefaultDisk(Adw.Bin):
             self.__check_fs_tool(self.__filesystem_options[0] if self.__filesystem_options else "xfs")
             return
 
-        _LABELS = {"xfs": "XFS", "btrfs": "Btrfs (with subvolumes)"}
+        _LABELS = {"xfs": "XFS", "btrfs": "Btrfs (with subvolumes)", "zfs": "ZFS"}
         model = Gtk.StringList.new([_LABELS.get(fs, fs.upper()) for fs in self.__filesystem_options])
         self.filesystem_row.set_model(model)
         self.filesystem_row.set_selected(0)
