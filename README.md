@@ -358,3 +358,4 @@ bootc-installer
 - python3-requests
 - Go ≥ 1.22 (for fisherman)
 
+# Rebuild trigger: 1778728267
