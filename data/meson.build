@@ -23,6 +23,12 @@ install_data(
     install_dir: join_paths(get_option('datadir'), 'polkit-1', 'actions')
 )
 
+if variant == 'kde'
+  install_data('org.kdeinstaller.Installer.policy',
+    install_dir: join_paths(get_option('datadir'), 'polkit-1', 'actions')
+  )
+endif
+
 desktop_file = i18n.merge_file(
   input: 'org.bootcinstaller.Installer.desktop.in',
   output: 'org.bootcinstaller.Installer.desktop',
@@ -31,6 +37,17 @@ desktop_file = i18n.merge_file(
   install: true,
   install_dir: join_paths(get_option('datadir'), 'applications')
 )
+
+if variant == 'kde'
+  kde_desktop_file = i18n.merge_file(
+    input: 'org.kdeinstaller.Installer.desktop.in',
+    output: 'org.kdeinstaller.Installer.desktop',
+    type: 'desktop',
+    po_dir: '../po',
+    install: true,
+    install_dir: join_paths(get_option('datadir'), 'applications')
+  )
+endif
 
 desktop_utils = find_program('desktop-file-validate', required: false)
 if desktop_utils.found()
@@ -46,6 +63,16 @@ appstream_file = i18n.merge_file(
   install: true,
   install_dir: join_paths(get_option('datadir'), 'appdata')
 )
+
+if variant == 'kde'
+  kde_appstream_file = i18n.merge_file(
+    input: 'org.kdeinstaller.Installer.appdata.xml.in',
+    output: 'org.kdeinstaller.Installer.appdata.xml',
+    po_dir: '../po',
+    install: true,
+    install_dir: join_paths(get_option('datadir'), 'appdata')
+  )
+endif
 
 appstream_util = find_program('appstream-util', required: false)
 if appstream_util.found()

@@ -1,0 +1,107 @@
+{
+  "app-id": "org.kdeinstaller.Installer",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.8",
+  "sdk": "org.kde.Sdk",
+  "command": "kde-bootc-installer",
+  "finish-args": [
+    "--share=network",
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=all",
+    "--filesystem=host",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--system-talk-name=org.freedesktop.login1",
+    "--system-talk-name=org.freedesktop.PolicyKit1",
+    "--allow=devel"
+  ],
+  "build-options": {
+    "env": {
+      "PATH": "/app/go/bin:/usr/bin:/bin",
+      "GOPATH": "/run/build/go-path",
+      "GOCACHE": "/run/build/go-cache",
+      "GONOSUMDB": "*",
+      "GOFLAGS": "",
+      "GOPROXY": "off"
+    }
+  },
+  "modules": [
+    {
+      "name": "go",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cp -r go /app/go"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://go.dev/dl/go1.26.1.linux-amd64.tar.gz",
+          "sha256": "031f088e5d955bab8657ede27ad4e3bc5b7c1ba281f05f245bcc304f327c987a",
+          "strip-components": 0
+        }
+      ]
+    },
+    {
+      "name": "fisherman",
+      "buildsystem": "simple",
+      "build-commands": [
+        "go build -C fisherman -o /app/bin/fisherman ./cmd/fisherman"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../fisherman"
+        }
+      ]
+    },
+    {
+      "name": "kirigami",
+      "buildsystem": "cmake",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DENABLE_TESTING=OFF"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://invent.kde.org/frameworks/kirigami.git",
+          "tag": "v6.0.0",
+          "commit": "abcdef1234567890"
+        }
+      ]
+    },
+    {
+      "name": "kde-bootc-installer",
+      "buildsystem": "cmake",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DENABLE_TESTING=OFF"
+      ],
+      "build-options": {
+        "env": {
+          "PYTHONPATH": "/app/lib/python3.11/site-packages"
+        }
+      },
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".."
+        }
+      ]
+    },
+    {
+      "name": "polkit-action",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm644 data/polkit/org.kdeinstaller.Installer.policy /app/share/polkit-1/actions/org.kdeinstaller.Installer.policy"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".."
+        }
+      ]
+    }
+  ]
+}

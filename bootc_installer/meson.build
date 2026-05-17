@@ -92,6 +92,23 @@ configure_file(
   install_mode: 'rwxr-xr-x'
 )
 
+if variant == 'kde'
+  configure_file(
+    input: 'kde-bootc-installer.in',
+    output: 'kde-bootc-installer',
+    configuration: conf,
+    install: true,
+    install_dir: get_option('bindir'),
+    install_mode: 'rwxr-xr-x'
+  )
+
+  # Install KDE QML files
+  install_data(
+    'kde/main.qml',
+    install_dir: join_paths(moduledir, 'kde')
+  )
+endif
+
 subdir('defaults')
 subdir('layouts')
 subdir('core')
@@ -109,4 +126,8 @@ configure_file(
   install_dir: moduledir,
 )
 
-install_data(['__init__.py', 'main.py'], install_dir: moduledir)
+python_files = ['__init__.py', 'main.py']
+if variant == 'kde'
+  python_files += ['main_qt.py']
+endif
+install_data(python_files, install_dir: moduledir)
