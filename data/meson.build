@@ -24,7 +24,7 @@ install_data(
 )
 
 if variant == 'kde'
-  install_data('org.kdeinstaller.Installer.policy',
+  install_data('polkit/org.kdeinstaller.Installer.policy',
     install_dir: join_paths(get_option('datadir'), 'polkit-1', 'actions')
   )
 endif
