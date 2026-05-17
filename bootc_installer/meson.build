@@ -83,6 +83,28 @@ configure_file(
   install_mode: 'rwxr-xr-x'
 )
 
+if variant == 'xfce'
+  configure_file(
+    input: 'xfce-bootc-installer.in',
+    output: 'xfce-bootc-installer',
+    configuration: conf,
+    install: true,
+    install_dir: get_option('bindir'),
+    install_mode: 'rwxr-xr-x'
+  )
+endif
+
+if variant == 'kde'
+  configure_file(
+    input: 'kde-bootc-installer.in',
+    output: 'kde-bootc-installer',
+    configuration: conf,
+    install: true,
+    install_dir: get_option('bindir'),
+    install_mode: 'rwxr-xr-x'
+  )
+endif
+
 configure_file(
   input: 'bootc-installer-processor.in',
   output: 'bootc-installer-processor',

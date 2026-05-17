@@ -6,6 +6,8 @@ project('org.bootcinstaller.Installer',
                    ],
 )
 
+variant = get_option('variant')
+
 i18n = import('i18n')
 
 gnome = import('gnome')

@@ -68,10 +68,14 @@ class VanillaInstaller(Adw.Application):
 
     def __init__(self):
         logger.info("VanillaInstaller.__init__")
+        app_id = os.environ.get("BOOTC_APP_ID", "org.bootcinstaller.Installer")
+        variant = os.environ.get("BOOTC_VARIANT", "gnome")
+        logger.info(f"Running {variant} variant with app_id={app_id}")
         super().__init__(
-            application_id=os.environ.get("BOOTC_APP_ID", "org.bootcinstaller.Installer"),
+            application_id=app_id,
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
         )
+        self.variant = variant
         self.create_action("quit", self.close, ["<primary>q"])
         self._autoinstall_recipe: str | None = None
         # Register --autoinstall option for GApplication option parsing.
