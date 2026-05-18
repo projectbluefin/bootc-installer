@@ -9,7 +9,6 @@
   <p>A graphical installer for TunaOS and other bootc-based operating systems, built with Qt/Kirigami for KDE Plasma.</p>
 </description>
 <translation type="gettext">bootc-installer</translation>
-<icon type="stock">system</icon>
 <content_rating type="oars-1.1"/>
 <recommends>
   <control>pointing</control>
