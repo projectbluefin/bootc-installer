@@ -57,10 +57,10 @@
     },
     {
       "name": "kde-bootc-installer",
-      "buildsystem": "cmake",
+      "buildsystem": "meson",
       "config-opts": [
-        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-        "-DENABLE_TESTING=OFF"
+        "-Dbuild-fisherman=false",
+        "-Dvariant=kde"
       ],
       "build-options": {
         "env": {
