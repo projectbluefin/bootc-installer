@@ -88,7 +88,8 @@
       ],
       "build-options": {
         "env": {
-          "PATH": "/app/bin:/usr/bin:/bin"
+          "PATH": "/app/bin:/usr/bin:/bin",
+          "GI_TYPELIB_PATH": "/usr/lib/x86_64-linux-gnu/girepository-1.0:/usr/share/gir-1.0"
         }
       },
       "sources": [
