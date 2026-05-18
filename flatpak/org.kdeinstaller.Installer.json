@@ -59,7 +59,6 @@
       "name": "blueprint-compiler",
       "buildsystem": "meson",
       "cleanup": [
-        "/lib",
         "/include",
         "/share/doc",
         "/share/info"
