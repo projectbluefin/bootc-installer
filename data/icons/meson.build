@@ -1,4 +1,12 @@
-application_id = 'org.bootcinstaller.Installer'
+variant = get_option('variant')
+
+if variant == 'xfce'
+  application_id = 'org.xfceinstaller.Installer'
+elif variant == 'kde'
+  application_id = 'org.kdeinstaller.Installer'
+else
+  application_id = 'org.bootcinstaller.Installer'
+endif
 
 
 scalable_dir = join_paths('hicolor', 'scalable', 'apps')
@@ -7,8 +15,9 @@ actions_dir = join_paths(symbolic_dir, 'actions')
 
 
 install_data(
-  join_paths(scalable_dir, ('@0@.svg').format(application_id)),
-  install_dir: join_paths(get_option('datadir'), 'icons', scalable_dir)
+  join_paths(scalable_dir, 'org.bootcinstaller.Installer.svg'),
+  install_dir: join_paths(get_option('datadir'), 'icons', scalable_dir),
+  rename: application_id + '.svg'
 )
 
 install_data(
@@ -17,8 +26,9 @@ install_data(
 )
 
 install_data(
-  join_paths(symbolic_dir, 'apps', ('@0@-symbolic.svg').format(application_id)),
-  install_dir: join_paths(get_option('datadir'), 'icons', symbolic_dir, 'apps')
+  join_paths(symbolic_dir, 'apps', 'org.bootcinstaller.Installer-symbolic.svg'),
+  install_dir: join_paths(get_option('datadir'), 'icons', symbolic_dir, 'apps'),
+  rename: application_id + '-symbolic.svg'
 )
 
 

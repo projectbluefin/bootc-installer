@@ -1,8 +1,8 @@
 {
   "app-id": "org.kdeinstaller.Installer",
-  "runtime": "org.gnome.Platform",
-  "runtime-version": "46",
-  "sdk": "org.gnome.Sdk",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.8",
+  "sdk": "org.kde.Sdk",
   "command": "kde-bootc-installer",
   "finish-args": [
     "--share=network",
@@ -62,7 +62,7 @@
         {
           "type": "git",
           "url": "https://gitlab.gnome.org/GNOME/blueprint-compiler.git",
-          "tag": "v0.14.0"
+          "tag": "v0.16.0"
         }
       ]
     },
@@ -73,13 +73,6 @@
         "-Dbuild-fisherman=false",
         "-Dvariant=kde"
       ],
-      "build-options": {
-        "env": {
-          "PATH": "/app/bin:/usr/bin:/bin",
-          "PYTHONPATH": "/app/lib/python3.11/site-packages",
-          "GI_TYPELIB_PATH": "/usr/lib/x86_64-linux-gnu/girepository-1.0:/usr/share/gir-1.0"
-        }
-      },
       "sources": [
         {
           "type": "dir",

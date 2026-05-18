@@ -1,7 +1,7 @@
 {
   "app-id": "org.xfceinstaller.Installer",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "46",
+  "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
   "command": "xfce-bootc-installer",
   "finish-args": [
@@ -62,7 +62,7 @@
         {
           "type": "git",
           "url": "https://gitlab.gnome.org/GNOME/blueprint-compiler.git",
-          "tag": "v0.14.0"
+          "tag": "v0.16.0"
         }
       ]
     },
@@ -73,13 +73,6 @@
         "-Dbuild-fisherman=false",
         "-Dvariant=xfce"
       ],
-      "build-options": {
-        "env": {
-          "PATH": "/app/bin:/usr/bin:/bin",
-          "PYTHONPATH": "/app/lib/python3.11/site-packages",
-          "GI_TYPELIB_PATH": "/usr/lib/x86_64-linux-gnu/girepository-1.0:/usr/share/gir-1.0"
-        }
-      },
       "sources": [
         {
           "type": "dir",
