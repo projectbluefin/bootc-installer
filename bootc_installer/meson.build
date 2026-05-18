@@ -2,7 +2,7 @@ pkgdatadir = join_paths(get_option('prefix'), get_option('datadir'), meson.proje
 moduledir = join_paths(pkgdatadir, 'bootc_installer')
 gnome = import('gnome')
 
-blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12.0', required: true)
+blueprint_compiler = find_program('blueprint-compiler', required: true)
 
 blueprints = custom_target(
   'blueprints',
