@@ -2,7 +2,7 @@ pkgdatadir = join_paths(get_option('prefix'), get_option('datadir'), meson.proje
 moduledir = join_paths(pkgdatadir, 'bootc_installer')
 gnome = import('gnome')
 
-blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12.0')
+blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12.0', required: true)
 
 blueprints = custom_target(
   'blueprints',
@@ -57,12 +57,18 @@ blueprints = custom_target(
   ],
 )
 
+if blueprint_compiler.found()
+  resources_deps = blueprints
+else
+  resources_deps = []
+endif
+
 gnome.compile_resources('bootc-installer',
   'bootc-installer.gresource.xml',
   gresource_bundle: true,
   install: true,
   install_dir: pkgdatadir,
-  dependencies: blueprints,
+  dependencies: resources_deps,
 )
 
 python = import('python')
