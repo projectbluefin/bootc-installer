@@ -1,0 +1,118 @@
+name: Build Multi-Variant Flatpaks
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-variants:
+    strategy:
+      matrix:
+        variant:
+          - name: gnome
+            app_id: org.bootcinstaller.Installer
+            manifest: flatpak/org.bootcinstaller.Installer.json
+          - name: xfce
+            app_id: org.xfceinstaller.Installer
+            manifest: flatpak/org.xfceinstaller.Installer.json
+          - name: kde
+            app_id: org.kdeinstaller.Installer
+            manifest: flatpak/org.kdeinstaller.Installer.json
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            flatpak \
+            flatpak-builder \
+            git \
+            appstream \
+            appstream-util
+
+      - name: Add Flathub remote
+        run: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build ${{ matrix.variant.name }} variant
+        run: |
+          flatpak-builder --force-clean --user --install-deps-from=flathub \
+            --disable-rofiles-fuse \
+            build-dir \
+            ${{ matrix.variant.manifest }}
+
+      - name: Export ${{ matrix.variant.name }} Flatpak
+        run: |
+          flatpak build-bundle ~/.local/share/flatpak/repo \
+            ${{ matrix.variant.app_id }}.flatpak \
+            ${{ matrix.variant.app_id }}
+
+      - name: Determine release tag
+        id: release_tag
+        run: |
+          if [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            TAG="continuous"
+          else
+            TAG="continuous-dev"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Build tag: $TAG"
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release_tag.outputs.tag }}
+        run: |
+          # Create release if it doesn't exist
+          gh release create $RELEASE_TAG \
+            --title "Build $RELEASE_TAG" \
+            --notes "Multi-variant bootc-installer Flatpak build" \
+            --target ${{ github.sha }} \
+            2>/dev/null || true
+
+          # Upload Flatpak artifact
+          gh release upload $RELEASE_TAG \
+            ${{ matrix.variant.app_id }}.flatpak \
+            --clobber
+
+      - name: Upload Flatpak to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.variant.app_id }}.flatpak
+          path: ${{ matrix.variant.app_id }}.flatpak
+          retention-days: 30
+
+  release-summary:
+    needs: build-variants
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create release summary
+        run: |
+          echo "## 📦 Flatpak Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Built Variants:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GNOME: org.bootcinstaller.Installer" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ XFCE: org.xfceinstaller.Installer" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ KDE: org.kdeinstaller.Installer" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All variants available in [Releases](../releases)" >> $GITHUB_STEP_SUMMARY

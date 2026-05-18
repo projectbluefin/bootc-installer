@@ -1,0 +1,84 @@
+name: Validate Flatpak Manifests
+
+on:
+  pull_request:
+    paths:
+      - 'flatpak/*.json'
+      - 'meson.build'
+      - 'meson_options.txt'
+      - 'bootc_installer/meson.build'
+      - '.github/workflows/validate-flatpak.yml'
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            flatpak-builder \
+            json-tools \
+            python3-json-tool
+
+      - name: Validate Flatpak manifests
+        run: |
+          for manifest in flatpak/*installer*.json; do
+            echo "Validating $manifest..."
+            python3 -m json.tool "$manifest" > /dev/null && echo "✓ $manifest is valid JSON"
+          done
+
+      - name: Check manifest structure
+        run: |
+          for manifest in flatpak/*installer*.json; do
+            echo "Checking $manifest structure..."
+
+            # Verify required fields
+            app_id=$(jq -r '.["app-id"]' "$manifest")
+            runtime=$(jq -r '.runtime' "$manifest")
+            command=$(jq -r '.command' "$manifest")
+
+            echo "  app-id: $app_id"
+            echo "  runtime: $runtime"
+            echo "  command: $command"
+
+            if [[ -z "$app_id" ]] || [[ "$app_id" == "null" ]]; then
+              echo "✗ Missing app-id in $manifest"
+              exit 1
+            fi
+          done
+
+      - name: Verify variant consistency
+        run: |
+          echo "Checking variant consistency..."
+
+          # GNOME variant
+          gnome_id=$(jq -r '.["app-id"]' flatpak/org.bootcinstaller.Installer.json)
+          [[ "$gnome_id" == "org.bootcinstaller.Installer" ]] && echo "✓ GNOME variant correct" || exit 1
+
+          # XFCE variant
+          xfce_id=$(jq -r '.["app-id"]' flatpak/org.xfceinstaller.Installer.json)
+          [[ "$xfce_id" == "org.xfceinstaller.Installer" ]] && echo "✓ XFCE variant correct" || exit 1
+
+          # KDE variant
+          kde_id=$(jq -r '.["app-id"]' flatpak/org.kdeinstaller.Installer.json)
+          [[ "$kde_id" == "org.kdeinstaller.Installer" ]] && echo "✓ KDE variant correct" || exit 1
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Flatpak manifests validated successfully\n\n- GNOME: org.bootcinstaller.Installer\n- XFCE: org.xfceinstaller.Installer\n- KDE: org.kdeinstaller.Installer'
+            })
