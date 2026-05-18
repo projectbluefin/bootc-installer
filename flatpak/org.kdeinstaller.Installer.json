@@ -1,8 +1,8 @@
 {
   "app-id": "org.kdeinstaller.Installer",
-  "runtime": "org.kde.Platform",
-  "runtime-version": "6.8",
-  "sdk": "org.kde.Sdk",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "46",
+  "sdk": "org.gnome.Sdk",
   "command": "kde-bootc-installer",
   "finish-args": [
     "--share=network",

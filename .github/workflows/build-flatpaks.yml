@@ -57,7 +57,7 @@ jobs:
 
       - name: Build ${{ matrix.variant.name }} variant
         run: |
-          flatpak-builder --force-clean --user \
+          flatpak-builder --force-clean --user --install-deps-from=flathub \
             --disable-rofiles-fuse \
             build-dir \
             ${{ matrix.variant.manifest }}

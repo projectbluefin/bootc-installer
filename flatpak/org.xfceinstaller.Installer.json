@@ -1,8 +1,8 @@
 {
   "app-id": "org.xfceinstaller.Installer",
-  "runtime": "org.xfce.Platform",
-  "runtime-version": "4.18",
-  "sdk": "org.xfce.Sdk",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "46",
+  "sdk": "org.gnome.Sdk",
   "command": "xfce-bootc-installer",
   "finish-args": [
     "--share=network",
