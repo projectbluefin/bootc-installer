@@ -66,8 +66,7 @@
         {
           "type": "git",
           "url": "https://invent.kde.org/frameworks/kirigami.git",
-          "tag": "v6.0.0",
-          "commit": "abcdef1234567890"
+          "tag": "v6.0.0"
         }
       ]
     },
