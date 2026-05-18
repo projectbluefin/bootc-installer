@@ -64,6 +64,10 @@ jobs:
             build-dir \
             ${{ matrix.variant.manifest }}
 
+      - name: Update Flatpak repo
+        run: |
+          flatpak build-update-repo ~/.local/share/flatpak/repo
+
       - name: Export ${{ matrix.variant.name }} Flatpak
         run: |
           flatpak build-bundle ~/.local/share/flatpak/repo \
