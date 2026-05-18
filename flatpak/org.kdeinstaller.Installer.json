@@ -56,21 +56,6 @@
       ]
     },
     {
-      "name": "kirigami",
-      "buildsystem": "cmake",
-      "config-opts": [
-        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-        "-DENABLE_TESTING=OFF"
-      ],
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://invent.kde.org/frameworks/kirigami.git",
-          "tag": "v6.0.0"
-        }
-      ]
-    },
-    {
       "name": "kde-bootc-installer",
       "buildsystem": "cmake",
       "config-opts": [
