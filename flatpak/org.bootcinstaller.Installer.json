@@ -72,9 +72,6 @@
     {
       "name": "blueprint-compiler",
       "buildsystem": "meson",
-      "post-install": [
-        "pip3 install PyGObject"
-      ],
       "sources": [
         {
           "type": "git",
