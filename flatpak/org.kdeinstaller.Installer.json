@@ -73,6 +73,11 @@
         "-Dbuild-fisherman=false",
         "-Dvariant=kde"
       ],
+      "build-options": {
+        "env": {
+          "PATH": "/app/bin:/usr/bin:/bin"
+        }
+      },
       "sources": [
         {
           "type": "dir",

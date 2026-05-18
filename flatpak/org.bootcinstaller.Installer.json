@@ -86,6 +86,11 @@
       "config-opts": [
         "-Dbuild-fisherman=false"
       ],
+      "build-options": {
+        "env": {
+          "PATH": "/app/bin:/usr/bin:/bin"
+        }
+      },
       "sources": [
         {
           "type": "dir",
