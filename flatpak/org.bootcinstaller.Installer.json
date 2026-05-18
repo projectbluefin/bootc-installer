@@ -70,6 +70,17 @@
       ]
     },
     {
+      "name": "blueprint-compiler",
+      "buildsystem": "meson",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://gitlab.gnome.org/GNOME/blueprint-compiler.git",
+          "tag": "v0.14.0"
+        }
+      ]
+    },
+    {
       "name": "bootc-installer",
       "buildsystem": "meson",
       "config-opts": [
