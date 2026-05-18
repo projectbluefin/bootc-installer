@@ -57,22 +57,16 @@ jobs:
       - name: Add Flathub remote
         run: flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-      - name: Build ${{ matrix.variant.name }} variant
+      - name: Build and bundle ${{ matrix.variant.name }} variant
         run: |
           flatpak-builder --force-clean --user --install-deps-from=flathub \
             --disable-rofiles-fuse \
+            --bundle \
             build-dir \
             ${{ matrix.variant.manifest }}
 
-      - name: Update Flatpak repo
-        run: |
-          flatpak build-update-repo ~/.local/share/flatpak/repo
-
-      - name: Export ${{ matrix.variant.name }} Flatpak
-        run: |
-          flatpak build-bundle ~/.local/share/flatpak/repo \
-            ${{ matrix.variant.app_id }}.flatpak \
-            ${{ matrix.variant.app_id }}
+          # Move the bundle to the expected location
+          mv build-dir/${{ matrix.variant.app_id }}.flatpak ${{ matrix.variant.app_id }}.flatpak || true
 
       - name: Determine release tag
         id: release_tag
