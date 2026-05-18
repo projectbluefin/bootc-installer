@@ -43,7 +43,14 @@ jobs:
             flatpak-builder \
             git \
             appstream \
-            appstream-util
+            appstream-util \
+            dbus
+
+      - name: Initialize dbus
+        run: |
+          sudo mkdir -p /run/dbus
+          sudo dbus-daemon --system --fork --nopidfile || true
+          sleep 1
 
       - name: Add Flathub remote
         run: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
