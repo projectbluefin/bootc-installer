@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=XFCE bootc Installer
 Exec=xfce-bootc-installer
-Icon=org.xfceinstaller.Installer
+Icon=system
 Terminal=false
 Type=Application
 Categories=XFCE;GTK;System;Settings;
