@@ -81,6 +81,7 @@
       ],
       "build-options": {
         "env": {
+          "PATH": "/app/bin:/usr/bin:/bin",
           "PYTHONPATH": "/app/lib/python3.11/site-packages"
         }
       },
