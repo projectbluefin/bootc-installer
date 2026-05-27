@@ -487,7 +487,17 @@ class VanillaWindow(Adw.ApplicationWindow):
             logger.error("Installation failed!")
 
         self.__install_recovery_key = recovery_key or self.__install_recovery_key
-        self.__view_done.set_result(result, terminal, boot_id, elapsed_secs)
+
+        # Pass installed image ref to done screen so it can schedule a registry warmup.
+        image_ref = None
+        for f in getattr(self, "finals", []):
+            if isinstance(f, dict):
+                image_ref = f.get("custom_image") or f.get("selected_image")
+                if image_ref:
+                    break
+
+        self.__view_done.set_result(result, terminal, boot_id, elapsed_secs,
+                                    image_ref=image_ref)
 
         if result and self.__install_is_encrypted:
             self.__view_recovery_key.set_recovery_key(self.__install_recovery_key)

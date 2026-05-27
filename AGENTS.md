@@ -282,7 +282,7 @@ xvfb-run -a pytest tests/ui/ -v
 | `fisherman/fisherman/internal/recipe/recipe.go` | Recipe struct, `SlurpSpec`, `Validate()` |
 | `bootc_installer/views/progress.py` | Video player, fisherman launch, JSON progress parsing |
 | `bootc_installer/views/recovery_key.py` | Recovery key screen (post-encrypted-install) |
-| `bootc_installer/views/done.py` | Final screen, reboot button, log viewer |
+| `bootc_installer/views/done.py` | Final screen, reboot button, log viewer, `warmup_registry()` (post-install skopeo warmup) |
 | `bootc_installer/defaults/conn_check.py` | Connection check — skipped when offline_install=True |
 | `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder |
 | `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |

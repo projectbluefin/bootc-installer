@@ -16,7 +16,7 @@ for _mod in ("gi", "gi.repository", "gi.repository.Adw", "gi.repository.Gdk",
 if "bootc_installer.windows.dialog_output" not in sys.modules:
     sys.modules["bootc_installer.windows.dialog_output"] = MagicMock()
 
-from bootc_installer.views.done import apply_icon, do_reboot  # noqa: E402
+from bootc_installer.views.done import apply_icon, do_reboot, warmup_registry  # noqa: E402
 
 
 class TestDoReboot(unittest.TestCase):
@@ -120,6 +120,42 @@ class TestMainWindowIconExtraction(unittest.TestCase):
             if isinstance(f, dict) and selected_icon is None and "icon" in f:
                 selected_icon = f["icon"]
         self.assertIsNone(selected_icon)
+
+
+class TestRegistryWarmup(unittest.TestCase):
+    """warmup_registry — verify skopeo is called correctly."""
+
+    def test_warmup_calls_skopeo_with_docker_prefix(self):
+        import bootc_installer.views.done as done_mod
+        with patch.object(done_mod.subprocess, "run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+        mock_run.assert_called_once()
+        argv = mock_run.call_args[0][0]
+        self.assertEqual(argv[0], "skopeo")
+        self.assertEqual(argv[1], "inspect")
+        self.assertIn("docker://ghcr.io/tuna-os/yellowfin:gnome50", argv[2])
+
+    def test_warmup_handles_skopeo_not_found(self):
+        import bootc_installer.views.done as done_mod
+        with patch.object(done_mod.subprocess, "run", side_effect=FileNotFoundError("no skopeo")):
+            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+
+    def test_warmup_handles_timeout(self):
+        import subprocess as _sp
+        import bootc_installer.views.done as done_mod
+        with patch.object(done_mod.subprocess, "run",
+                          side_effect=_sp.TimeoutExpired(cmd="skopeo", timeout=60)):
+            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+
+    def test_warmup_handles_nonzero_exit(self):
+        import bootc_installer.views.done as done_mod
+        with patch.object(done_mod.subprocess, "run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=1,
+                stderr=b"unauthorized: access denied",
+            )
+            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
 
 
 if __name__ == "__main__":

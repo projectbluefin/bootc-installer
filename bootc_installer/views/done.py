@@ -2,6 +2,7 @@ import locale
 import logging
 import os
 import subprocess
+import threading
 import time
 from gettext import gettext as _
 
@@ -23,6 +24,32 @@ def apply_icon(page_header, icon_spec):
             page_header.icon_name = icon_spec
     except Exception as e:
         log.warning("Could not apply icon %r: %s", icon_spec, e)
+
+
+def warmup_registry(image_ref: str):
+    """Fire a skopeo inspect to warm DNS, TLS, and CDN routing for the registry.
+
+    Called in a daemon thread 30 seconds after install success. Does not write
+    to the target disk (which is finalized/frozen after install).
+    """
+    try:
+        result = subprocess.run(
+            ["skopeo", "inspect", f"docker://{image_ref}"],
+            capture_output=True,
+            timeout=60,
+        )
+        if result.returncode == 0:
+            log.info("Registry warmup succeeded for %s", image_ref)
+        else:
+            log.debug("Registry warmup exited %d for %s: %s",
+                      result.returncode, image_ref,
+                      result.stderr.decode(errors="replace").strip()[:200])
+    except FileNotFoundError:
+        log.debug("skopeo not available — registry warmup skipped")
+    except subprocess.TimeoutExpired:
+        log.debug("Registry warmup timed out for %s", image_ref)
+    except Exception as e:
+        log.debug("Registry warmup failed for %s: %s", image_ref, e)
 
 
 def do_reboot(in_flatpak):
@@ -85,7 +112,7 @@ class VanillaDone(Adw.Bin):
         self.btn_log.connect("clicked", self.__on_log_clicked)
         self.btn_retry.connect("clicked", self.__on_retry_clicked)
 
-    def set_result(self, result, terminal, boot_id="", elapsed_secs=0):
+    def set_result(self, result, terminal, boot_id="", elapsed_secs=0, image_ref=None):
         self.__terminal = terminal
         self.__boot_id = boot_id
 
@@ -104,6 +131,12 @@ class VanillaDone(Adw.Bin):
                 apply_icon(self.page_header, icon_spec)
             # Show store widget for US users
             self.__maybe_show_store()
+            # Warm the registry connection in the background after 30 seconds.
+            # The target disk is finalized (ro + frozen), so we cannot write to it.
+            # This fires a skopeo inspect to warm DNS, TLS, and CDN routing so
+            # the first `bootc upgrade` after reboot finds a hot connection.
+            if image_ref:
+                GLib.timeout_add_seconds(30, self.__schedule_registry_warmup, image_ref)
         else:
             self.page_header.icon_name = "dialog-error-symbolic"
             self.page_header.title = _("Installation failed")
@@ -115,6 +148,23 @@ class VanillaDone(Adw.Bin):
             self.btn_retry.set_visible(True)
             # Show the log button prominently on failure
             self.btn_log.add_css_class("suggested-action")
+
+    def __schedule_registry_warmup(self, image_ref: str) -> bool:
+        """Fire off a background thread to warm the registry connection.
+        Runs 30 seconds after install success. Does not write to the target disk.
+        """
+        log.info("Scheduling registry warmup for %s", image_ref)
+        t = threading.Thread(
+            target=warmup_registry,
+            args=(image_ref,),
+            daemon=True,
+        )
+        t.start()
+        return False  # don't repeat the GLib timer
+
+    def __registry_warmup_worker(self, image_ref: str):
+        """Alias kept for back-compat — delegates to module-level warmup_registry."""
+        warmup_registry(image_ref)
 
     def __extract_failure_hint(self) -> str:
         """Read the fisherman log to determine what failed and suggest a fix."""
