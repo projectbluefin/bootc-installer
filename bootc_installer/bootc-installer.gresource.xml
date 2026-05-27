@@ -47,6 +47,7 @@
   <gresource prefix="/org/bootcinstaller/Installer">
     <file>assets/welcome.png</file>
     <file>assets/installer-video.webm</file>
+    <file>assets/store-qr.svg</file>
     <file>assets/complete.svg</file>
     <file>assets/ready.svg</file>
     <file>assets/containerized.svg</file>

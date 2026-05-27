@@ -67,6 +67,37 @@ template $VanillaDone: Adw.Bin {
           }
         }
       }
+
+      Adw.PreferencesGroup store_group {
+        visible: false;
+
+        Box {
+          orientation: vertical;
+          spacing: 12;
+          halign: center;
+          margin-top: 8;
+          margin-bottom: 8;
+
+          Picture store_qr {
+            width-request: 140;
+            height-request: 140;
+            halign: center;
+            can-shrink: true;
+          }
+
+          Label {
+            label: _("Get Bluefin gear at store.projectbluefin.io");
+            halign: center;
+            wrap: true;
+            justify: center;
+
+            styles [
+              "caption",
+              "dim-label",
+            ]
+          }
+        }
+      }
     }
   }
 }

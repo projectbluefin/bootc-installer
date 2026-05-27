@@ -1,6 +1,8 @@
+import locale
 import logging
 import os
 import subprocess
+import time
 from gettext import gettext as _
 
 from gi.repository import Adw, Gio, GLib, Gtk
@@ -68,6 +70,8 @@ class VanillaDone(Adw.Bin):
     btn_close = Gtk.Template.Child()
     btn_log = Gtk.Template.Child()
     btn_retry = Gtk.Template.Child()
+    store_group = Gtk.Template.Child()
+    store_qr = Gtk.Template.Child()
 
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
@@ -98,6 +102,8 @@ class VanillaDone(Adw.Bin):
             icon_spec = getattr(self.__window, "selected_icon", None)
             if icon_spec:
                 apply_icon(self.page_header, icon_spec)
+            # Show store widget for US users
+            self.__maybe_show_store()
         else:
             self.page_header.icon_name = "dialog-error-symbolic"
             self.page_header.title = _("Installation failed")
@@ -192,5 +198,42 @@ class VanillaDone(Adw.Bin):
     def __on_log_clicked(self, button):
         dialog = VanillaDialogOutput(self.__window)
         dialog.present()
+
+    def __maybe_show_store(self):
+        """Show the merch store QR code for US-locale users only."""
+        if not self.__is_us_locale():
+            return
+        try:
+            self.store_qr.set_resource(
+                "/org/bootcinstaller/Installer/assets/store-qr.svg"
+            )
+            self.store_group.set_visible(True)
+        except Exception as e:
+            log.debug("Could not load store QR: %s", e)
+
+    @staticmethod
+    def __is_us_locale() -> bool:
+        """Detect US locale via language or timezone."""
+        # Check LANG / LC_ALL for US English
+        lang = os.environ.get("LANG", "") + os.environ.get("LC_ALL", "")
+        if "en_US" in lang:
+            return True
+        # Check timezone — US zones
+        try:
+            tz = time.tzname[0] if time.tzname else ""
+            us_zones = {"EST", "EDT", "CST", "CDT", "MST", "MDT", "PST", "PDT", "AKST", "AKDT", "HST"}
+            if tz in us_zones:
+                return True
+        except Exception:
+            pass
+        # Check /etc/timezone or timedatectl output
+        try:
+            with open("/etc/timezone") as f:
+                tz_file = f.read().strip()
+            if tz_file.startswith("America/") or tz_file.startswith("US/"):
+                return True
+        except OSError:
+            pass
+        return False
 
 
