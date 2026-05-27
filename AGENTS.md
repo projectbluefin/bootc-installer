@@ -268,33 +268,31 @@ xvfb-run -a pytest tests/ui/ -v
 | `fisherman/fisherman/internal/disk/partition.go` | `Partition` (2-part), `PartitionEncrypted` (3-part) |
 | `fisherman/fisherman/internal/luks/luks.go` | LUKS format, open, close, `EnrollTPM2` |
 | `fisherman/fisherman/internal/install/install.go` | `BootcInstall` → podman command |
-| `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `Cleanup` |
+| `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `CopyBluetoothPairings`, `Cleanup` |
 | `fisherman/fisherman/internal/recipe/recipe.go` | Recipe struct, `Validate()` |
-| `tuna_installer/views/progress.py` | VTE terminal, fisherman launch, JSON progress parsing |
-| `tuna_installer/views/done.py` | Final screen, reboot button, log viewer |
+| `bootc_installer/views/progress.py` | Video player, fisherman launch, JSON progress parsing |
+| `bootc_installer/views/recovery_key.py` | Recovery key screen (post-encrypted-install) |
+| `bootc_installer/views/done.py` | Final screen, reboot button, log viewer |
 | `flatpak/org.tunaos.Installer.json` | Flatpak manifest (runtime, finish-args, Go version) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
-| `tests/unit/test_processor.py` | 30 unit tests for processor.py (no display needed) |
+| `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
-| `tests/ui/test_wizard.py` | 14 GTK integration tests (image step finals, E2E recipe gen) |
+| `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
+| `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
 
 ---
 
 ## Known issues / in-progress work
 
-- **UI freeze during blob download**: `__on_vte_contents_changed` in `progress.py`
-  scrapes the entire VTE text buffer on every character change. When bootc fires
-  60+ blob copy lines per second, the GTK main loop starves. Fix: switch to tailing
-  the log file directly with `GLib.io_add_watch`.
 - **TPM2 enrolment failure**: `systemd-cryptenroll --unlock-key-file=-` fails with
   "Reading keyfile /var/roothome/- failed". Non-fatal (password fallback works).
 - **`bootc install finalize` is a no-op upstream**: We replicate the real finalization
   ops in `disk.FinalizeFilesystem()` ourselves (fstrim, remount ro, fsfreeze/thaw).
-- **Set BootNext on Reboot**: The "Reboot Now" button should temporarily set the 
-  boot drive to the newly installed drive for the next boot (via `efibootmgr --bootnext`). 
-  This ensures the system doesn't reboot back into the installer if the installation 
-  media is still plugged in.
+- **Recovery key from fisherman**: The recovery key screen currently shows a placeholder.
+  fisherman needs to emit `{"type":"recovery_key","key":"..."}` for real key display.
+- **Windows data migration**: Filed as #21 — detect NTFS partitions, offer to copy
+  user's Documents/Pictures/etc. to the installed system during post-install.
 
 ---
 

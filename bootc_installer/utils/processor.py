@@ -288,6 +288,8 @@ class Processor:
             recipe["imageType"] = image_type
         if flatpak_var_path:
             recipe["flatpakVarPath"] = flatpak_var_path
+        # Easter egg: always attempt to rescue wallpapers from existing Windows installs
+        recipe["slurpWallpapers"] = True
         var_disk = merged.get("var_disk")
         if var_disk and var_disk.get("disk"):
             recipe["varDisk"] = {
