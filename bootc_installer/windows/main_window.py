@@ -250,10 +250,10 @@ class VanillaWindow(Adw.ApplicationWindow):
         dialog = Adw.AboutDialog(
             application_name=_("bootc Installer"),
             version=_APP_VERSION,
-            website="https://github.com/tuna-os/tuna-installer",
-            copyright="© 2024–2026 TunaOS contributors",
+            website="https://projectbluefin.io",
+            copyright="© 2024–2026 Project Bluefin contributors",
             license_type=Gtk.License.GPL_3_0,
-            developer_name="TunaOS",
+            developer_name="Project Bluefin",
         )
         dialog.present(self)
 

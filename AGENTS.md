@@ -9,7 +9,7 @@ to work on this project as an AI agent. Read it before making changes.
 
 ```
 tuna-installer/               ← this repo (tuna-os/tuna-installer)
-├── tuna_installer/           ← Python GTK4/Adwaita GUI (the Flatpak app)
+├── bootc_installer/          ← Python GTK4/Adwaita GUI (the Flatpak app)
 │   └── views/
 │       ├── progress.py       ← VTE terminal, fisherman launcher, progress JSON parser
 │       ├── done.py           ← final screen (reboot / log viewer)
@@ -26,7 +26,7 @@ tuna-installer/               ← this repo (tuna-os/tuna-installer)
 │           ├── recipe/       ← recipe.go schema + Validate()
 │           └── runner/       ← Run() helper (exec + set-x logging)
 ├── flatpak/
-│   └── org.tunaos.Installer.json   ← Flatpak manifest (GNOME 50 runtime)
+│   └── org.bootcinstaller.Installer.json   ← Flatpak manifest (GNOME 50 runtime)
 ├── data/                     ← GSchema, desktop file, icons
 ├── po/                       ← translations
 └── .github/workflows/flatpak.yml   ← CI: builds + publishes "continuous" pre-release
@@ -334,7 +334,8 @@ sudo umount /tmp/ir
 
 ## GitHub org context
 
-- **`tuna-os/tuna-installer`** — this repo (GUI + submodule)
+- **`castrojo/tuna-installer`** — this repo (castrojo fork / dakota-installer)
+- **`tuna-os/tuna-installer`** — upstream source repo (read-only)
 - **`tuna-os/fisherman`** — Go backend (submodule at `fisherman/`)
 - **`tuna-os/github-copr`** — COPR definitions for c10s-gnome COPRs used in the image
 - Images are published to `ghcr.io/tuna-os/` (e.g. `yellowfin:gnome50`, `yellowfin:gnome-hwe`)

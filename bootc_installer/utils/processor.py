@@ -142,7 +142,7 @@ class Processor:
             image = local_imgref
 
         # --- Hostname ---
-        hostname = merged.get("hostname", sys_recipe.get("hostname", "tunaos"))
+        hostname = merged.get("hostname", sys_recipe.get("hostname", "dakota"))
 
         # --- Flatpaks ---
         flatpaks = merged.get("flatpaks", [])

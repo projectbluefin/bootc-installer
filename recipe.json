@@ -1,13 +1,13 @@
 {
     "log_file": "/var/log/bootc-installer.log",
-    "distro_name": "TunaOS",
-    "distro_logo": "org.bootcinstaller.Installer",
+    "distro_name": "Dakota",
+    "distro_logo": "resource:///org/bootcinstaller/Installer/images/dakota.png",
     "welcome_title": "",
     "tour": {
         "welcome": {
             "resource": "/org/bootcinstaller/Installer/assets/welcome.png",
-            "title": "Installing TunaOS",
-            "description": "The process could take a few minutes, please be patient"
+            "title": "Installing Dakota",
+            "description": "A GNOME workstation built on GnomeOS. This will take a few minutes."
         },
         "completed": {
             "resource": "/org/bootcinstaller/Installer/assets/complete.svg",
