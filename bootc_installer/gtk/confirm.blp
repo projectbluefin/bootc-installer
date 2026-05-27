@@ -25,15 +25,30 @@ template $VanillaConfirm: Adw.Bin {
       Adw.PreferencesGroup group_changes {}
 
       Adw.PreferencesGroup {
-        Button btn_confirm {
-          label: _("Install");
-          valign: center;
+        Box {
+          orientation: vertical;
           halign: center;
+          spacing: 8;
 
-          styles [
-            "destructive-action",
-            "pill",
-          ]
+          Label {
+            label: _("Click to install and become a legend.");
+            halign: center;
+
+            styles [
+              "dim-label",
+            ]
+          }
+
+          Button btn_confirm {
+            label: _("Become Legend");
+            valign: center;
+            halign: center;
+
+            styles [
+              "destructive-action",
+              "pill",
+            ]
+          }
         }
       }
     }
