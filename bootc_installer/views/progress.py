@@ -344,12 +344,18 @@ class VanillaProgress(Gtk.Box):
                     self.__append_log_line(line)
             self.__log_file.close()
             self.__log_file = None
+        # Compute elapsed before stopping the timer
+        elapsed_secs = 0
+        if self.__start_time is not None:
+            elapsed_secs = int(time.monotonic() - self.__start_time)
         self.__stop_elapsed_timer()
         self.__pause_install_video()
         # Securely delete the recipe file — it contains plaintext passphrases
         # and passwords that must not persist on disk after install.
         self.__cleanup_recipe_file()
-        self.__window.set_installation_result(ret == 0, None, self.__boot_id, self.__recovery_key)
+        self.__window.set_installation_result(
+            ret == 0, None, self.__boot_id, self.__recovery_key, elapsed_secs
+        )
         return False
 
     def __cleanup_recipe_file(self):

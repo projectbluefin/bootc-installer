@@ -460,14 +460,14 @@ class VanillaWindow(Adw.ApplicationWindow):
         toast.props.timeout = timeout
         self.toasts.add_toast(toast)
 
-    def set_installation_result(self, result, terminal, boot_id="", recovery_key=""):
+    def set_installation_result(self, result, terminal, boot_id="", recovery_key="", elapsed_secs=0):
         if result:
             logger.info("Installation complete!")
         else:
             logger.error("Installation failed!")
 
         self.__install_recovery_key = recovery_key or self.__install_recovery_key
-        self.__view_done.set_result(result, terminal, boot_id)
+        self.__view_done.set_result(result, terminal, boot_id, elapsed_secs)
 
         if result and self.__install_is_encrypted:
             self.__view_recovery_key.set_recovery_key(self.__install_recovery_key)

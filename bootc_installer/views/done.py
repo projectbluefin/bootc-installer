@@ -81,7 +81,7 @@ class VanillaDone(Adw.Bin):
         self.btn_log.connect("clicked", self.__on_log_clicked)
         self.btn_retry.connect("clicked", self.__on_retry_clicked)
 
-    def set_result(self, result, terminal, boot_id=""):
+    def set_result(self, result, terminal, boot_id="", elapsed_secs=0):
         self.__terminal = terminal
         self.__boot_id = boot_id
 
@@ -89,7 +89,12 @@ class VanillaDone(Adw.Bin):
             pretty_name = getattr(self.__window, "pretty_name", None) \
                 or self.__window.recipe.get("distro_name", "the operating system")
             self.page_header.title = _("{} is installed").format(pretty_name)
-            self.page_header.subtitle = _("Restart now to complete the installation.")
+            if elapsed_secs > 0:
+                minutes, secs = divmod(elapsed_secs, 60)
+                time_str = f"{minutes}:{secs:02d}"
+                self.page_header.subtitle = _("Installed in %s. Restart to begin your new experience.") % time_str
+            else:
+                self.page_header.subtitle = _("Restart now to complete the installation.")
             icon_spec = getattr(self.__window, "selected_icon", None)
             if icon_spec:
                 apply_icon(self.page_header, icon_spec)
