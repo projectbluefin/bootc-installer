@@ -395,6 +395,39 @@ class VanillaProgress(Gtk.Box):
             logger.info("UI update: %s (fraction=%.2f)", update["label"],
                         update["fraction"] if update["fraction"] is not None else -1)
 
+    def start_demo(self):
+        """Fake install sequence for UI design / demo mode (BOOTC_DEMO=1).
+
+        Walks through 9 steps over ~5 seconds, then calls set_installation_result.
+        No fisherman is launched. No disk is touched.
+        """
+        _STEPS = [
+            (0.4,  0.11, "Step 1/9: Partitioning disk"),
+            (0.8,  0.22, "Step 2/9: Formatting EFI partition"),
+            (1.2,  0.33, "Step 3/9: Setting up encryption"),
+            (1.6,  0.44, "Step 4/9: Formatting root filesystem"),
+            (2.0,  0.55, "Step 5/9: Mounting filesystems"),
+            (2.8,  0.66, "Step 6/9: Installing system image"),
+            (3.6,  0.77, "Step 7/9: Copying flatpaks"),
+            (4.2,  0.88, "Step 8/9: Writing configuration"),
+            (4.8,  0.99, "Step 9/9: Finalizing"),
+        ]
+        self.__pulse_active = False
+
+        def _fire_step(index):
+            if index >= len(_STEPS):
+                self.progressbar.set_fraction(1.0)
+                self.progressbar_text.set_label(_("Installation complete!"))
+                GLib.timeout_add(600, lambda: self.__window.set_installation_result(True, None, "") or False)
+                return False
+            _, fraction, label = _STEPS[index]
+            self.progressbar.set_fraction(fraction)
+            self.progressbar_text.set_label(_(label))
+            return False
+
+        for i, (delay, _, _label) in enumerate(_STEPS):
+            GLib.timeout_add(int(delay * 1000), _fire_step, i)
+
     def start(self, recipe):
         # If VANILLA_FAKE was passed as argument
         if not recipe:

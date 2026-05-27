@@ -299,6 +299,11 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.__view_confirm.update(self.finals)
 
     def on_installation_confirmed(self, *args):
+        if os.environ.get("BOOTC_DEMO"):
+            self.next()
+            self.__view_progress.start_demo()
+            return
+
         recipe = Processor.gen_install_recipe(
             self.recipe.get("log_file", "/tmp/vanilla_installer.log"),
             self.finals,
