@@ -28,7 +28,7 @@ logger_boot = logging.getLogger("Installer::Boot")
 logger_boot.info(f"Logging to {_log_file}")
 
 try:
-    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtWidgets import QApplication, QMessageBox
     from PyQt6.QtCore import QUrl
     from PyQt6.QtQml import QQmlApplicationEngine
     logger_boot.info("PyQt6 imported successfully")
@@ -48,6 +48,20 @@ except ImportError:
     APP_VERSION = "unknown"
 
 logger = logging.getLogger("Installer::Main")
+
+
+def _show_fatal_error(title: str, message: str) -> None:
+    """Display a Qt critical-error dialog and log the message."""
+    logger.error("%s: %s", title, message)
+    try:
+        dialog = QMessageBox()
+        dialog.setIcon(QMessageBox.Icon.Critical)
+        dialog.setWindowTitle(title)
+        dialog.setText(message)
+        dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+        dialog.exec()
+    except Exception as e:
+        logger.debug("Could not show Qt error dialog: %s", e)
 
 
 class KDEBootcInstaller(QApplication):
@@ -90,18 +104,24 @@ def main(version):
     try:
         logger.info("Checking system requirements")
         if not Systeminfo.is_uefi():
-            logger.error("System is not UEFI - installer requires UEFI")
-            # TODO: Show error dialog in Qt
+            _show_fatal_error(
+                "System Requirements Not Met",
+                "This installer requires a UEFI system. Legacy BIOS boot is not supported.",
+            )
             return 1
 
         if not Systeminfo.is_ram_enough():
-            logger.error("Insufficient RAM")
-            # TODO: Show error dialog in Qt
+            _show_fatal_error(
+                "Insufficient RAM",
+                "This system does not have enough RAM to run the installer. At least 4 GB is required.",
+            )
             return 1
 
         if not Systeminfo.is_cpu_enough():
-            logger.error("Insufficient CPU cores")
-            # TODO: Show error dialog in Qt
+            _show_fatal_error(
+                "Insufficient CPU",
+                "This system does not have enough CPU cores to run the installer.",
+            )
             return 1
 
         logger.info("System requirements met, starting KDE installer")

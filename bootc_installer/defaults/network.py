@@ -285,7 +285,8 @@ class VanillaDefaultNetwork(Adw.Bin):
         self.__get_network_devices()
         self.__start_auto_refresh()
 
-        # TODO: Remove once implemented
+        # "Connect to Hidden Network" and "Proxy Settings" rows have no
+        # handler implementation yet. Keep the group hidden until they are built.
         self.advanced_group.set_visible(False)
 
         self.__nm_client.connect("device-added", self.__add_new_device)

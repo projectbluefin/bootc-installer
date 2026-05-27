@@ -54,6 +54,14 @@ class VanillaChoiceExpanderEntry(Adw.ExpanderRow):
         self.img_choice.set_from_icon_name(icon_name)
 
 
+_SENNA_QUOTES = [
+    _('"If you have God on your side, everything becomes clear." — Ayrton Senna'),
+    _('"I am not designed to come second or third. I am designed to win." — Ayrton Senna'),
+    _('"Being second is to be the first of the ones who lose." — Ayrton Senna'),
+    _('"On a given day, a given circumstance, you think you have a limit — and you go beyond it." — Ayrton Senna'),
+]
+
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/confirm.ui")
 class VanillaConfirm(Adw.Bin):
     __gtype_name__ = "VanillaConfirm"
@@ -65,12 +73,7 @@ class VanillaConfirm(Adw.Bin):
     btn_confirm = Gtk.Template.Child()
     page_header = Gtk.Template.Child()
 
-    _SENNA_QUOTES = [
-        _('"If you have God on your side, everything becomes clear." — Ayrton Senna'),
-        _('"I am not designed to come second or third. I am designed to win." — Ayrton Senna'),
-        _('"Being second is to be the first of the ones who lose." — Ayrton Senna'),
-        _('"On a given day, a given circumstance, you think you have a limit — and you go beyond it." — Ayrton Senna'),
-    ]
+    _SENNA_QUOTES = _SENNA_QUOTES
 
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)

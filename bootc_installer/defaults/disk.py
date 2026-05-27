@@ -13,6 +13,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Class overview (all are GTK widget subclasses — kept in one file due to
+# tight coupling; extract only if they grow independent):
+#
+#   VanillaDefaultDiskEntry      — single disk item row (auto-select list)
+#   PartitionRow                 — single partition row in the manual selector
+#   PartitionSelector            — full manual partition selector page
+#   VanillaDefaultDiskPartModal  — modal window wrapping PartitionSelector
+#   VanillaDefaultDiskConfirmModal — confirmation modal before manual install
+#   VanillaDefaultDisk           — main disk wizard step (auto + manual tabs)
 
 import pathlib
 import subprocess
@@ -28,6 +38,8 @@ from bootc_installer.core.system import Systeminfo
 
 logger = logging.getLogger("Installer::Disk")
 
+
+# ── Disk list row ──────────────────────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-disk.ui")
 class VanillaDefaultDiskEntry(Adw.ActionRow):
@@ -62,6 +74,8 @@ class VanillaDefaultDiskEntry(Adw.ActionRow):
     def disk_block(self):
         return self.__partition.disk_block
 
+
+# ── Manual partition row ───────────────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-partition-row.ui")
 class PartitionRow(Adw.ActionRow):
@@ -146,6 +160,8 @@ class PartitionRow(Adw.ActionRow):
         ] = fs_type
         self.__parent.set_subtitle(f"{size} ({fs_type})")
 
+
+# ── Manual partition selector page ────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-partition.ui")
 class PartitionSelector(Adw.PreferencesPage):
@@ -487,6 +503,8 @@ class PartitionSelector(Adw.PreferencesPage):
         return self.__selected_partitions
 
 
+# ── Partition selection modal window ──────────────────────────────────────────
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-disk.ui")
 class VanillaDefaultDiskPartModal(Adw.Window):
     __gtype_name__ = "VanillaDefaultDiskPartModal"
@@ -583,6 +601,8 @@ class VanillaDefaultDiskPartModal(Adw.Window):
         return recipe
 
 
+# ── Manual install confirmation modal ─────────────────────────────────────────
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-disk-confirm.ui")
 class VanillaDefaultDiskConfirmModal(Adw.Window):
     __gtype_name__ = "VanillaDefaultDiskConfirmModal"
@@ -664,6 +684,8 @@ class VanillaDefaultDiskConfirmModal(Adw.Window):
         self.__window.next()
         self.destroy()
 
+
+# ── Main disk wizard step ──────────────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-disk.ui")
 class VanillaDefaultDisk(Adw.Bin):

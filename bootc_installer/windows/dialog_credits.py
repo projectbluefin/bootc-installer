@@ -1,11 +1,14 @@
 """Credits window with animated hero cards for Bluefin contributors."""
 
 import json
+import logging
 import os
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
 _CREDITS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "credits.json")
+
+logger = logging.getLogger("VanillaInstaller::Credits")
 
 # CSS for the glass-effect hero cards and animations
 _CREDITS_CSS = """
@@ -159,10 +162,8 @@ class TunaCreditsWindow(Adw.Window):
             gfile = Gio.File.new_for_uri(f"resource://{resource_path}")
             content = gfile.load_contents(None)[1].decode("utf-8")
             data = json.loads(content)
-        except Exception:
-            pass
-
-        # Fall back to file on disk
+        except Exception as e:
+            logger.debug("Could not load credits from GResource: %s", e)
         if data is None:
             credits_path = _CREDITS_PATH
             if not os.path.exists(credits_path):

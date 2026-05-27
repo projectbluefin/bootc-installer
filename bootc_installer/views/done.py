@@ -224,8 +224,8 @@ class VanillaDone(Adw.Bin):
             us_zones = {"EST", "EDT", "CST", "CDT", "MST", "MDT", "PST", "PDT", "AKST", "AKDT", "HST"}
             if tz in us_zones:
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Could not read timezone name: %s", e)
         # Check /etc/timezone or timedatectl output
         try:
             with open("/etc/timezone") as f:

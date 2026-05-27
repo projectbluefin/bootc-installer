@@ -674,7 +674,7 @@ class VanillaProgress(Gtk.Box):
         except (OSError, ProcessLookupError):
             try:
                 self.__proc.terminate()
-            except OSError:
-                pass
+            except OSError as e:
+                logger.debug("Could not terminate fisherman process: %s", e)
         self.__cleanup_recipe_file()
 

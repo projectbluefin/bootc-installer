@@ -115,8 +115,8 @@ class VanillaWindow(Adw.ApplicationWindow):
         if self.__update_finals_widget is not None and self.__update_finals_handler is not None:
             try:
                 self.__update_finals_widget.btn_next.disconnect(self.__update_finals_handler)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Could not disconnect update_finals handler: %s", e)
 
         target = self.__last_step_widget
         if target is None and self.__builder.widgets:
@@ -244,8 +244,8 @@ class VanillaWindow(Adw.ApplicationWindow):
             for h in self.__next_handlers:
                 try:
                     self.__next_page_widget.btn_next.disconnect(h)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Could not disconnect next button handler: %s", e)
             self.__next_page_widget = None
             self.__next_handlers = []
 

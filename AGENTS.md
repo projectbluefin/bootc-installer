@@ -11,7 +11,7 @@ to work on this project as an AI agent. Read it before making changes.
 tuna-installer/               ← this repo (tuna-os/tuna-installer)
 ├── bootc_installer/          ← Python GTK4/Adwaita GUI (the Flatpak app)
 │   └── views/
-│       ├── progress.py       ← VTE terminal, fisherman launcher, progress JSON parser
+│       ├── progress.py       ← fisherman launcher, log-file watcher, progress JSON parser
 │       ├── done.py           ← final screen (reboot / log viewer)
 │       └── confirm.py        ← confirmation screen before install
 ├── fisherman/                ← git submodule → tuna-os/fisherman (Go backend)
@@ -81,7 +81,8 @@ disk install pipeline. It emits newline-delimited JSON progress to stdout:
 ### tuna-installer (Python, GTK4/Adwaita)
 
 The GUI collects user choices and writes a recipe JSON, then launches fisherman
-via a VTE terminal.
+and tails its JSON log output (via a `GLib.timeout_add` polling loop in
+`progress.py`).
 
 **Flatpak sandbox constraints:**
 - fisherman is staged to `~/.cache/tuna-installer/fisherman` (host-visible via
@@ -200,7 +201,7 @@ ssh james@192.168.0.119 "tail -f ~/.cache/tuna-installer/fisherman-output.log"
 
 - **Every push to `main`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous` pre-release on GitHub.
-- **`.github/workflows/python-test.yml`** runs on every push: 30 unit tests
+- **`.github/workflows/python-test.yml`** runs on every push: 206+ unit tests
   (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
@@ -218,6 +219,7 @@ Always verify CI passes after pushing both submodule + parent repo commits.
 tests/
 ├── unit/
 │   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
+│   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
 │   └── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
 └── ui/
     ├── conftest.py          ← GResource loader + Adw.init() for headless GTK
@@ -300,8 +302,9 @@ xvfb-run -a pytest tests/ui/ -v
 - **`bootc install finalize` is a no-op upstream**: We replicate the real finalization
   ops in `disk.FinalizeFilesystem()` ourselves (fstrim, remount ro, fsfreeze/thaw).
 - **Windows data slurp GUI**: The backend (`fisherman scan`, `ExtractData`, `InjectData`)
-  is complete (#22). Missing: GUI category picker page that calls `fisherman scan` and
-  lets users select which data to migrate.
+  is complete (#22). The GUI wizard step (`bootc_installer/defaults/slurp.py`) is
+  implemented but the "category picker" modal (letting users choose *which* data
+  categories to migrate before install) is still incomplete.
 - **Flatpak builder bare repo issue**: git sources in Flatpak manifests fail due to
   `safe.bareRepository=explicit` in the sandbox. Workaround: use `archive` sources
   with SHA256 instead of `git` sources.
