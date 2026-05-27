@@ -51,6 +51,16 @@ template $VanillaWindow: Adw.ApplicationWindow {
         }
 
         [end]
+        Button btn_credits {
+          icon-name: "system-users-symbolic";
+          tooltip-text: _("Credits");
+
+          styles [
+            "flat",
+          ]
+        }
+
+        [end]
         Button btn_next {
           visible: false;
           label: _("Next");

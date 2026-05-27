@@ -121,6 +121,7 @@ class VanillaProgress(Gtk.Box):
         self.__syncing_mode_buttons = False
         self._carousel_timer = None
         self._tracks_loaded = False
+        self._video_configured = False
 
         self.__build_ui()
         self.__log_buf = self.log_view.get_buffer()
@@ -133,6 +134,10 @@ class VanillaProgress(Gtk.Box):
 
 
     def __configure_install_video(self):
+        """Set up video playback. Deferred until the widget is mapped so that
+        GTK's GstMediaFile backend has time to construct its internal GstPlayer
+        before we attempt to set properties like mute/volume (fixes #33).
+        """
         self.install_video.connect("notify::media-stream", self.__on_media_stream_changed)
         video_file = Gio.File.new_for_uri(
             "resource:///org/bootcinstaller/Installer/assets/installer-video.webm"
@@ -146,6 +151,7 @@ class VanillaProgress(Gtk.Box):
         threading.Thread(target=self.__load_tracks, daemon=True).start()
 
     def __load_tracks(self):
+        tracks = []
         try:
             tracks_bytes = Gio.resources_lookup_data(
                 "/org/bootcinstaller/Installer/data/tracks.json",
@@ -153,8 +159,14 @@ class VanillaProgress(Gtk.Box):
             )
             tracks = json.loads(tracks_bytes.get_data())
         except Exception as e:
-            logger.warning("Failed to load soundtrack metadata: %s", e)
-            tracks = []
+            logger.warning("Failed to load soundtrack from GResource: %s", e)
+            # Fallback: try loading from filesystem (dev mode)
+            import pathlib
+            dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "tracks.json"
+            try:
+                tracks = json.loads(dev_path.read_text())
+            except Exception as e2:
+                logger.warning("Failed to load soundtrack from dev path: %s", e2)
         GLib.idle_add(self.__populate_carousel, tracks)
 
     def __populate_carousel(self, tracks):
@@ -188,8 +200,23 @@ class VanillaProgress(Gtk.Box):
             texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(buf.read()))
             qr_widget = Gtk.Picture.new_for_paintable(texture)
         except Exception as e:
-            logger.debug("Falling back to soundtrack placeholder for %s: %s", track.get("title", "track"), e)
-            qr_widget = Gtk.Label(label=_("QR unavailable"))
+            logger.debug("QR generation unavailable for %s: %s", track.get("title", "track"), e)
+            # Fallback: show a music note icon + the URL as a label
+            fallback_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            fallback_box.set_valign(Gtk.Align.CENTER)
+            fallback_box.set_halign(Gtk.Align.CENTER)
+            icon = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic")
+            icon.set_pixel_size(64)
+            icon.add_css_class("dim-label")
+            fallback_box.append(icon)
+            url_label = Gtk.Label(label=track.get("url", ""))
+            url_label.set_wrap(True)
+            url_label.set_max_width_chars(20)
+            url_label.add_css_class("caption")
+            url_label.add_css_class("dim-label")
+            url_label.set_selectable(True)
+            fallback_box.append(url_label)
+            qr_widget = fallback_box
 
         qr_widget.set_size_request(160, 160)
         card.append(qr_widget)
@@ -248,23 +275,34 @@ class VanillaProgress(Gtk.Box):
         return True
 
     def __on_media_stream_changed(self, *_args):
-        # Defer mute until the next main-loop iteration so GstPlayer is ready.
-        GLib.idle_add(self.__mute_install_video)
+        """Called when the Gtk.Video gets its MediaStream. Hook into prepared
+        notification to defer mute until GstPlayer is actually ready."""
+        media_stream = self.install_video.get_media_stream()
+        if media_stream is None:
+            return
+        if media_stream.is_prepared():
+            GLib.idle_add(self.__mute_install_video)
+        else:
+            media_stream.connect("notify::prepared", self.__on_media_prepared)
+
+    def __on_media_prepared(self, media_stream, *_args):
+        if media_stream.is_prepared():
+            GLib.idle_add(self.__mute_install_video)
 
     def __mute_install_video(self):
         media_stream = self.install_video.get_media_stream()
-        if media_stream is not None:
+        if media_stream is not None and media_stream.is_prepared():
             media_stream.set_muted(True)
 
     def __play_install_video(self):
         media_stream = self.install_video.get_media_stream()
-        if media_stream is not None:
+        if media_stream is not None and media_stream.is_prepared():
             media_stream.play()
             media_stream.set_muted(True)
 
     def __pause_install_video(self):
         media_stream = self.install_video.get_media_stream()
-        if media_stream is not None:
+        if media_stream is not None and media_stream.is_prepared():
             media_stream.pause()
 
     def __set_media_mode(self, mode: str, sync_buttons: bool = True):
@@ -351,7 +389,9 @@ class VanillaProgress(Gtk.Box):
 
     def __build_ui(self):
         self.__install_progress_css()
-        self.__configure_install_video()
+        # Defer video setup to when the widget is actually shown — avoids
+        # GStreamer-Player-CRITICAL from muting before GstPlayer is constructed.
+        self.connect("map", self.__on_first_map)
         self.__configure_soundtrack()
         self.__set_media_mode("video")
 
@@ -369,6 +409,16 @@ class VanillaProgress(Gtk.Box):
             css,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
+
+    def __on_first_map(self, *_args):
+        """Configure video only after the widget is mapped (visible in the window).
+        This ensures GTK's GstMediaFile has fully initialized its GstPlayer
+        before we attempt to set mute/volume properties.
+        """
+        if self._video_configured:
+            return
+        self._video_configured = True
+        self.__configure_install_video()
 
     def __set_progress_fraction(self, fraction: float):
         fraction = max(0.0, min(fraction, 1.0))

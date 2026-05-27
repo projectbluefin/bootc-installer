@@ -48,6 +48,7 @@ class VanillaWindow(Adw.ApplicationWindow):
     btn_next = Gtk.Template.Child()
     btn_exit = Gtk.Template.Child()
     btn_about = Gtk.Template.Child()
+    btn_credits = Gtk.Template.Child()
     toasts = Gtk.Template.Child()
 
     def __init__(self, autoinstall_recipe: str | None = None, **kwargs):
@@ -95,6 +96,7 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.btn_next.connect("clicked", self.__on_header_next)
         self.btn_exit.connect("clicked", self.__on_exit_clicked)
         self.btn_about.connect("clicked", self.__on_about_clicked)
+        self.btn_credits.connect("clicked", self.__on_credits_clicked)
         self.connect("close-request", self.__on_close_request)
         self.carousel.connect("page-changed", self.__on_page_changed)
         self.__reconnect_update_finals()
@@ -358,6 +360,10 @@ class VanillaWindow(Adw.ApplicationWindow):
             developer_name="Project Bluefin",
         )
         dialog.present(self)
+
+    def __on_credits_clicked(self, *args):
+        from bootc_installer.windows.dialog_credits import TunaCreditsWindow
+        TunaCreditsWindow(self).show()
 
     def __on_exit_clicked(self, *args):
         if self.__is_done():
