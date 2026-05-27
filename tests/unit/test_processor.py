@@ -588,3 +588,5 @@ class TestHardwareHostname:
         path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
         r = _load(path)
         assert r["hostname"] == "framework-13-a7c3"
+
+

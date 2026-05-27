@@ -217,7 +217,8 @@ Always verify CI passes after pushing both submodule + parent repo commits.
 ```
 tests/
 ├── unit/
-│   └── test_processor.py   ← 30 pure-Python tests for processor.py (no display)
+│   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
+│   └── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
 └── ui/
     ├── conftest.py          ← GResource loader + Adw.init() for headless GTK
     └── test_wizard.py       ← 14 GTK integration tests (real widgets via Xvfb)
@@ -287,6 +288,7 @@ xvfb-run -a pytest tests/ui/ -v
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
 | `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
+| `tests/unit/test_slurp_helpers.py` | 23 unit tests for slurp.py pure logic (no display) |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
 | `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
@@ -295,12 +297,8 @@ xvfb-run -a pytest tests/ui/ -v
 
 ## Known issues / in-progress work
 
-- **TPM2 enrolment failure**: `systemd-cryptenroll --unlock-key-file=-` fails with
-  "Reading keyfile /var/roothome/- failed". Non-fatal (password fallback works).
 - **`bootc install finalize` is a no-op upstream**: We replicate the real finalization
   ops in `disk.FinalizeFilesystem()` ourselves (fstrim, remount ro, fsfreeze/thaw).
-- **Recovery key from fisherman**: The recovery key screen currently shows a placeholder.
-  fisherman needs to emit `{"type":"recovery_key","key":"..."}` for real key display.
 - **Windows data slurp GUI**: The backend (`fisherman scan`, `ExtractData`, `InjectData`)
   is complete (#22). Missing: GUI category picker page that calls `fisherman scan` and
   lets users select which data to migrate.
