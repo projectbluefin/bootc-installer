@@ -1,0 +1,111 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $TunaCreditsWindow: Adw.Window {
+  title: _("Credits");
+  modal: true;
+  default-width: 520;
+  default-height: 700;
+
+  styles [
+    "credits-window",
+  ]
+
+  Adw.Bin {
+    child: Adw.ToolbarView {
+      [top]
+      Adw.HeaderBar {
+        styles [
+          "flat",
+        ]
+      }
+
+      content: ScrolledWindow credits_scroll {
+        hscrollbar-policy: never;
+        vexpand: true;
+
+        Box credits_container {
+          orientation: vertical;
+          spacing: 24;
+          margin-start: 24;
+          margin-end: 24;
+          margin-top: 12;
+          margin-bottom: 48;
+
+          /* Header section - filled dynamically */
+          Box header_box {
+            orientation: vertical;
+            spacing: 8;
+            halign: center;
+            margin-bottom: 12;
+
+            Label header_title {
+              halign: center;
+
+              styles [
+                "title-1",
+                "credits-header-title",
+              ]
+            }
+
+            Label header_subtitle {
+              halign: center;
+              wrap: true;
+              justify: center;
+
+              styles [
+                "dim-label",
+              ]
+            }
+
+            Label header_quote {
+              halign: center;
+              wrap: true;
+              justify: center;
+              margin-top: 8;
+
+              styles [
+                "credits-quote",
+                "caption",
+              ]
+            }
+          }
+
+          /* Sections are added programmatically as hero cards */
+          Box sections_box {
+            orientation: vertical;
+            spacing: 32;
+          }
+
+          /* Footer */
+          Box footer_box {
+            orientation: vertical;
+            spacing: 8;
+            halign: center;
+            margin-top: 24;
+
+            Label footer_quote {
+              halign: center;
+              wrap: true;
+              justify: center;
+
+              styles [
+                "credits-quote",
+                "caption",
+              ]
+            }
+
+            Label footer_closing {
+              halign: center;
+
+              styles [
+                "title-3",
+                "credits-closing",
+              ]
+            }
+          }
+        }
+      };
+    };
+  }
+}

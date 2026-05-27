@@ -26,6 +26,7 @@ if blueprint_compiler.found()
       'gtk/dialog.blp',
       'gtk/dialog-disk.blp',
       'gtk/dialog-disk-confirm.blp',
+      'gtk/dialog-credits.blp',
       'gtk/dialog-output.blp',
       'gtk/dialog-poweroff.blp',
       'gtk/dialog-recovery.blp',
@@ -139,6 +140,7 @@ if variant == 'kde'
 endif
 
 subdir('defaults')
+subdir('data')
 subdir('layouts')
 subdir('core')
 subdir('utils')

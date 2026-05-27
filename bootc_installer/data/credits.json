@@ -1,0 +1,262 @@
+{
+  "header": {
+    "title": "The Ones Who Shape the Light",
+    "subtitle": "Every legend is forged by those who came before.",
+    "quote": "Be the one who moves, not the one who is moved.",
+    "quote_author": "Zavala"
+  },
+  "sections": [
+    {
+      "title": "Current Maintainers",
+      "subtitle": "The ones who hold the line",
+      "members": [
+        {
+          "handle": "castrojo",
+          "title": "Product Development",
+          "nickname": "Dinosaur Guy"
+        },
+        {
+          "handle": "p5",
+          "title": "Lead DevOps",
+          "nickname": "Hold onto your butts guy"
+        },
+        {
+          "handle": "tulilirockz",
+          "title": "Bluefin Maintainer",
+          "nickname": "Large Maniraptoran Specialist"
+        },
+        {
+          "handle": "hanthor",
+          "title": "LTS Specialist",
+          "nickname": "shameless AI enjoyer"
+        },
+        {
+          "handle": "inffy",
+          "title": "Bluefin Maintainer",
+          "nickname": "Making those Coneheads work"
+        },
+        {
+          "handle": "ahmedadan",
+          "title": "Bluefin Maintainer"
+        },
+        {
+          "handle": "befanyt",
+          "title": "Bluefin Maintainer"
+        },
+        {
+          "handle": "renner0e",
+          "title": "Bluefin Maintainer"
+        },
+        {
+          "handle": "daegalus",
+          "title": "Bluefin Maintainer"
+        }
+      ]
+    },
+    {
+      "title": "Maintainers Emeritus",
+      "subtitle": "They shaped the Final Shape",
+      "members": [
+        {
+          "handle": "m2Giles",
+          "title": "Lead Architect"
+        },
+        {
+          "handle": "bketelsen",
+          "title": "Lead Developer Experience",
+          "nickname": "Architect of The Final Shape"
+        },
+        {
+          "handle": "KyleGospo",
+          "title": "Bluefin Maintainer Emeritus"
+        },
+        {
+          "handle": "bsherman",
+          "title": "Bluefin Maintainer Emeritus",
+          "nickname": "CTO"
+        },
+        {
+          "handle": "marcoceppi",
+          "title": "Bluefin Maintainer Emeritus"
+        },
+        {
+          "handle": "rothgar",
+          "title": "Bluefin Maintainer Emeritus"
+        },
+        {
+          "handle": "adamisrael",
+          "title": "Bluefin Maintainer Emeritus"
+        }
+      ]
+    },
+    {
+      "title": "Artists",
+      "subtitle": "All artwork built by humans",
+      "members": [
+        {
+          "handle": "chandeleer1698",
+          "title": "Art Director",
+          "nickname": "Telescope Connoisseur"
+        },
+        {
+          "handle": "delphicmelody",
+          "title": "Bluefin Artist"
+        }
+      ]
+    },
+    {
+      "title": "Special Guests",
+      "subtitle": "Allies from beyond the Reef",
+      "members": [
+        {
+          "handle": "kolunmi",
+          "title": "App Store Experience (Bazaar)"
+        },
+        {
+          "handle": "alateira",
+          "title": "GNOME OS Team"
+        },
+        {
+          "handle": "pojntfx",
+          "title": "GNOME OS Contributor"
+        },
+        {
+          "handle": "AdrianVovk",
+          "title": "GNOME OS Contributor"
+        },
+        {
+          "handle": "valentindavid",
+          "title": "GNOME OS Contributor"
+        },
+        {
+          "handle": "madonuko",
+          "title": "Readymade Installation (Fyra Labs)"
+        },
+        {
+          "handle": "xe",
+          "title": "Technical Writer & Advisor"
+        },
+        {
+          "handle": "sramkrishna",
+          "title": "GNOME Foundation"
+        },
+        {
+          "handle": "mairin",
+          "title": "GNOME Design"
+        }
+      ]
+    },
+    {
+      "title": "Advisors & Mentors",
+      "subtitle": "Bluefin is not an accident",
+      "members": [
+        {
+          "handle": "dustinkirkland",
+          "title": "Lead Mentor"
+        },
+        {
+          "handle": "ahrkrak",
+          "title": "Lead Mentor"
+        },
+        {
+          "handle": "mrbobbytables",
+          "title": "Lead Mentor",
+          "nickname": "[ Redacted ]"
+        },
+        {
+          "handle": "cblecker",
+          "title": "Lead Mentor",
+          "nickname": "[ Redacted ]"
+        },
+        {
+          "handle": "jeefy",
+          "title": "Lead Mentor",
+          "nickname": "[ Redacted ]"
+        },
+        {
+          "handle": "cgwalters",
+          "title": "Bootc Contributor"
+        },
+        {
+          "handle": "travier",
+          "title": "Bootc Contributor"
+        },
+        {
+          "handle": "popey",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "abbycabs",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "ashleymcnamara",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "jonobacon",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "caniszczyk",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "jbeda",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "krisnova",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "thockin",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "sarahnovotny",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "parispittman",
+          "title": "Advisor & Mentor"
+        },
+        {
+          "handle": "stormypeters",
+          "title": "Advisor & Mentor"
+        }
+      ]
+    },
+    {
+      "title": "Universal Blue",
+      "subtitle": "The community toolkit",
+      "members": [
+        {
+          "handle": "noelmiller",
+          "title": "Universal Blue Contributor"
+        },
+        {
+          "handle": "gerblesh",
+          "title": "Universal Blue Contributor"
+        },
+        {
+          "handle": "HikariKnight",
+          "title": "Universal Blue Contributor"
+        },
+        {
+          "handle": "dreamyukii",
+          "title": "Universal Blue Contributor"
+        },
+        {
+          "handle": "Zeglius",
+          "title": "Universal Blue Contributor"
+        }
+      ]
+    }
+  ],
+  "footer": {
+    "quote": "Whether we wanted it or not, we've stepped into a war with the Cabal on Mars.",
+    "quote_author": "Commander Zavala",
+    "closing": "Eyes up, Guardian."
+  }
+}

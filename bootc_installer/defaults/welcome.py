@@ -75,6 +75,7 @@ class VanillaDefaultWelcome(Adw.Bin):
     row_bluetooth = Gtk.Template.Child()
     row_recovery = Gtk.Template.Child()
     row_poweroff = Gtk.Template.Child()
+    btn_credits = Gtk.Template.Child()
 
     def __init__(self, window, distro_info, key, step, **kwargs):
         super().__init__(**kwargs)
@@ -104,6 +105,7 @@ class VanillaDefaultWelcome(Adw.Bin):
         self.row_bluetooth.connect("activated", self.__on_bluetooth_clicked)
         self.row_recovery.connect("activated", self.__on_recovery_clicked)
         self.row_poweroff.connect("activated", self.__on_poweroff_clicked)
+        self.btn_credits.connect("clicked", self.__on_credits_clicked)
 
     def should_show(self, context: dict) -> bool:
         return True
@@ -137,6 +139,10 @@ class VanillaDefaultWelcome(Adw.Bin):
 
     def __on_poweroff_clicked(self, row):
         VanillaPoweroffDialog(self.__window).show()
+
+    def __on_credits_clicked(self, button):
+        from bootc_installer.windows.dialog_credits import TunaCreditsWindow
+        TunaCreditsWindow(self.__window).show()
 
     def __install(self, _):
         if self.__window.install_mode == 1:

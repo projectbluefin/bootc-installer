@@ -11,6 +11,7 @@
     <file>gtk/recovery-key.ui</file>
     <file>gtk/tour.ui</file>
     <file>gtk/dialog.ui</file>
+    <file>gtk/dialog-credits.ui</file>
     <file>gtk/dialog-output.ui</file>
     <file>gtk/dialog-disk.ui</file>
     <file>gtk/dialog-disk-confirm.ui</file>
@@ -51,6 +52,7 @@
     <file>assets/containerized.svg</file>
     <file>assets/unsupported.svg</file>
     <file alias="images.json">../fisherman/data/images.json</file>
+    <file alias="data/credits.json">data/credits.json</file>
     <file alias="images/bluefin.png">../fisherman/data/images/bluefin.png</file>
     <file alias="images/bluefin-lts.png">../fisherman/data/images/bluefin-lts.png</file>
     <file alias="images/dakota.png">../fisherman/data/images/dakota.png</file>
