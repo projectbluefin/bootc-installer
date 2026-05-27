@@ -18,6 +18,13 @@ import os
 import re
 from gettext import gettext as _
 
+_ENC_LABELS = {
+    "none": "None",
+    "luks-passphrase": "Encrypted with passphrase",
+    "tpm2-luks": "Hardware-backed encryption",
+    "tpm2-luks-passphrase": "Hardware-backed + passphrase fallback",
+}
+
 from gi.repository import Adw, GLib, GObject, Gtk
 
 
@@ -130,6 +137,16 @@ class VanillaConfirm(Adw.Bin):
                                     "drive-harddisk-system-symbolic",
                                 )
                             )
+                elif key == "encryption":
+                    enc_type = value.get("type", "none") if isinstance(value, dict) else str(value)
+                    label = _ENC_LABELS.get(enc_type, enc_type)
+                    self.active_widgets.append(
+                        VanillaChoiceEntry(
+                            _("Encryption"),
+                            label,
+                            "channel-secure-symbolic",
+                        )
+                    )
                 elif key == "hostname":
                     self.active_widgets.append(
                         VanillaChoiceEntry(

@@ -49,6 +49,14 @@ template $VanillaDefaultDisk: Adw.Bin {
 
       Adw.PreferencesPage {
         Adw.PreferencesGroup {
+          Adw.Banner battery_warning_banner {
+            title: _("Computer is not plugged in");
+            revealed: false;
+            button-label: "";
+          }
+        }
+
+        Adw.PreferencesGroup {
           $TunaPageHeader page_header {
             margin-top: 24;
             icon-name: "vanilla-installer-harddisk-symbolic";

@@ -680,6 +680,7 @@ class VanillaDefaultDisk(Adw.Bin):
     var_disk_switch = Gtk.Template.Child()
     group_var_disks = Gtk.Template.Child()
     group_var_disk_existing = Gtk.Template.Child()
+    battery_warning_banner = Gtk.Template.Child()
     var_disk_keep_row = Gtk.Template.Child()
     var_disk_keep_switch = Gtk.Template.Child()
 
@@ -751,9 +752,20 @@ class VanillaDefaultDisk(Adw.Bin):
         if not self.__registry_disks:
             self.__select_virtual_disk()
 
+        self.__check_battery()
+
     def __on_carousel_page_changed(self, carousel, idx):
         if carousel.get_nth_page(idx) is self:
             self.__refresh_from_image_step()
+            self.__check_battery()
+
+    def __check_battery(self):
+        try:
+            with open("/sys/class/power_supply/AC/online") as f:
+                on_ac = f.read().strip() == "1"
+        except OSError:
+            on_ac = True  # assume plugged in if can't tell
+        self.battery_warning_banner.set_revealed(not on_ac)
 
     def __refresh_from_image_step(self):
         """Re-read image metadata and update filesystem picker and hostname."""
