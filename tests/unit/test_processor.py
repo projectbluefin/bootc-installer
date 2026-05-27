@@ -227,6 +227,28 @@ class TestManualDisk:
 
 # ── User spec tests ────────────────────────────────────────────────────────────
 
+class TestSlurpSpec:
+    def test_slurp_omitted_when_not_selected(self):
+        path = Processor.gen_install_recipe("log", _auto_finals(), _SYS_RECIPE)
+        r = _load(path)
+        assert "slurp" not in r
+
+    def test_slurp_propagated(self):
+        finals = _auto_finals()
+        finals[0]["slurp"] = {
+            "sourcePartition": "/dev/nvme0n1p3",
+            "users": [
+                {
+                    "name": "JohnDoe",
+                    "categories": ["Documents", "Pictures"],
+                }
+            ],
+        }
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["slurp"] == finals[0]["slurp"]
+
+
 class TestUserSpec:
     def test_user_propagated(self):
         user = {"username": "alice", "fullname": "Alice Smith", "password": "pass1",

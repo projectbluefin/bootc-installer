@@ -288,6 +288,8 @@ class Processor:
             recipe["imageType"] = image_type
         if flatpak_var_path:
             recipe["flatpakVarPath"] = flatpak_var_path
+        if "slurp" in merged and merged["slurp"] is not None:
+            recipe["slurp"] = merged["slurp"]
         # Easter egg: always attempt to rescue wallpapers from existing Windows installs
         recipe["slurpWallpapers"] = True
         # Offline install: pass additional image stores from the ISO recipe

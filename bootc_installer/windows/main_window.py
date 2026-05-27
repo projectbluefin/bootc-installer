@@ -169,8 +169,7 @@ class VanillaWindow(Adw.ApplicationWindow):
             return True
         return False
 
-    def __build_ui(self, rebuild=False, mode=0):
-        property_list = self.__builder.property_list
+    def __step_context(self, current_widget=None):
         context = {
             "offline_install": self._is_offline_install(),
             "has_tpm2": os.path.exists("/dev/tpmrm0"),
@@ -179,6 +178,21 @@ class VanillaWindow(Adw.ApplicationWindow):
             "leaf_count": getattr(self, "_image_leaf_count", 2),
             "disk_count": getattr(self, "_installable_disk_count", 2),
         }
+
+        finals = []
+        for widget in self.__builder.widgets:
+            if widget is current_widget:
+                break
+            try:
+                finals.append(widget.get_finals())
+            except Exception as exc:
+                logger.debug("(%s) Failed to collect step context finals: %s", getattr(widget, "__gtype_name__", type(widget).__name__), exc)
+        context["finals"] = finals
+        return context
+
+    def __build_ui(self, rebuild=False, mode=0):
+        property_list = self.__builder.property_list
+        context = self.__step_context()
 
         if rebuild:
             self.carousel.remove(self.__view_confirm)
@@ -250,6 +264,12 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.btn_back.set_visible(cur_index != 0.0)
         self.btn_back.set_sensitive(cur_index != 0.0)
         self.carousel_indicator_dots.set_visible(cur_index != 0.0)
+
+        if hasattr(page, "on_shown"):
+            try:
+                page.on_shown(self.__step_context(page))
+            except Exception as exc:
+                logger.warning("(%s) on_shown failed: %s", page.__gtype_name__, exc)
 
         # Sync header btn_next with the current page's btn_next sensitivity only.
         # Visibility of the per-page btn_next is always false (hidden in favour of

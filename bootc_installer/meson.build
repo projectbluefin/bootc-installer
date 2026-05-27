@@ -18,6 +18,7 @@ if blueprint_compiler.found()
       'gtk/default-language.blp',
       'gtk/default-network.blp',
       'gtk/default-nvidia.blp',
+      'gtk/default-slurp.blp',
       'gtk/default-theme.blp',
       'gtk/default-timezone.blp',
       'gtk/default-users.blp',

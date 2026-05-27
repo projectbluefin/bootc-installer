@@ -36,6 +36,9 @@
         "disk": {
             "template": "disk"
         },
+        "slurp": {
+            "template": "slurp"
+        },
         "encryption": {
             "template": "encryption"
         },

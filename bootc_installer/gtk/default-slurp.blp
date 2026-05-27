@@ -1,0 +1,85 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDefaultSlurp: Adw.Bin {
+  hexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      hexpand: true;
+
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+          icon-name: "document-open-symbolic";
+          title: _("Bring Your Files");
+          subtitle: _("We can copy documents, pictures, and other data from an existing Windows install.");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Box {
+          orientation: vertical;
+          spacing: 12;
+
+          Spinner slurp_spinner {
+            halign: center;
+            spinning: false;
+          }
+
+          Label slurp_status_label {
+            label: _("Scanning for Windows data…");
+            wrap: true;
+            halign: center;
+            justify: center;
+
+            styles ["dim-label"]
+          }
+
+          Label slurp_warning_label {
+            visible: false;
+            wrap: true;
+            xalign: 0;
+
+            styles ["warning"]
+          }
+
+          Box slurp_content_box {
+            visible: false;
+            orientation: vertical;
+            spacing: 8;
+          }
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Box {
+          orientation: horizontal;
+          halign: center;
+          spacing: 12;
+          margin-top: 8;
+
+          Button btn_skip {
+            label: _("Skip");
+            valign: center;
+
+            styles ["pill"]
+          }
+
+          Button btn_next {
+            label: _("Continue");
+            visible: false;
+            sensitive: false;
+            valign: center;
+
+            styles ["suggested-action", "pill"]
+          }
+        }
+      }
+    }
+  }
+}
