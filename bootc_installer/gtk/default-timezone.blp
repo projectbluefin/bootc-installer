@@ -86,6 +86,24 @@ template $VanillaDefaultTimezone: Adw.Bin {
 
             Label current_location_label {}
           }
+
+          Box {
+            orientation: vertical;
+            halign: center;
+            margin-bottom: 4;
+
+            Label dinosaur_label {
+              visible: false;
+              label: "";
+              justify: center;
+              use-markup: true;
+
+              styles [
+                "dim-label",
+                "caption",
+              ]
+            }
+          }
         };
       }
     }

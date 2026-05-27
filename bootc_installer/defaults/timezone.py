@@ -14,13 +14,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import logging
+import pathlib
 import re
 import threading
 import unicodedata
 from gettext import gettext as _
 
-from gi.repository import Adw, GLib, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk
 
 from bootc_installer.core.timezones import (
     all_timezones,
@@ -29,6 +31,23 @@ from bootc_installer.core.timezones import (
 )
 
 logger = logging.getLogger("VanillaInstaller::Timezone")
+
+
+def _load_dinosaurs():
+    try:
+        data = Gio.resources_lookup_data(
+            "/org/bootcinstaller/Installer/data/dinosaurs.json", 0
+        )
+        return json.loads(data.get_data().decode())
+    except Exception:
+        dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "dinosaurs.json"
+        try:
+            return json.loads(dev_path.read_text())
+        except Exception:
+            return {}
+
+
+_DINOSAURS = _load_dinosaurs()
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-timezone.ui")
@@ -65,6 +84,7 @@ class VanillaDefaultTimezone(Adw.Bin):
     all_timezones_group = Gtk.Template.Child()
     current_tz_label = Gtk.Template.Child()
     current_location_label = Gtk.Template.Child()
+    dinosaur_label = Gtk.Template.Child()
 
     search_controller = Gtk.EventControllerKey.new()
     selected_timezone = {"region": "Europe", "zone": None}
@@ -174,6 +194,18 @@ class VanillaDefaultTimezone(Adw.Bin):
         self.selected_timezone["zone"] = tz_split[1]
         self.current_tz_label.set_label(widget.tz_name)
         self.current_location_label.set_label(_("(at %s, %s)") % (widget.title, widget.subtitle))
+
+        country = widget.subtitle
+        dino = _DINOSAURS.get(country)
+        if dino:
+            self.dinosaur_label.set_markup(
+                f"🦴 <i>{dino['name']}</i> — discovered in {dino['location']}"
+            )
+            self.dinosaur_label.set_visible(True)
+        else:
+            self.dinosaur_label.set_label("")
+            self.dinosaur_label.set_visible(False)
+
         self.btn_next.set_sensitive(True)
 
     def __generate_timezone_list_widgets(self):
