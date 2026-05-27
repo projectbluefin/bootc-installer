@@ -21,7 +21,7 @@ tuna-installer/               ← this repo (tuna-os/tuna-installer)
 │           ├── disk/         ← partition, format, mount, finalize
 │           ├── luks/         ← LUKS format, open, TPM2 enrol
 │           ├── install/      ← bootc install to-filesystem (podman run)
-│           ├── post/         ← hostname, flatpak copy, bluetooth, cleanup/unmount
+│           ├── post/         ← hostname, flatpak copy, bluetooth, wifi, audio, OEM, caches
 │           ├── progress/     ← JSON-line progress emitter
 │           ├── recipe/       ← recipe.go schema + Validate()
 │           ├── slurp/        ← Windows data migration (wallpapers, scan, extract)
@@ -269,7 +269,10 @@ xvfb-run -a pytest tests/ui/ -v
 | `fisherman/fisherman/internal/disk/partition.go` | `Partition` (2-part), `PartitionEncrypted` (3-part) |
 | `fisherman/fisherman/internal/luks/luks.go` | LUKS format, open, close, `EnrollTPM2` |
 | `fisherman/fisherman/internal/install/install.go` | `BootcInstall` → podman command |
-| `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `CopyBluetoothPairings`, `Cleanup` |
+| `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `CopyBluetoothPairings`, `CopyWiFiConnections`, `Cleanup` |
+| `fisherman/fisherman/internal/post/audio.go` | WirePlumber friendly device names, hide S/PDIF, live+persist |
+| `fisherman/fisherman/internal/post/caches.go` | `WarmCaches` — pre-generate 8 system caches for instant first boot |
+| `fisherman/fisherman/internal/post/oem.go` | OEM vendor detection (ASUS/Framework/TUXEDO), first-boot brew packages |
 | `fisherman/fisherman/internal/slurp/wallpaper.go` | NTFS detect, wallpaper extraction/injection, thumbnail generation |
 | `fisherman/fisherman/internal/slurp/scan.go` | `Scan()` enumerates Windows user data by category, `ScanJSON()` for CLI |
 | `fisherman/fisherman/internal/slurp/data.go` | `ExtractData`/`InjectData` with RAM budget enforcement |
@@ -304,6 +307,24 @@ xvfb-run -a pytest tests/ui/ -v
 - **Flatpak builder bare repo issue**: git sources in Flatpak manifests fail due to
   `safe.bareRepository=explicit` in the sandbox. Workaround: use `archive` sources
   with SHA256 instead of `git` sources.
+
+---
+
+## Post-install "instant first boot" features
+
+These run automatically during the install pipeline (main.go) and require no user input:
+
+| Feature | File | What it does |
+|---------|------|--------------|
+| Bluetooth persistence | `post.go` | Copies `/var/lib/bluetooth` → target so paired devices reconnect |
+| WiFi persistence | `post.go` | Copies NM `.nmconnection` files → target for auto-reconnect |
+| Audio device naming | `audio.go` | WirePlumber rules: rename ugly ALSA names, hide S/PDIF/Pro Audio |
+| Live audio fix | `audio.go` | `ApplyAudioConfigLive()` — fixes names in live session immediately |
+| OEM detection | `oem.go` | Detects ASUS/Framework/TUXEDO, queues first-boot brew packages |
+| Cache warming | `caches.go` | Pre-generates font, icon, pixbuf, GIO, ldconfig, man-db, flatpak caches |
+| Wallpaper slurp | `slurp/wallpaper.go` | Extracts Windows wallpapers, injects into target |
+| Wallpaper thumbnails | `slurp/wallpaper.go` | Pre-generates GNOME wallpaper capplet thumbnails |
+| Data slurp | `slurp/data.go` | Migrates documents/photos/music/bookmarks/fonts from Windows |
 
 ---
 
