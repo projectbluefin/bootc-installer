@@ -63,6 +63,14 @@ class VanillaConfirm(Adw.Bin):
 
     group_changes = Gtk.Template.Child()
     btn_confirm = Gtk.Template.Child()
+    page_header = Gtk.Template.Child()
+
+    _SENNA_QUOTES = [
+        _('"If you have God on your side, everything becomes clear." — Ayrton Senna'),
+        _('"I am not designed to come second or third. I am designed to win." — Ayrton Senna'),
+        _('"Being second is to be the first of the ones who lose." — Ayrton Senna'),
+        _('"On a given day, a given circumstance, you think you have a limit — and you go beyond it." — Ayrton Senna'),
+    ]
 
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
@@ -77,10 +85,12 @@ class VanillaConfirm(Adw.Bin):
         self.active_widgets = []
 
         pretty_name = None
+        selected_language = None
 
         for final in finals:
             for key, value in final.items():
                 if key == "language":
+                    selected_language = value
                     self.active_widgets.append(
                         VanillaChoiceEntry(
                             _("Language"), value, "preferences-desktop-locale-symbolic"
@@ -194,6 +204,13 @@ class VanillaConfirm(Adw.Bin):
                     gpu_icon,
                 )
             )
+
+        # Locale-specific quote: Senna for pt_BR, Zavala otherwise
+        import random
+        if selected_language and selected_language.startswith("pt_BR"):
+            self.page_header.subtitle = random.choice(self._SENNA_QUOTES)
+        else:
+            self.page_header.subtitle = _("\"Indeed.\" — Commander Zavala")
 
         self.btn_confirm.set_label(_("( Become Legend )"))
 
