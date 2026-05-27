@@ -608,7 +608,7 @@ class VanillaProgress(Gtk.Box):
             self.progressbar_text.set_label(_(label))
             return False
 
-        for i, (delay, _, _label) in enumerate(_STEPS):
+        for i, (delay, _frac, _label) in enumerate(_STEPS):
             GLib.timeout_add(int(delay * 1000), _fire_step, i)
 
     def start(self, recipe):
