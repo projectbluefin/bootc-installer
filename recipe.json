@@ -2,7 +2,20 @@
     "log_file": "/var/log/bootc-installer.log",
     "distro_name": "Dakota",
     "distro_logo": "resource:///org/bootcinstaller/Installer/images/dakota.png",
-    "welcome_title": "",
+    "imgref": "ghcr.io/projectbluefin/dakota:latest",
+    "images": [
+        {
+            "name": "Dakota",
+            "imgref": "ghcr.io/projectbluefin/dakota:latest",
+            "bootloader": "systemd",
+            "filesystem": "btrfs",
+            "composefs": true,
+            "needs_user_creation": false,
+            "flatpak_var_path": "state/os/default/var"
+        }
+    ],
+    "welcome_title": "Welcome to Bluefin",
+    "welcome_subtitle": "A GNOME workstation built on GnomeOS — composefs, atomic updates, no package manager.",
     "tour": {
         "welcome": {
             "resource": "/org/bootcinstaller/Installer/assets/welcome.png",
@@ -18,10 +31,6 @@
     "steps": {
         "welcome": {
             "template": "welcome",
-            "protected": true
-        },
-        "image": {
-            "template": "image",
             "protected": true
         },
         "disk": {

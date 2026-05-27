@@ -30,6 +30,7 @@ class VanillaDefaultEncryption(Adw.Bin):
 
     encryption_pass_entry = Gtk.Template.Child()
     encryption_pass_entry_confirm = Gtk.Template.Child()
+    strength_label = Gtk.Template.Child()
 
     password_filled = False
 
@@ -87,15 +88,48 @@ class VanillaDefaultEncryption(Adw.Bin):
 
     def __on_password_changed(self, *args):
         password = self.encryption_pass_entry.get_text()
-        if (
-            password == self.encryption_pass_entry_confirm.get_text()
-            and password.strip()
-        ):
+        confirm = self.encryption_pass_entry_confirm.get_text()
+
+        # Passphrase match validation
+        if password and password == confirm:
             self.password_filled = True
             self.encryption_pass_entry_confirm.remove_css_class("error")
         else:
             self.password_filled = False
-            self.encryption_pass_entry_confirm.add_css_class("error")
+            if confirm:
+                self.encryption_pass_entry_confirm.add_css_class("error")
+            else:
+                self.encryption_pass_entry_confirm.remove_css_class("error")
+
+        # Real-time strength feedback
+        if password:
+            classes = set(c for c in [password.lower(), password.upper()]
+                          if any(ch.isalpha() for ch in c))
+            has_upper = any(c.isupper() for c in password)
+            has_lower = any(c.islower() for c in password)
+            has_digit = any(c.isdigit() for c in password)
+            has_symbol = any(not c.isalnum() for c in password)
+            variety = sum([has_upper, has_lower, has_digit, has_symbol])
+            length = len(password)
+
+            if length < 8 or variety < 2:
+                self.strength_label.set_text(_("Weak \u2014 make it longer or more complex"))
+                self.strength_label.remove_css_class("success")
+                self.strength_label.remove_css_class("warning")
+                self.strength_label.add_css_class("error")
+            elif length < 12 or variety < 3:
+                self.strength_label.set_text(_("Fair \u2014 consider making it longer"))
+                self.strength_label.remove_css_class("error")
+                self.strength_label.remove_css_class("success")
+                self.strength_label.add_css_class("warning")
+            else:
+                self.strength_label.set_text(_("Strong passphrase"))
+                self.strength_label.remove_css_class("error")
+                self.strength_label.remove_css_class("warning")
+                self.strength_label.add_css_class("success")
+            self.strength_label.set_visible(True)
+        else:
+            self.strength_label.set_visible(False)
 
         self.__update_btn_next()
 

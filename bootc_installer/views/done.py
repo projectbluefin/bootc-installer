@@ -86,9 +86,8 @@ class VanillaDone(Adw.Bin):
         if result:
             pretty_name = getattr(self.__window, "pretty_name", None) \
                 or self.__window.recipe.get("distro_name", "the operating system")
-            self.page_header.subtitle = (
-                _("Restart your device to enjoy your {} experience.").format(pretty_name)
-            )
+            self.page_header.title = _("{} is installed").format(pretty_name)
+            self.page_header.subtitle = _("Restart now to complete the installation.")
             icon_spec = getattr(self.__window, "selected_icon", None)
             if icon_spec:
                 apply_icon(self.page_header, icon_spec)

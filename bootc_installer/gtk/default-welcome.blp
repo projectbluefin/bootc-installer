@@ -20,7 +20,8 @@ template $VanillaDefaultWelcome: Adw.Bin {
 
       Adw.PreferencesGroup {
         Adw.ActionRow row_install {
-          title: _("Install");
+          title: _("Install Bluefin");
+          subtitle: _("Installs to your internal disk. Takes about 5–10 minutes.");
           icon-name: "folder-download-symbolic";
           activatable: true;
 
@@ -37,6 +38,7 @@ template $VanillaDefaultWelcome: Adw.Bin {
 
         Adw.ActionRow row_recovery {
           title: _("Recovery");
+          subtitle: _("Troubleshoot or repair an existing installation.");
           icon-name: "emoji-symbols-symbolic";
           activatable: true;
 

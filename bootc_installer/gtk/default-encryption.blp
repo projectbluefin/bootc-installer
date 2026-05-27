@@ -35,15 +35,15 @@ template $VanillaDefaultEncryption: Adw.Bin {
           $TunaPageHeader page_header {
             margin-top: 24;
             icon-name: "channel-secure-symbolic";
-            title: _("Device Encryption");
-            subtitle: _("Encrypting your disk protects your personal information");
+            title: _("Disk Encryption");
+            subtitle: _("Choose how to protect the data on your disk.");
           }
         }
 
         Adw.PreferencesGroup {
           Adw.ActionRow {
-            title: _("Encrypt Device");
-            subtitle: _("Protect your data with a password");
+            title: _("Encrypt this disk");
+            subtitle: _("You will need a passphrase each time you turn on your computer.");
 
             [suffix]
             Switch use_encryption_switch {
@@ -64,9 +64,17 @@ template $VanillaDefaultEncryption: Adw.Bin {
             sensitive: bind use_encryption_switch.active;
           }
 
+          Label strength_label {
+            visible: false;
+            halign: start;
+            margin-start: 12;
+            margin-top: 4;
+            margin-bottom: 4;
+          }
+
           Adw.ActionRow {
-            title: _("TPM2 Auto-unlock");
-            subtitle: _("Also unlock automatically on this hardware; password remains as fallback");
+            title: _("Use hardware-backed encryption");
+            subtitle: _("The disk unlocks automatically on this hardware. Your passphrase remains as a fallback.");
             sensitive: bind use_encryption_switch.active;
 
             [suffix]

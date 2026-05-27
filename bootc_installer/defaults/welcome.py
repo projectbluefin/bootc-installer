@@ -45,6 +45,9 @@ class VanillaDefaultWelcome(Adw.Bin):
         apply_icon(self.page_header, icon_spec)
         welcome_title = self.__distro_info.get("welcome_title") or "bootc Installer"
         self.page_header.title = welcome_title
+        welcome_subtitle = self.__distro_info.get("welcome_subtitle", "")
+        if welcome_subtitle:
+            self.page_header.subtitle = welcome_subtitle
 
         # signals
         self.row_install.connect("activated", self.__install)
