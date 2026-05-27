@@ -67,6 +67,7 @@ class VanillaDone(Adw.Bin):
     btn_reboot = Gtk.Template.Child()
     btn_close = Gtk.Template.Child()
     btn_log = Gtk.Template.Child()
+    btn_retry = Gtk.Template.Child()
 
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
@@ -78,6 +79,7 @@ class VanillaDone(Adw.Bin):
         self.btn_reboot.connect("clicked", self.__on_reboot_clicked)
         self.btn_close.connect("clicked", self.__on_close_clicked)
         self.btn_log.connect("clicked", self.__on_log_clicked)
+        self.btn_retry.connect("clicked", self.__on_retry_clicked)
 
     def set_result(self, result, terminal, boot_id=""):
         self.__terminal = terminal
@@ -99,6 +101,7 @@ class VanillaDone(Adw.Bin):
             self.page_header.subtitle = hint
             self.btn_reboot.set_visible(False)
             self.btn_close.set_visible(True)
+            self.btn_retry.set_visible(True)
             # Show the log button prominently on failure
             self.btn_log.add_css_class("suggested-action")
 
@@ -176,6 +179,10 @@ class VanillaDone(Adw.Bin):
 
     def __on_close_clicked(self, button):
         self.__window.close()
+
+    def __on_retry_clicked(self, button):
+        """Navigate back to confirm screen and re-trigger install."""
+        self.__window.on_installation_confirmed()
 
     def __on_log_clicked(self, button):
         dialog = VanillaDialogOutput(self.__window)
