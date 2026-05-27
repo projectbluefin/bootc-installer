@@ -176,6 +176,19 @@ class VanillaConfirm(Adw.Bin):
                         )
                     )
 
+        # Hardware-detected GPU badge (always shown if a GPU is found)
+        from bootc_installer.core.system import Systeminfo
+        gpu_label = Systeminfo.gpu_display_string()
+        if gpu_label:
+            gpu_icon = Systeminfo.gpu_icon_name()
+            self.active_widgets.append(
+                VanillaChoiceEntry(
+                    _("Graphics"),
+                    gpu_label,
+                    gpu_icon,
+                )
+            )
+
         if pretty_name:
             self.btn_confirm.set_label(_("Install {name}").format(name=pretty_name))
         else:

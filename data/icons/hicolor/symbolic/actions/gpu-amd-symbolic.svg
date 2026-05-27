@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AMD-inspired arrow/angular symbolic glyph (original, not trademarked) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <path d="M 3 13 L 8 3 L 13 13 Z M 7 9 L 9 9 L 9 11 L 7 11 Z" fill="currentColor" fill-rule="evenodd"/>
+</svg>

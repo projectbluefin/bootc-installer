@@ -55,12 +55,57 @@ def _sanitize_hostname_part(s: str) -> str:
     return s
 
 
+# PCI vendor IDs for GPU manufacturers.
+_GPU_VENDORS = {
+    "0x10de": "nvidia",
+    "0x8086": "intel",
+    "0x1002": "amd",
+}
+
+# Human-readable display names for GPU vendors.
+_GPU_VENDOR_DISPLAY = {
+    "nvidia": "NVIDIA",
+    "intel": "Intel",
+    "amd": "AMD",
+}
+
+
+def _detect_display_devices() -> list[dict]:
+    """Scan PCI sysfs for display-class devices (VGA, 3D, display controllers).
+
+    Returns a list of dicts: {"vendor": "nvidia"|"intel"|"amd", "pci_addr": "0000:01:00.0"}
+    Only includes devices with PCI class 0x03xxxx (display subsystem).
+    """
+    results = []
+    seen_vendors = set()
+    for class_file in glob.glob("/sys/bus/pci/devices/*/class"):
+        dev_dir = os.path.dirname(class_file)
+        try:
+            with open(class_file) as f:
+                class_code = int(f.read().strip(), 16)
+            # Display class: top byte == 0x03 (VGA, 3D controller, display controller)
+            if (class_code >> 16) != 0x03:
+                continue
+            with open(os.path.join(dev_dir, "vendor")) as f:
+                vendor_id = f.read().strip()
+        except (OSError, ValueError):
+            continue
+
+        vendor_name = _GPU_VENDORS.get(vendor_id)
+        if vendor_name and vendor_name not in seen_vendors:
+            seen_vendors.add(vendor_name)
+            pci_addr = os.path.basename(dev_dir)
+            results.append({"vendor": vendor_name, "pci_addr": pci_addr})
+    return results
+
+
 class Systeminfo:
     uefi = None
     ram = None
     cpu = None
     _nvidia = None
     _tpm2 = None
+    _gpus = None
 
     @staticmethod
     def is_uefi() -> bool:
@@ -104,19 +149,53 @@ class Systeminfo:
 
     @staticmethod
     def has_nvidia_gpu() -> bool:
-        """Detect NVIDIA GPU by checking PCI vendor ID 0x10de in sysfs."""
+        """Detect NVIDIA GPU by checking PCI display-class devices."""
         if Systeminfo._nvidia is not None:
             return Systeminfo._nvidia
-        Systeminfo._nvidia = False
-        for vendor_file in glob.glob("/sys/bus/pci/devices/*/vendor"):
-            try:
-                with open(vendor_file) as f:
-                    if f.read().strip() == "0x10de":
-                        Systeminfo._nvidia = True
-                        break
-            except OSError:
-                continue
+        gpus = Systeminfo.detect_gpus()
+        Systeminfo._nvidia = any(g["vendor"] == "nvidia" for g in gpus)
         return Systeminfo._nvidia
+
+    @staticmethod
+    def detect_gpus() -> list[dict]:
+        """Detect all GPU vendors present in the system.
+
+        Returns cached list of {"vendor": "nvidia"|"intel"|"amd", "pci_addr": "..."}.
+        Only includes PCI display-class devices (0x03xxxx).
+        """
+        if Systeminfo._gpus is not None:
+            return Systeminfo._gpus
+        Systeminfo._gpus = _detect_display_devices()
+        return Systeminfo._gpus
+
+    @staticmethod
+    def gpu_display_string() -> str:
+        """Human-readable GPU summary for UI display.
+
+        Examples: "NVIDIA", "Intel + NVIDIA", "AMD", "Intel"
+        """
+        gpus = Systeminfo.detect_gpus()
+        if not gpus:
+            return ""
+        # Priority order: nvidia > amd > intel (show discrete first)
+        priority = {"nvidia": 0, "amd": 1, "intel": 2}
+        vendors = sorted(set(g["vendor"] for g in gpus), key=lambda v: priority.get(v, 99))
+        return " + ".join(_GPU_VENDOR_DISPLAY.get(v, v) for v in vendors)
+
+    @staticmethod
+    def gpu_icon_name() -> str:
+        """Return the appropriate icon name for the primary GPU vendor.
+
+        Uses the highest-priority discrete GPU for the icon.
+        Falls back to generic 'video-display-symbolic' if unknown.
+        """
+        gpus = Systeminfo.detect_gpus()
+        if not gpus:
+            return "video-display-symbolic"
+        priority = {"nvidia": 0, "amd": 1, "intel": 2}
+        vendors = sorted(set(g["vendor"] for g in gpus), key=lambda v: priority.get(v, 99))
+        primary = vendors[0]
+        return f"gpu-{primary}-symbolic"
 
     @staticmethod
     def has_tpm2() -> bool:

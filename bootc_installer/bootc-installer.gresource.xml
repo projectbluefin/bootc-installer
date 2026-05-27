@@ -64,5 +64,8 @@
     <file preprocess="xml-stripblanks">../data/icons/hicolor/symbolic/actions/vanilla-installer-harddisk-symbolic.svg</file>
     <file preprocess="xml-stripblanks">../data/icons/hicolor/symbolic/actions/vanilla-installer-display-with-window-symbolic.svg</file>
     <file preprocess="xml-stripblanks">../data/icons/hicolor/symbolic/actions/vanilla-logo-text-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">../data/icons/hicolor/symbolic/actions/gpu-nvidia-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">../data/icons/hicolor/symbolic/actions/gpu-intel-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">../data/icons/hicolor/symbolic/actions/gpu-amd-symbolic.svg</file>
   </gresource>
 </gresources>
