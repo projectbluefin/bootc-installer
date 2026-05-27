@@ -58,7 +58,8 @@ class VanillaDefaultConnCheck(Adw.Bin):
         return self.__key
 
     def should_show(self, context: dict) -> bool:
-        return True
+        """Skip connection check when running an offline install (live ISO with baked image)."""
+        return not context.get("offline_install", False)
 
     def get_finals(self):
         return {}

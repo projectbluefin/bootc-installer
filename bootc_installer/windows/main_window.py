@@ -148,10 +148,31 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.__build_ui(True, self.install_mode)
         self.__reconnect_update_finals()
 
+    def _is_offline_install(self) -> bool:
+        """Detect if this is an offline install (live ISO with baked image).
+
+        Offline installs have the container image pre-loaded on the ISO media,
+        so no network pull is needed during step 6 (bootc install). Detected by:
+        1. A local_imgref in the recipe (explicit offline source), OR
+        2. Running in live ISO mode and the booted image matches the target image
+        """
+        recipe = self.recipe if hasattr(self, "recipe") else {}
+        if recipe.get("local_imgref"):
+            return True
+        # Check for live ISO indicators
+        in_flatpak = os.path.exists("/.flatpak-info")
+        etc = "/run/host/etc" if in_flatpak else "/etc"
+        live_flag = os.path.exists(f"{etc}/bootc-installer/live-iso-mode")
+        live_initramfs = os.path.exists("/run/initramfs/live")
+        ostree_booted = os.path.exists("/run/ostree-booted")
+        if live_flag or (not in_flatpak and (ostree_booted or live_initramfs)):
+            return True
+        return False
+
     def __build_ui(self, rebuild=False, mode=0):
         property_list = self.__builder.property_list
         context = {
-            "offline_install": False,  # TODO: detect
+            "offline_install": self._is_offline_install(),
             "has_tpm2": os.path.exists("/dev/tpmrm0"),
             "live_iso": not os.path.exists("/.flatpak-info") and os.path.exists("/run/ostree-booted"),
             "sys_recipe": self.recipe if hasattr(self, "recipe") else {},

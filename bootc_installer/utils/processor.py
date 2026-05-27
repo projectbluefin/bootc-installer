@@ -290,6 +290,11 @@ class Processor:
             recipe["flatpakVarPath"] = flatpak_var_path
         # Easter egg: always attempt to rescue wallpapers from existing Windows installs
         recipe["slurpWallpapers"] = True
+        # Offline install: pass additional image stores from the ISO recipe
+        # (e.g. squashfs OCI store baked into the live media)
+        additional_stores = sys_recipe.get("additionalImageStores", [])
+        if additional_stores:
+            recipe["additionalImageStores"] = additional_stores
         var_disk = merged.get("var_disk")
         if var_disk and var_disk.get("disk"):
             recipe["varDisk"] = {
