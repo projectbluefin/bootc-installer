@@ -225,10 +225,9 @@ class VanillaDefaultSlurp(Adw.Bin):
         GLib.idle_add(self.__on_scan_complete, disk, scan)
 
     def __on_scan_complete(self, disk: str, scan: dict):
-        self.__scan_inflight = False
         if disk != self.__scan_disk:
-            return False
-
+            return False  # stale callback — newer scan is still running
+        self.__scan_inflight = False
         self.__scan_result = scan
         self.__render_scan_result()
         return False
