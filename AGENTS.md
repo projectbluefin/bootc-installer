@@ -364,7 +364,7 @@ sudo umount /tmp/ir
 
 ## GitHub org context
 
-- **`castrojo/tuna-installer`** — this repo (castrojo fork / dakota-installer)
+- **`castrojo/dakota-installer`** — this repo (pending rename from `castrojo/tuna-installer`; see issue #2)
 - **`tuna-os/tuna-installer`** — upstream source repo (read-only)
 - **`tuna-os/fisherman`** — Go backend (submodule at `fisherman/`)
 - **`tuna-os/github-copr`** — COPR definitions for c10s-gnome COPRs used in the image
