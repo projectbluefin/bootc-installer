@@ -123,6 +123,36 @@ template $VanillaDefaultDisk: Adw.Bin {
             text: "localhost";
           }
         }
+
+        Adw.PreferencesGroup {
+          title: _("Data disk (/var) — optional");
+          description: _("Use a second disk for home directories, applications, and containers. You can reinstall the OS without losing your data.");
+
+          Adw.SwitchRow var_disk_switch {
+            title: _("Use a separate data disk");
+          }
+        }
+
+        Adw.PreferencesGroup group_var_disks {
+          title: _("Select data disk");
+          visible: false;
+        }
+
+        Adw.PreferencesGroup group_var_disk_existing {
+          visible: false;
+
+          Adw.ActionRow var_disk_keep_row {
+            title: _("Keep existing data");
+            subtitle: _("Mount the disk as-is — files in /var will be preserved");
+            activatable-widget: var_disk_keep_switch;
+
+            [suffix]
+            Switch var_disk_keep_switch {
+              valign: center;
+              active: true;
+            }
+          }
+        }
       }
     }
   }

@@ -1,4 +1,4 @@
 [submodule "fisherman"]
 	path = fisherman
-	url = git@github.com:tuna-os/fisherman.git
+	url = git@github.com:castrojo/fisherman.git
 	branch = dev

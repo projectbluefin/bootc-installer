@@ -231,6 +231,12 @@ class Processor:
             recipe["imageType"] = image_type
         if flatpak_var_path:
             recipe["flatpakVarPath"] = flatpak_var_path
+        var_disk = merged.get("var_disk")
+        if var_disk and var_disk.get("disk"):
+            recipe["varDisk"] = {
+                "disk": var_disk["disk"],
+                "keepExisting": bool(var_disk.get("keep_existing", False)),
+            }
 
         logger.info(f"Generated fisherman recipe: disk={disk_device}, image={image}, encryption={encryption_type}")
 

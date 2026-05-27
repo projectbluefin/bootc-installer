@@ -34,16 +34,19 @@ class VanillaDefaultDiskEntry(Adw.ActionRow):
 
     chk_button = Gtk.Template.Child()
 
-    def __init__(self, parent, disk, **kwargs):
+    def __init__(self, parent, disk, role="system", **kwargs):
         super().__init__(**kwargs)
         self.__parent = parent
         self.__disk = disk
         self.set_title(disk.display_name)
         self.set_subtitle(f"{disk.disk} · {disk.pretty_size}")
 
-        self.chk_button.connect(
-            "toggled", self.__parent.on_disk_entry_toggled, self.disk
+        callback = (
+            self.__parent.on_var_disk_entry_toggled
+            if role == "var"
+            else self.__parent.on_disk_entry_toggled
         )
+        self.chk_button.connect("toggled", callback, self.disk)
 
     @property
     def is_active(self):
@@ -674,6 +677,11 @@ class VanillaDefaultDisk(Adw.Bin):
     filesystem_row = Gtk.Template.Child()
     fs_tool_error_banner = Gtk.Template.Child()
     hostname_entry = Gtk.Template.Child()
+    var_disk_switch = Gtk.Template.Child()
+    group_var_disks = Gtk.Template.Child()
+    group_var_disk_existing = Gtk.Template.Child()
+    var_disk_keep_row = Gtk.Template.Child()
+    var_disk_keep_switch = Gtk.Template.Child()
 
     _VIRTUAL_DISK_IMG = "/var/home/james/tuna-virtual-disk.img"
     _VIRTUAL_DISK_SIZE = "50G"
@@ -692,6 +700,8 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__selected_disks_sum = 0
         self.__use_virtual_disk = False
         self.__fs_tool_ok = True  # optimistic default; updated by __check_fs_tool
+        self.__var_disk_selected = None  # Disk object for the optional /var disk
+        self.__var_registry_disks = []   # VanillaDefaultDiskEntry rows for var picker
 
         self.min_disk_size = self.__window.recipe.get("min_disk_size", 51200)
         self.disk_space_err_label.set_label(
@@ -728,6 +738,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.btn_next.connect("clicked", self.__on_btn_next_clicked)
         self.btn_auto.connect("clicked", self.__on_auto_clicked)
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
+        self.var_disk_switch.connect("notify::active", self.__on_var_disk_switch_toggled)
 
         # Populate filesystem picker and hostname from the selected image's metadata.
         # We do the initial setup now, but also refresh when this page becomes active
@@ -930,6 +941,12 @@ class VanillaDefaultDisk(Adw.Bin):
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG
             result["virtual_disk_loop"] = getattr(self, "_VanillaDefaultDisk__loop_device", None)
+        if self.var_disk_switch.get_active() and self.__var_disk_selected:
+            result["var_disk"] = {
+                "disk": self.__var_disk_selected.disk,
+                "keep_existing": self.var_disk_keep_switch.get_active()
+                if self.group_var_disk_existing.get_visible() else False,
+            }
         return result
 
     def __on_btn_all_disks(self, widget):
@@ -992,6 +1009,65 @@ class VanillaDefaultDisk(Adw.Bin):
             self.__selected_disks.remove(disk)
             self.__selected_disks_sum -= disk.size
         self.__update_action_buttons()
+        # Rebuild var disk picker to exclude newly selected system disk
+        if self.var_disk_switch.get_active():
+            self.__rebuild_var_disk_picker()
+
+    def __on_var_disk_switch_toggled(self, switch, _param):
+        if switch.get_active():
+            self.group_var_disks.set_visible(True)
+            self.__rebuild_var_disk_picker()
+        else:
+            self.group_var_disks.set_visible(False)
+            self.group_var_disk_existing.set_visible(False)
+            self.__var_disk_selected = None
+
+    def __rebuild_var_disk_picker(self):
+        """Repopulate group_var_disks excluding the currently selected system disk."""
+        # Remove old entries
+        for entry in self.__var_registry_disks:
+            self.group_var_disks.remove(entry)
+        self.__var_registry_disks.clear()
+        self.__var_disk_selected = None
+        self.group_var_disk_existing.set_visible(False)
+
+        system_disk = (
+            self.__selected_disks[0].disk if self.__selected_disks else None
+        )
+        for d in self.__disks.all_disks(include_removable=False):
+            if system_disk and d.disk == system_disk:
+                continue
+            entry = VanillaDefaultDiskEntry(self, d, role="var")
+            self.group_var_disks.add(entry)
+            self.__var_registry_disks.append(entry)
+
+    def on_var_disk_entry_toggled(self, widget, disk):
+        """Called by VanillaDefaultDiskEntry when role='var' and user toggles it."""
+        if widget.get_active():
+            self.__var_disk_selected = disk
+            self.__check_var_disk_existing(disk)
+        else:
+            self.__var_disk_selected = None
+            self.group_var_disk_existing.set_visible(False)
+
+    def __check_var_disk_existing(self, disk):
+        """Detect existing filesystem on disk and show the keep/format toggle."""
+        import subprocess
+        try:
+            out = subprocess.check_output(
+                ["flatpak-spawn", "--host", "lsblk", "-no", "FSTYPE", disk.disk],
+                text=True, stderr=subprocess.DEVNULL,
+            ).strip()
+            # If lsblk returns a non-empty fstype the disk has a filesystem
+            has_existing = bool(out)
+        except Exception:
+            has_existing = False
+        if has_existing:
+            logger.info("Existing filesystem detected on /var disk %s", disk.disk)
+            self.group_var_disk_existing.set_visible(True)
+            self.var_disk_keep_switch.set_active(True)
+        else:
+            self.group_var_disk_existing.set_visible(False)
 
     def set_partition_recipe(self, recipe):
         self.__partition_recipe = recipe

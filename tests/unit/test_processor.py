@@ -464,3 +464,33 @@ class TestApplyIcon:
         with patch.object(done_mod, "log") as mock_log:
             apply_icon(header, "resource:///org/bootcinstaller/Installer/images/missing.png")
             mock_log.warning.assert_called_once()
+
+
+class TestVarDisk:
+    """Tests for optional /var disk passthrough to recipe JSON."""
+
+    def test_var_disk_absent_by_default(self):
+        path = Processor.gen_install_recipe("log", _auto_finals(), _SYS_RECIPE)
+        r = _load(path)
+        assert "varDisk" not in r
+
+    def test_var_disk_format_fresh(self):
+        finals = _auto_finals()
+        finals[0]["var_disk"] = {"disk": "/dev/sdb", "keep_existing": False}
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["varDisk"] == {"disk": "/dev/sdb", "keepExisting": False}
+
+    def test_var_disk_keep_existing(self):
+        finals = _auto_finals()
+        finals[0]["var_disk"] = {"disk": "/dev/sdb", "keep_existing": True}
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["varDisk"] == {"disk": "/dev/sdb", "keepExisting": True}
+
+    def test_var_disk_empty_disk_omitted(self):
+        finals = _auto_finals()
+        finals[0]["var_disk"] = {"disk": "", "keep_existing": False}
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert "varDisk" not in r
