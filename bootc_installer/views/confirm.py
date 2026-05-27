@@ -189,10 +189,7 @@ class VanillaConfirm(Adw.Bin):
                 )
             )
 
-        if pretty_name:
-            self.btn_confirm.set_label(_("Install {name}").format(name=pretty_name))
-        else:
-            self.btn_confirm.set_label(_("Install"))
+        self.btn_confirm.set_label(_("( Become Legend )"))
 
         for widget in self.active_widgets:
             self.group_changes.add(widget)

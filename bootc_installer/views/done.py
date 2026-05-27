@@ -93,10 +93,56 @@ class VanillaDone(Adw.Bin):
                 apply_icon(self.page_header, icon_spec)
         else:
             self.page_header.icon_name = "dialog-error-symbolic"
-            self.page_header.title = _("Something went wrong")
-            self.page_header.subtitle = _("Please contact the distribution developers.")
+            self.page_header.title = _("Installation failed")
+            # Try to extract the last failed step from the log for a helpful message
+            hint = self.__extract_failure_hint()
+            self.page_header.subtitle = hint
             self.btn_reboot.set_visible(False)
             self.btn_close.set_visible(True)
+            # Show the log button prominently on failure
+            self.btn_log.add_css_class("suggested-action")
+
+    def __extract_failure_hint(self) -> str:
+        """Read the fisherman log to determine what failed and suggest a fix."""
+        from bootc_installer.views.progress import _FISHERMAN_LOG_PATH
+        try:
+            with open(_FISHERMAN_LOG_PATH) as f:
+                lines = f.readlines()
+        except OSError:
+            return _("Check the log for details. Click 'Show Log' below.")
+
+        # Find the last "fatal:" line from fisherman
+        fatal_msg = ""
+        last_step = ""
+        for line in lines:
+            if "fatal:" in line.lower():
+                fatal_msg = line.strip()
+            if '"type":"step"' in line or '"type": "step"' in line:
+                last_step = line.strip()
+
+        if not fatal_msg:
+            return _("The installer exited unexpectedly. Check the log for details.")
+
+        # Provide actionable hints based on common failure patterns
+        lower = fatal_msg.lower()
+        if "not found in path" in lower or "missing required host tool" in lower:
+            return _("A required system tool is missing. Ensure you are running from the official live media.")
+        if "network" in lower or "pull" in lower or "timeout" in lower or "registry" in lower:
+            return _("Network error during image download. Check your internet connection and try again.")
+        if "no space" in lower or "enospc" in lower:
+            return _("Not enough disk space. Select a larger disk or free up space.")
+        if "permission" in lower or "denied" in lower:
+            return _("Permission denied. The installer needs administrator access to proceed.")
+        if "luks" in lower or "cryptsetup" in lower:
+            return _("Disk encryption setup failed. Try disabling encryption or check your passphrase.")
+        if "partition" in lower or "sfdisk" in lower:
+            return _("Disk partitioning failed. The disk may be in use or damaged.")
+        if "mount" in lower:
+            return _("Filesystem mount failed. The disk may be in use by another process.")
+
+        # Generic fallback with the actual error
+        short_msg = fatal_msg.split("fatal:")[-1].strip()[:120]
+        return _("Error: {}").format(short_msg)
 
     def __on_reboot_clicked(self, button):
         in_flatpak = os.path.exists("/.flatpak-info")

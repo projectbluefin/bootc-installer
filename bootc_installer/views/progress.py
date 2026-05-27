@@ -40,105 +40,6 @@ _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state
 
 
-def _new_progress_state() -> dict:
-    """Return a fresh progress state dict (no GTK types)."""
-    return {
-        "pulse_active": True,
-        "current_step": 0,
-        "current_total": 0,
-        "current_step_name": "",
-        "current_weight_pct": 0,
-        "current_cumulative_pct": 0,
-        "seen_substeps": set(),
-        "boot_id": "",
-        "recovery_key": "",
-    }
-
-
-def apply_progress_event(line: str, state: dict) -> dict | None:
-    """Parse one fisherman log line and return a UI-update dict, or None.
-
-    Pure function — no GTK, no I/O.  The returned dict has:
-      "fraction"  — float 0-1 for progressbar.set_fraction()
-      "label"     — str for progressbar_text.set_label()
-      "pulse"     — bool; True means switch bar back to pulse mode
-      "complete"  — bool; True means install finished
-    ``state`` is mutated in-place to track multi-line context.
-    Returns None for non-JSON lines or events that require no UI change.
-    """
-    if not line.startswith("{"):
-        return None
-    try:
-        event = json.loads(line)
-    except (json.JSONDecodeError, ValueError):
-        return None
-
-    event_type = event.get("type", "")
-
-    if event_type == "step":
-        step = event.get("step", 0)
-        total = event.get("total_steps", 1)
-        name = event.get("step_name", "Installing")
-        if step <= state["current_step"] and state["current_step"] > 0:
-            return None
-        cumulative_pct = event.get("cumulative_pct", 0)
-        state["current_weight_pct"] = event.get("weight_pct", 0)
-        state["current_cumulative_pct"] = cumulative_pct
-        state["current_step"] = step
-        state["current_total"] = total
-        state["current_step_name"] = name
-        state["seen_substeps"].clear()
-        state["pulse_active"] = False
-        return {
-            "fraction": cumulative_pct / 100.0,
-            "label": "Step %d/%d: %s" % (step, total, name),
-            "pulse": False,
-            "complete": False,
-        }
-
-    if event_type == "substep":
-        msg = event.get("message", "")
-        if not msg:
-            return None
-        fraction = None
-        m = _RE_LAYER_PROGRESS.match(msg)
-        if m and state["current_weight_pct"] > 0:
-            done = int(m.group(1))
-            total_layers = int(m.group(2))
-            sub_frac = done / total_layers
-            fraction = min(
-                (state["current_cumulative_pct"] + sub_frac * state["current_weight_pct"]) / 100.0,
-                1.0,
-            )
-        if msg in state["seen_substeps"]:
-            # Still update fraction even for duplicate substep messages.
-            if fraction is not None:
-                return {"fraction": fraction, "label": None, "pulse": False, "complete": False}
-            return None
-        state["seen_substeps"].add(msg)
-        label = None
-        if state["current_step"]:
-            label = "Step %d/%d: %s — %s" % (
-                state["current_step"],
-                state["current_total"],
-                state["current_step_name"],
-                msg,
-            )
-        return {"fraction": fraction, "label": label, "pulse": False, "complete": False}
-
-    if event_type == "recovery_key":
-        state["recovery_key"] = event.get("key", "")
-        return None
-
-    if event_type == "complete":
-        state["pulse_active"] = False
-        state["boot_id"] = event.get("boot_id", "")
-        state["recovery_key"] = event.get("recovery_key", state["recovery_key"])
-        return {"fraction": 1.0, "label": "Installation complete!", "pulse": False, "complete": True}
-
-    return None
-
-
 def _fisherman_argv_direct(recipe: str) -> list:
     """Build an argv that captures fisherman stdout+stderr into the log file.
 
@@ -209,6 +110,7 @@ class VanillaProgress(Gtk.Box):
         self.__progress_state = new_progress_state()
         self.__boot_id = ""  # EFI boot entry ID from fisherman complete event
         self.__recovery_key = ""
+        self.__recipe_path = None   # path to recipe JSON (for cleanup)
         self.__start_time = None
         self.__elapsed_timer_id = None
 
@@ -421,8 +323,24 @@ class VanillaProgress(Gtk.Box):
             self.__log_file = None
         self.__stop_elapsed_timer()
         self.__pause_install_video()
+        # Securely delete the recipe file — it contains plaintext passphrases
+        # and passwords that must not persist on disk after install.
+        self.__cleanup_recipe_file()
         self.__window.set_installation_result(ret == 0, None, self.__boot_id, self.__recovery_key)
         return False
+
+    def __cleanup_recipe_file(self):
+        """Remove the temporary recipe JSON file containing sensitive credentials."""
+        recipe_path = getattr(self, "_VanillaProgress__recipe_path", None)
+        if not recipe_path:
+            return
+        try:
+            os.unlink(recipe_path)
+            logger.info("Deleted recipe file: %s", recipe_path)
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            logger.warning("Could not delete recipe file %s: %s", recipe_path, e)
 
     def __parse_progress_line(self, line: str):
         """Parse a single fisherman log line and apply any resulting UI update."""
@@ -510,6 +428,10 @@ class VanillaProgress(Gtk.Box):
             self.__window.set_installation_result(False, None)
             return
 
+        # Track the recipe path so we can securely delete it after install.
+        # The recipe contains plaintext passphrases and passwords.
+        self.__recipe_path = recipe
+
         argv = _fisherman_argv_direct(recipe)
         os.makedirs(_FISHERMAN_CACHE_DIR, exist_ok=True)
         # Remove any stale log file before launching so the watcher always opens
@@ -540,4 +462,25 @@ class VanillaProgress(Gtk.Box):
         logger.info("Fisherman PID: %s", self.__proc.pid)
         GLib.timeout_add(500, self.__poll_proc)
         self._start_log_watcher()
+
+    def terminate(self):
+        """Terminate fisherman if it is still running (e.g. window closed).
+
+        This sends SIGTERM to the bash wrapper process group. fisherman's cleanup
+        handler will attempt to unmount filesystems and close LUKS devices.
+        """
+        if self.__proc is None:
+            return
+        if self.__proc.poll() is not None:
+            return
+        logger.warning("Terminating fisherman (PID %s) due to window close", self.__proc.pid)
+        try:
+            import signal
+            os.killpg(os.getpgid(self.__proc.pid), signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            try:
+                self.__proc.terminate()
+            except OSError:
+                pass
+        self.__cleanup_recipe_file()
 

@@ -357,6 +357,9 @@ class VanillaWindow(Adw.ApplicationWindow):
 
     def __on_exit_response(self, dialog, response):
         if response == "exit":
+            # Terminate fisherman if it's still running to avoid orphaned
+            # root processes and partially-written disk state.
+            self.__view_progress.terminate()
             self.get_application().quit()
 
     def update_finals(self, *args):
