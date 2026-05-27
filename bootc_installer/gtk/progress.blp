@@ -4,7 +4,7 @@ using Adw 1;
 template $VanillaProgress: Box {
   orientation: vertical;
 
-  Box tour_box {
+  Box media_box {
     visible: true;
     vexpand: true;
     margin-start: 40;
@@ -14,56 +14,30 @@ template $VanillaProgress: Box {
     height-request: 550;
     orientation: vertical;
 
-    Overlay {
+    Adw.Clamp {
+      maximum-size: 960;
+      tightening-threshold: 720;
+      hexpand: true;
       vexpand: true;
+      valign: center;
 
-      [overlay]
-      Button tour_btn_back {
-        visible: false;
-        margin-start: 12;
-        margin-end: 12;
-        icon-name: "go-previous-symbolic";
-        halign: start;
-        valign: center;
-        tooltip-text: _("Previous");
-
-        styles [
-        ]
-      }
-
-      [overlay]
-      Button tour_btn_next {
-        visible: false;
-        margin-start: 12;
-        margin-end: 12;
-        icon-name: "go-next-symbolic";
-        halign: end;
-        valign: center;
-        tooltip-text: _("Next");
-
-        styles [
-        ]
-      }
-
-      Box {
-        orientation: vertical;
-        vexpand: true;
+      AspectFrame {
+        ratio: 1.777778;
+        obey-child: false;
+        xalign: 0.5;
+        yalign: 0.5;
         hexpand: true;
+        vexpand: true;
 
-        Adw.Carousel carousel_tour {
-          halign: fill;
-          valign: fill;
+        Gtk.Video install_video {
           hexpand: true;
           vexpand: true;
-          allow-scroll-wheel: false;
-          allow-mouse-drag: false;
-          allow-long-swipes: false;
-        }
+          autoplay: true;
+          loop: true;
 
-        Adw.CarouselIndicatorDots {
-          carousel: carousel_tour;
-          orientation: horizontal;
-          margin-bottom: 18;
+          styles [
+            "card",
+          ]
         }
       }
     }
@@ -106,78 +80,124 @@ template $VanillaProgress: Box {
   }
 
   Box {
-    orientation: horizontal;
+    orientation: vertical;
+    margin-start: 40;
+    margin-end: 40;
+    margin-top: 24;
 
-    Label progressbar_text {
-      wrap: true;
-      wrap-mode: word_char;
-      halign: start;
-      valign: center;
-      margin-top: 40;
-      margin-start: 40;
-      label: _("Installing");
+    Box {
+      orientation: horizontal;
+      spacing: 12;
 
-      styles [
-        "title-4",
-      ]
+      Box {
+        orientation: vertical;
+        spacing: 4;
+        halign: start;
+        hexpand: true;
+
+        Label progressbar_text {
+          wrap: true;
+          wrap-mode: word_char;
+          xalign: 0;
+          halign: start;
+          label: _("Installing");
+
+          styles [
+            "title-4",
+          ]
+        }
+
+        Label progress_substep {
+          wrap: true;
+          wrap-mode: word_char;
+          xalign: 0;
+          halign: start;
+          label: "";
+
+          styles [
+            "dim-label",
+            "caption",
+          ]
+        }
+      }
+
+      Label progress_percentage {
+        halign: end;
+        valign: center;
+        label: "0%";
+
+        styles [
+          "title-3",
+        ]
+      }
     }
 
     Box {
-      halign: fill;
-      hexpand: true;
+      orientation: horizontal;
+      spacing: 12;
+      margin-top: 4;
+
+      Label progress_elapsed {
+        xalign: 0;
+        halign: start;
+        label: _("0:00 elapsed");
+
+        styles [
+          "dim-label",
+          "caption",
+        ]
+      }
+
+      Box {
+        halign: fill;
+        hexpand: true;
+      }
+
+      Button copy_log_button {
+        visible: true;
+        icon-name: "edit-copy-symbolic";
+        halign: end;
+        valign: center;
+        tooltip-text: _("Copy Console Log");
+
+        styles [
+          "circular",
+        ]
+      }
+
+      Button console_button {
+        visible: true;
+        icon-name: "media-view-subtitles-symbolic";
+        halign: end;
+        valign: center;
+        tooltip-text: _("Show Console Output");
+
+        styles [
+          "circular",
+        ]
+      }
+
+      Button media_button {
+        visible: false;
+        icon-name: "media-playback-start-symbolic";
+        halign: end;
+        valign: center;
+        tooltip-text: _("Show Installation Video");
+
+        styles [
+          "circular",
+        ]
+      }
     }
 
-    Button copy_log_button {
-      visible: true;
-      margin-end: 6;
-      margin-start: 12;
-      margin-top: 40;
-      icon-name: "edit-copy-symbolic";
-      halign: end;
-      valign: center;
-      tooltip-text: _("Copy Console Log");
+    ProgressBar progressbar {
+      show-text: false;
+      margin-top: 12;
+      margin-bottom: 40;
 
       styles [
-        "circular",
+        "thick-progress",
       ]
     }
-
-    Button console_button {
-      visible: true;
-      margin-end: 40;
-      margin-start: 12;
-      margin-top: 40;
-      icon-name: "media-view-subtitles-symbolic";
-      halign: end;
-      valign: center;
-      tooltip-text: _("Show Console Output");
-
-      styles [
-        "circular",
-      ]
-    }
-
-    Button tour_button {
-      visible: false;
-      margin-end: 40;
-      margin-start: 12;
-      margin-top: 40;
-      icon-name: "image-x-generic-symbolic";
-      halign: end;
-      valign: center;
-      tooltip-text: _("Show Slideshow");
-
-      styles [
-        "circular",
-      ]
-    }
-  }
-
-  ProgressBar progressbar {
-    show-text: false;
-    margin-top: 12;
-    margin-start: 40;
-    margin-bottom: 40;
-    margin-end: 40;
   }
 }

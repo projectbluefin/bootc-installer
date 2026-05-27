@@ -1,0 +1,119 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaRecoveryKey: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+  vexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.Clamp {
+      maximum-size: 600;
+      tightening-threshold: 400;
+      valign: center;
+      halign: center;
+
+      Box {
+        orientation: vertical;
+        spacing: 24;
+        margin-start: 24;
+        margin-end: 24;
+        margin-top: 48;
+        margin-bottom: 48;
+
+        Image {
+          icon-name: "channel-secure-symbolic";
+          pixel-size: 64;
+          halign: center;
+        }
+
+        Label {
+          label: _("Save Your Recovery Key");
+          halign: center;
+          justify: center;
+          wrap: true;
+
+          styles [
+            "title-1",
+          ]
+        }
+
+        Label {
+          label: _("If your disk fails to unlock automatically, you will need this recovery key to access your data. Save it somewhere safe, like a password manager or a printed copy.");
+          halign: center;
+          justify: center;
+          wrap: true;
+          max-width-chars: 50;
+
+          styles [
+            "body",
+          ]
+        }
+
+        Frame {
+          margin-top: 12;
+          margin-bottom: 12;
+
+          styles [
+            "card",
+          ]
+
+          Box {
+            orientation: horizontal;
+            spacing: 12;
+            margin-start: 18;
+            margin-end: 18;
+            margin-top: 12;
+            margin-bottom: 12;
+
+            Label key_label {
+              label: "XXXX-XXXX-XXXX-XXXX";
+              selectable: true;
+              hexpand: true;
+              wrap: true;
+              wrap-mode: word_char;
+              xalign: 0.0;
+
+              styles [
+                "monospace",
+                "title-3",
+              ]
+            }
+
+            Button copy_button {
+              icon-name: "edit-copy-symbolic";
+              valign: start;
+              tooltip-text: _("Copy to clipboard");
+
+              styles [
+                "flat",
+              ]
+            }
+          }
+        }
+
+        CheckButton ack_check {
+          label: _("I have saved my recovery key");
+          halign: center;
+          margin-top: 12;
+        }
+
+        Button btn_continue {
+          label: _("Continue");
+          halign: center;
+          sensitive: false;
+
+          styles [
+            "pill",
+            "suggested-action",
+          ]
+        }
+      }
+    }
+  }
+}

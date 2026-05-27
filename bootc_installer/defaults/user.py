@@ -40,33 +40,32 @@ class VanillaDefaultUsers(Adw.Bin):
 
         self.__update_btn_next()
 
-    @property
-    def skip_screen(self) -> bool:
-        """Skip this step unless the selected image requires user creation."""
+    def should_show(self, context: dict) -> bool:
+        """Show this step only when the selected image requires user creation."""
         image_step = getattr(self.__window, "image_step", None)
-        if image_step is None:
-            # No image step: check sys_recipe["images"] first (handles removed image
-            # step case in dakota-style recipes), then fall back to images.json.
-            sys_recipe = getattr(self.__window, "recipe", {})
+        if image_step is None or context.get("leaf_count", 2) <= 1:
+            # No usable image step: check sys_recipe["images"] first (handles removed
+            # image-step cases), then fall back to images.json.
+            sys_recipe = context.get("sys_recipe") or getattr(self.__window, "recipe", {})
             recipe_images = sys_recipe.get("images", [])
             if recipe_images:
                 nuc = recipe_images[0].get("needs_user_creation", True)
-                logger.info("skip_screen (recipe images): needs_user_creation=%s → skip=%s", nuc, not nuc)
-                return not nuc
+                logger.info("should_show (recipe images): needs_user_creation=%s → show=%s", nuc, nuc)
+                return nuc
             # Live ISO mode: read needs_user_creation from /etc/bootc-installer/images.json
             try:
                 with open(_IMAGES_JSON) as f:
                     data = json.load(f)
                 images = data.get("images", [data]) if "images" in data else [data]
                 nuc = images[0].get("needs_user_creation", True)
-                logger.info("skip_screen (live ISO): needs_user_creation=%s from images.json → skip=%s", nuc, not nuc)
-                return not nuc
+                logger.info("should_show (live ISO): needs_user_creation=%s from images.json → show=%s", nuc, nuc)
+                return nuc
             except Exception as e:
-                logger.warning("skip_screen: image_step is None and images.json unreadable (%s) — showing user step", e)
-                return False
+                logger.warning("should_show: image metadata unavailable (%s) — showing user step", e)
+                return True
         nuc = image_step.selected_needs_user_creation
-        logger.info("skip_screen: selected_needs_user_creation=%s → skip=%s", nuc, not nuc)
-        return not nuc
+        logger.info("should_show: selected_needs_user_creation=%s → show=%s", nuc, nuc)
+        return nuc
 
     def test_auto_advance(self):
         self.btn_next.emit("clicked")

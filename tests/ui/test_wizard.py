@@ -325,6 +325,83 @@ class TestDiskStepFsToolCheck:
 
 
 
+class _FakePowerFile:
+    def __init__(self, text="", exists=True, error=None):
+        self._text = text
+        self._exists = exists
+        self._error = error
+
+    def exists(self):
+        return self._exists
+
+    def read_text(self):
+        if self._error is not None:
+            raise self._error
+        return self._text
+
+
+class _FakePowerSupply:
+    def __init__(self, supply_type=None, online=None, type_error=None, online_error=None):
+        self._files = {}
+        if supply_type is not None or type_error is not None:
+            self._files["type"] = _FakePowerFile(
+                text=supply_type or "",
+                exists=True,
+                error=type_error,
+            )
+        if online is not None or online_error is not None:
+            self._files["online"] = _FakePowerFile(
+                text=online or "",
+                exists=True,
+                error=online_error,
+            )
+
+    def __truediv__(self, name):
+        return self._files.get(name, _FakePowerFile(exists=False))
+
+
+class TestDiskStepBatteryBanner:
+    def _make_disk_widget(self, *, supplies=None, side_effect=None):
+        from unittest.mock import patch
+
+        with patch(
+            "bootc_installer.defaults.disk.pathlib.Path.iterdir",
+            return_value=supplies,
+            side_effect=side_effect,
+        ):
+            return TestDiskStepFsToolCheck()._make_disk_widget()
+
+    def test_banner_shown_when_running_on_battery(self):
+        widget = self._make_disk_widget(
+            supplies=[
+                _FakePowerSupply("Battery"),
+                _FakePowerSupply("Mains", "0"),
+            ]
+        )
+
+        assert widget.battery_banner.get_revealed(), (
+            "battery_banner should be revealed when a mains supply reports offline"
+        )
+
+    def test_banner_hidden_on_desktops_without_mains_supply(self):
+        widget = self._make_disk_widget(
+            supplies=[
+                _FakePowerSupply("Battery"),
+            ]
+        )
+
+        assert not widget.battery_banner.get_revealed(), (
+            "battery_banner should stay hidden when no mains or UPS supply exists"
+        )
+
+    def test_banner_hidden_when_power_detection_errors(self):
+        widget = self._make_disk_widget(side_effect=RuntimeError("broken sysfs"))
+
+        assert not widget.battery_banner.get_revealed(), (
+            "battery_banner should stay hidden if power detection raises an exception"
+        )
+
+
 class TestWizardNavigation:
     def test_can_advance_from_image_step(self, window):
         """Clicking Next on the image step rebuilds downstream UI and advances."""

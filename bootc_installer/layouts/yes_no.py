@@ -53,6 +53,9 @@ class VanillaLayoutYesNo(Adw.Bin):
         if "info" in self.__step["buttons"]:
             self.btn_info.set_visible(True)
 
+    def should_show(self, context: dict) -> bool:
+        return True
+
     def __on_response(self, _, response):
         self.__response = response
         self.__window.next()

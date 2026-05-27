@@ -28,6 +28,7 @@ from bootc_installer.utils.processor import Processor
 from bootc_installer.views.confirm import VanillaConfirm
 from bootc_installer.views.done import VanillaDone
 from bootc_installer.views.progress import VanillaProgress
+from bootc_installer.views.recovery_key import VanillaRecoveryKey
 
 try:
     from bootc_installer._version import VERSION as _APP_VERSION
@@ -62,8 +63,12 @@ class VanillaWindow(Adw.ApplicationWindow):
 
         # system views
         self.__view_confirm = VanillaConfirm(self)
-        self.__view_progress = VanillaProgress(self, self.recipe.get("tour", {}))
+        self.__view_progress = VanillaProgress(self)
+        self.__view_recovery_key = VanillaRecoveryKey(self)
         self.__view_done = VanillaDone(self)
+
+        self.__install_is_encrypted = False
+        self.__install_recovery_key = ""
 
         # sensitivity-tracking state for the header btn_next
         self.__next_page_widget = None
@@ -94,6 +99,7 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.carousel.connect("page-changed", self.__on_page_changed)
         self.__reconnect_update_finals()
         self.__view_confirm.connect("installation-confirmed", self.on_installation_confirmed)
+        self.__view_recovery_key.connect("recovery-key-acknowledged", self.__on_recovery_key_acknowledged)
 
         if os.environ.get("TUNA_TEST"):
             self.carousel.connect("page-changed", self.__on_page_changed_test)
@@ -144,10 +150,19 @@ class VanillaWindow(Adw.ApplicationWindow):
 
     def __build_ui(self, rebuild=False, mode=0):
         property_list = self.__builder.property_list
+        context = {
+            "offline_install": False,  # TODO: detect
+            "has_tpm2": os.path.exists("/dev/tpmrm0"),
+            "live_iso": not os.path.exists("/.flatpak-info") and os.path.exists("/run/ostree-booted"),
+            "sys_recipe": self.recipe if hasattr(self, "recipe") else {},
+            "leaf_count": getattr(self, "_image_leaf_count", 2),
+            "disk_count": getattr(self, "_installable_disk_count", 2),
+        }
 
         if rebuild:
             self.carousel.remove(self.__view_confirm)
             self.carousel.remove(self.__view_progress)
+            self.carousel.remove(self.__view_recovery_key)
             self.carousel.remove(self.__view_done)
 
         self.__last_step_widget = None
@@ -169,6 +184,9 @@ class VanillaWindow(Adw.ApplicationWindow):
                 if getattr(widget, "skip_screen", False):
                     logger.info("(%s) Skipping screen (skip_screen=True)", widget.__gtype_name__)
                     continue
+                if hasattr(widget, "should_show") and not widget.should_show(context):
+                    logger.info("(%s) Skipping screen (should_show=False)", widget.__gtype_name__)
+                    continue
                 logger.info("(%s) Adding widget to carousel", widget.__gtype_name__)
                 self.carousel.append(widget)
                 self.__last_step_widget = widget
@@ -177,6 +195,7 @@ class VanillaWindow(Adw.ApplicationWindow):
 
         self.carousel.append(self.__view_confirm)
         self.carousel.append(self.__view_progress)
+        self.carousel.append(self.__view_recovery_key)
         self.carousel.append(self.__view_done)
 
     def __on_page_changed(self, *args):
@@ -195,7 +214,7 @@ class VanillaWindow(Adw.ApplicationWindow):
             self.__next_page_widget = None
             self.__next_handlers = []
 
-        is_final = page in [self.__view_progress, self.__view_done]
+        is_final = page in [self.__view_progress, self.__view_recovery_key, self.__view_done]
         is_confirm = page == self.__view_confirm
 
         if is_final or is_confirm:
@@ -245,6 +264,48 @@ class VanillaWindow(Adw.ApplicationWindow):
     def __is_done(self):
         cur_index = int(self.carousel.get_position())
         return self.carousel.get_nth_page(cur_index) is self.__view_done
+
+    def __find_page_index(self, target_page):
+        for index in range(self.carousel.get_n_pages()):
+            if self.carousel.get_nth_page(index) is target_page:
+                return index
+        return -1
+
+    def __go_to_page(self, target_page, animate=True):
+        if target_page is None:
+            return
+        index = self.__find_page_index(target_page)
+        if index < 0:
+            return
+        page = self.carousel.get_nth_page(index)
+        if page is not None:
+            self.carousel.scroll_to(page, animate)
+
+    def __finals_use_encryption(self):
+        for final in getattr(self, "finals", []):
+            encryption = final.get("encryption") if isinstance(final, dict) else None
+            if not isinstance(encryption, dict):
+                continue
+            enc_type = encryption.get("type", "")
+            if encryption.get("use_encryption") or enc_type not in ("", "none"):
+                return True
+        return False
+
+    def __recipe_uses_encryption(self, recipe_path: str) -> bool:
+        try:
+            with open(recipe_path) as recipe_file:
+                recipe = json.load(recipe_file)
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Failed to inspect install recipe %s: %s", recipe_path, exc)
+            return False
+
+        encryption = recipe.get("encryption", {})
+        if not isinstance(encryption, dict):
+            return False
+        return encryption.get("type", "none") != "none"
+
+    def __on_recovery_key_acknowledged(self, *args):
+        self.__go_to_page(self.__view_done)
 
     def __on_about_clicked(self, *args):
         dialog = Adw.AboutDialog(
@@ -299,6 +360,9 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.__view_confirm.update(self.finals)
 
     def on_installation_confirmed(self, *args):
+        self.__install_is_encrypted = self.__finals_use_encryption()
+        self.__install_recovery_key = ""
+
         if os.environ.get("BOOTC_DEMO"):
             self.next()
             self.__view_progress.start_demo()
@@ -309,14 +373,6 @@ class VanillaWindow(Adw.ApplicationWindow):
             self.finals,
             self.recipe,
         )
-        # Update the progress carousel with the image-specific slides if provided.
-        carousel = None
-        for f in self.finals:
-            if isinstance(f, dict) and f.get("carousel"):
-                carousel = f["carousel"]
-                break
-        if carousel:
-            self.__view_progress.update_carousel(carousel)
         self.next()
         self.__view_progress.start(recipe)
 
@@ -327,9 +383,10 @@ class VanillaWindow(Adw.ApplicationWindow):
         pre-built recipe file, bypassing the entire wizard.
         """
         logger.info(f"Autoinstall: starting with recipe {self.__autoinstall_recipe}")
-        # Jump directly to the progress page (last carousel page before done).
-        n = self.carousel.get_n_pages()
-        progress_index = n - 2  # progress is second-to-last (before done)
+        self.__install_is_encrypted = self.__recipe_uses_encryption(self.__autoinstall_recipe)
+        self.__install_recovery_key = ""
+
+        progress_index = self.__find_page_index(self.__view_progress)
         if progress_index >= 0:
             page = self.carousel.get_nth_page(progress_index)
             self.carousel.scroll_to(page, False)
@@ -379,10 +436,18 @@ class VanillaWindow(Adw.ApplicationWindow):
         toast.props.timeout = timeout
         self.toasts.add_toast(toast)
 
-    def set_installation_result(self, result, terminal, boot_id=""):
+    def set_installation_result(self, result, terminal, boot_id="", recovery_key=""):
         if result:
             logger.info("Installation complete!")
         else:
             logger.error("Installation failed!")
+
+        self.__install_recovery_key = recovery_key or self.__install_recovery_key
         self.__view_done.set_result(result, terminal, boot_id)
-        self.next()
+
+        if result and self.__install_is_encrypted:
+            self.__view_recovery_key.set_recovery_key(self.__install_recovery_key)
+            self.__go_to_page(self.__view_recovery_key)
+            return
+
+        self.__go_to_page(self.__view_done)

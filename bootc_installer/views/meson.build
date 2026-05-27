@@ -6,6 +6,7 @@ sources = [
   'confirm.py',
   'done.py',
   'progress.py',
+  'recovery_key.py',
   'tour.py',
 ]
 

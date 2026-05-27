@@ -26,8 +26,15 @@ def _substep(msg):
     return json.dumps({"type": "substep", "message": msg})
 
 
-def _complete(boot_id=""):
-    return json.dumps({"type": "complete", "message": "Installation complete!", "boot_id": boot_id})
+def _complete(boot_id="", recovery_key=""):
+    event = {"type": "complete", "message": "Installation complete!", "boot_id": boot_id}
+    if recovery_key:
+        event["recovery_key"] = recovery_key
+    return json.dumps(event)
+
+
+def _recovery_key(key):
+    return json.dumps({"type": "recovery_key", "key": key})
 
 
 # ── Non-JSON lines ─────────────────────────────────────────────────────────────
@@ -138,6 +145,16 @@ class TestSubstepEvent:
         assert update is None or update.get("label") is None
 
 
+# ── Recovery key event ─────────────────────────────────────────────────────────
+
+class TestRecoveryKeyEvent:
+    def test_recovery_key_stored_without_ui_update(self):
+        state = new_progress_state()
+        update = apply_progress_event(_recovery_key("alpha-beta"), state)
+        assert update is None
+        assert state["recovery_key"] == "alpha-beta"
+
+
 # ── Complete event ─────────────────────────────────────────────────────────────
 
 class TestCompleteEvent:
@@ -160,6 +177,11 @@ class TestCompleteEvent:
         state = new_progress_state()
         apply_progress_event(_complete(boot_id="0007"), state)
         assert state["boot_id"] == "0007"
+
+    def test_complete_stores_recovery_key(self):
+        state = new_progress_state()
+        apply_progress_event(_complete(recovery_key="recover-me"), state)
+        assert state["recovery_key"] == "recover-me"
 
 
 # ── Info events (no UI update) ─────────────────────────────────────────────────
@@ -191,6 +213,7 @@ class TestFullSequence:
             _step(step=6, total=8, name="Writing hostname",      cumulative_pct=89, weight_pct=1),
             _step(step=7, total=8, name="Copying Flatpaks",      cumulative_pct=90, weight_pct=5),
             _step(step=8, total=8, name="Finalizing",            cumulative_pct=95, weight_pct=5),
+            _recovery_key("alpha-beta"),
             _complete(boot_id="0003"),
         ]
         state = new_progress_state()
@@ -200,6 +223,7 @@ class TestFullSequence:
         # Must reach completion
         assert non_none[-1]["complete"] is True
         assert state["boot_id"] == "0003"
+        assert state["recovery_key"] == "alpha-beta"
         # Final step should be 8
         assert state["current_step"] == 8
         # Bar at 100% at end

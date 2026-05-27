@@ -22,6 +22,7 @@ def new_progress_state() -> dict:
         "current_cumulative_pct": 0,
         "seen_substeps": set(),
         "boot_id": "",
+        "recovery_key": "",
     }
 
 
@@ -96,9 +97,14 @@ def apply_progress_event(line: str, state: dict) -> dict | None:
             )
         return {"fraction": fraction, "label": label, "pulse": False, "complete": False}
 
+    if event_type == "recovery_key":
+        state["recovery_key"] = event.get("key", "")
+        return None
+
     if event_type == "complete":
         state["pulse_active"] = False
         state["boot_id"] = event.get("boot_id", "")
+        state["recovery_key"] = event.get("recovery_key", state["recovery_key"])
         return {"fraction": 1.0, "label": "Installation complete!", "pulse": False, "complete": True}
 
     return None

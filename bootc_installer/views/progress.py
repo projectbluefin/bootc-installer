@@ -51,6 +51,7 @@ def _new_progress_state() -> dict:
         "current_cumulative_pct": 0,
         "seen_substeps": set(),
         "boot_id": "",
+        "recovery_key": "",
     }
 
 
@@ -125,9 +126,14 @@ def apply_progress_event(line: str, state: dict) -> dict | None:
             )
         return {"fraction": fraction, "label": label, "pulse": False, "complete": False}
 
+    if event_type == "recovery_key":
+        state["recovery_key"] = event.get("key", "")
+        return None
+
     if event_type == "complete":
         state["pulse_active"] = False
         state["boot_id"] = event.get("boot_id", "")
+        state["recovery_key"] = event.get("recovery_key", state["recovery_key"])
         return {"fraction": 1.0, "label": "Installation complete!", "pulse": False, "complete": True}
 
     return None
@@ -173,30 +179,27 @@ def _stage_fisherman_on_host() -> bool:
 
 from gi.repository import Gdk, Gio, GLib, Gtk, Adw
 
-from bootc_installer.utils.run_async import RunAsync
-from bootc_installer.views.tour import VanillaTour
-
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/progress.ui")
 class VanillaProgress(Gtk.Box):
     __gtype_name__ = "VanillaProgress"
 
-    carousel_tour = Gtk.Template.Child()
-    tour_button = Gtk.Template.Child()
-    tour_box = Gtk.Template.Child()
-    tour_btn_back = Gtk.Template.Child()
-    tour_btn_next = Gtk.Template.Child()
+    media_box = Gtk.Template.Child()
+    install_video = Gtk.Template.Child()
     progressbar = Gtk.Template.Child()
     progressbar_text = Gtk.Template.Child()
+    progress_percentage = Gtk.Template.Child()
+    progress_elapsed = Gtk.Template.Child()
+    progress_substep = Gtk.Template.Child()
     console_button = Gtk.Template.Child()
+    media_button = Gtk.Template.Child()
     console_box = Gtk.Template.Child()
     log_view = Gtk.Template.Child()
     copy_log_button = Gtk.Template.Child()
 
-    def __init__(self, window, tour: dict, **kwargs):
+    def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
         self.__window = window
-        self.__tour = tour
         self.__proc = None       # subprocess handle for fisherman
         self.__log_out = None    # open file handle for fisherman stdout/stderr
         self.__log_buf = None    # GtkTextBuffer — set after super().__init__
@@ -205,46 +208,63 @@ class VanillaProgress(Gtk.Box):
         self.__log_linebuf = ""     # incomplete line buffer for the log watcher
         self.__progress_state = new_progress_state()
         self.__boot_id = ""  # EFI boot entry ID from fisherman complete event
+        self.__recovery_key = ""
+        self.__start_time = None
+        self.__elapsed_timer_id = None
 
         self.__build_ui()
         self.__log_buf = self.log_view.get_buffer()
 
-        self.tour_button.connect("clicked", self.__on_tour_button)
-        self.tour_btn_back.connect("clicked", self.__on_tour_back)
-        self.tour_btn_next.connect("clicked", self.__on_tour_next)
-        self.carousel_tour.connect("page-changed", self.__on_page_changed)
         self.console_button.connect("clicked", self.__on_console_button)
+        self.media_button.connect("clicked", self.__on_media_button)
         self.copy_log_button.connect("clicked", self.__on_copy_log)
 
 
-    def __on_tour_button(self, *args):
-        self.tour_box.set_visible(True)
+    def __configure_install_video(self):
+        self.install_video.connect("notify::media-stream", self.__on_media_stream_changed)
+        video_file = Gio.File.new_for_uri(
+            "resource:///org/bootcinstaller/Installer/assets/installer-video.webm"
+        )
+        self.install_video.set_file(video_file)
+        self.__mute_install_video()
+
+    def __on_media_stream_changed(self, *_args):
+        self.__mute_install_video()
+
+    def __mute_install_video(self):
+        media_stream = self.install_video.get_media_stream()
+        if media_stream is not None:
+            media_stream.set_muted(True)
+
+    def __play_install_video(self):
+        media_stream = self.install_video.get_media_stream()
+        if media_stream is not None:
+            media_stream.play()
+            media_stream.set_muted(True)
+
+    def __pause_install_video(self):
+        media_stream = self.install_video.get_media_stream()
+        if media_stream is not None:
+            media_stream.pause()
+
+    def __show_media_view(self):
+        self.media_box.set_visible(True)
         self.console_box.set_visible(False)
-        self.tour_button.set_visible(False)
+        self.media_button.set_visible(False)
         self.console_button.set_visible(True)
+        self.__play_install_video()
 
-    def __on_tour_back(self, *args):
-        cur_index = self.carousel_tour.get_position()
-        page = self.carousel_tour.get_nth_page(cur_index - 1)
-        self.carousel_tour.scroll_to(page, True)
-
-    def __on_tour_next(self, *args):
-        cur_index = self.carousel_tour.get_position()
-        page = self.carousel_tour.get_nth_page(cur_index + 1)
-        self.carousel_tour.scroll_to(page, True)
-
-    def __on_page_changed(self, *args):
-        position = self.carousel_tour.get_position()
-        pages = self.carousel_tour.get_n_pages()
-
-        self.tour_btn_back.set_visible(position < pages and position > 0)
-        self.tour_btn_next.set_visible(position < pages - 1)
+    def __show_console_view(self):
+        self.media_box.set_visible(False)
+        self.console_box.set_visible(True)
+        self.media_button.set_visible(True)
+        self.console_button.set_visible(False)
 
     def __on_console_button(self, *args):
-        self.tour_box.set_visible(False)
-        self.console_box.set_visible(True)
-        self.tour_button.set_visible(True)
-        self.console_button.set_visible(False)      
+        self.__show_console_view()
+
+    def __on_media_button(self, *args):
+        self.__show_media_view()
 
     def __on_copy_log(self, *args):
         """Copy the fisherman log to the clipboard."""
@@ -269,29 +289,56 @@ class VanillaProgress(Gtk.Box):
         GLib.timeout_add(1500, lambda: self.copy_log_button.set_icon_name("edit-copy-symbolic"))
 
     def __build_ui(self):
-        for _, tour in self.__tour.items():
-            self.carousel_tour.append(VanillaTour(self.__window, tour))
+        self.__install_progress_css()
+        self.__configure_install_video()
+        self.__show_media_view()
 
-        self.__start_tour()
+    def __install_progress_css(self):
+        display = Gdk.Display.get_default()
+        if display is None:
+            return
+        css = Gtk.CssProvider()
+        css.load_from_data(b".thick-progress trough, .thick-progress progress { min-height: 8px; }")
+        Gtk.StyleContext.add_provider_for_display(
+            display,
+            css,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
 
-    def __switch_tour(self, *args):
-        cur_index = self.carousel_tour.get_position() + 1
-        if cur_index == self.carousel_tour.get_n_pages():
-            cur_index = 0
+    def __set_progress_fraction(self, fraction: float):
+        fraction = max(0.0, min(fraction, 1.0))
+        self.progressbar.set_fraction(fraction)
+        self.progress_percentage.set_label(f"{int(fraction * 100)}%")
 
-        page = self.carousel_tour.get_nth_page(cur_index)
+    def __format_elapsed(self, elapsed_seconds: float) -> str:
+        total_seconds = max(0, int(elapsed_seconds))
+        minutes, seconds = divmod(total_seconds, 60)
+        return f"{minutes}:{seconds:02d}"
 
-        self.carousel_tour.scroll_to(page, True)
+    def __update_elapsed_label(self):
+        if self.__start_time is None:
+            return False
+        elapsed = self.__format_elapsed(time.monotonic() - self.__start_time)
+        self.progress_elapsed.set_label(_("%s elapsed") % elapsed)
+        return True
 
-    def __start_tour(self):
-        def run_async():
-            while True:
-                if self.__pulse_active:
-                    GLib.idle_add(self.progressbar.pulse)
-                GLib.idle_add(self.__switch_tour)
-                time.sleep(5)
+    def __start_elapsed_timer(self):
+        self.__stop_elapsed_timer(clear_start_time=False)
+        self.__start_time = time.monotonic()
+        self.__update_elapsed_label()
+        self.__elapsed_timer_id = GLib.timeout_add(1000, self.__update_elapsed_label)
 
-        RunAsync(run_async, None)
+    def __stop_elapsed_timer(self, clear_start_time: bool = True):
+        if self.__elapsed_timer_id is not None:
+            GLib.source_remove(self.__elapsed_timer_id)
+            self.__elapsed_timer_id = None
+        if clear_start_time:
+            self.__start_time = None
+
+    def __pulse_progress(self):
+        if self.__pulse_active:
+            self.progressbar.pulse()
+        return self.__pulse_active
 
     def _start_log_watcher(self):
         """Begin tailing fisherman-output.log for JSON progress events.
@@ -372,24 +419,42 @@ class VanillaProgress(Gtk.Box):
                     self.__append_log_line(line)
             self.__log_file.close()
             self.__log_file = None
-        self.__window.set_installation_result(ret == 0, None, self.__boot_id)
+        self.__stop_elapsed_timer()
+        self.__pause_install_video()
+        self.__window.set_installation_result(ret == 0, None, self.__boot_id, self.__recovery_key)
         return False
 
     def __parse_progress_line(self, line: str):
         """Parse a single fisherman log line and apply any resulting UI update."""
+        try:
+            event = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            event = {}
+
         update = apply_progress_event(line, self.__progress_state)
+        if event.get("type") == "recovery_key":
+            self.__recovery_key = self.__progress_state.get("recovery_key", "")
+            logger.info("Fisherman reported recovery key")
         if update is None:
             return
 
         if update["fraction"] is not None:
-            self.progressbar.set_fraction(update["fraction"])
+            self.__set_progress_fraction(update["fraction"])
         if update["label"] is not None:
             self.progressbar_text.set_label(_(update["label"]))
+        if event.get("type") == "step":
+            self.progress_substep.set_label("")
+        elif event.get("type") == "substep":
+            self.progress_substep.set_label(event.get("message", ""))
         if not update["pulse"]:
             self.__pulse_active = False
 
         if update["complete"]:
+            self.__stop_elapsed_timer()
+            self.__pause_install_video()
+            self.progress_substep.set_label("")
             self.__boot_id = self.__progress_state["boot_id"]
+            self.__recovery_key = self.__progress_state.get("recovery_key", "")
             logger.info("Fisherman reported completion")
         elif update.get("label"):
             logger.info("UI update: %s (fraction=%.2f)", update["label"],
@@ -413,15 +478,22 @@ class VanillaProgress(Gtk.Box):
             (4.8,  0.99, "Step 9/9: Finalizing"),
         ]
         self.__pulse_active = False
+        self.__set_progress_fraction(0.0)
+        self.progress_substep.set_label("")
+        self.progress_elapsed.set_label(_("0:00 elapsed"))
+        self.__show_media_view()
 
         def _fire_step(index):
             if index >= len(_STEPS):
-                self.progressbar.set_fraction(1.0)
+                self.__set_progress_fraction(1.0)
+                self.__pause_install_video()
+                self.progress_substep.set_label("")
                 self.progressbar_text.set_label(_("Installation complete!"))
                 GLib.timeout_add(600, lambda: self.__window.set_installation_result(True, None, "") or False)
                 return False
             _, fraction, label = _STEPS[index]
-            self.progressbar.set_fraction(fraction)
+            self.__set_progress_fraction(fraction)
+            self.progress_substep.set_label("")
             self.progressbar_text.set_label(_(label))
             return False
 
@@ -451,35 +523,21 @@ class VanillaProgress(Gtk.Box):
             logger.info("No stale log file to delete")
         except Exception as e:
             logger.error("Failed to delete stale log: %s", e)
+        self.__progress_state = new_progress_state()
+        self.__boot_id = ""
+        self.__recovery_key = ""
+        self.__pulse_active = True
+        self.__set_progress_fraction(0.0)
+        self.progressbar_text.set_label(_("Installing"))
+        self.progress_substep.set_label("")
+        self.__show_media_view()
+        GLib.timeout_add(200, self.__pulse_progress)
         logger.info("Launching fisherman: %s", argv)
+        self.__start_elapsed_timer()
         # bash handles writing stdout+stderr to the log file via shell redirection.
         # Do NOT pass stdout= here — flatpak-spawn uses D-Bus, not a real pipe fd.
         self.__proc = subprocess.Popen(argv)
         logger.info("Fisherman PID: %s", self.__proc.pid)
         GLib.timeout_add(500, self.__poll_proc)
         self._start_log_watcher()
-        GLib.timeout_add(500, self.__poll_proc)
-        self._start_log_watcher()
 
-    def update_carousel(self, slides: list):
-        """Replace the carousel content with image-specific slides.
-
-        Each slide is a dict with keys: title, description, and one of
-        'image' (images.json format) or 'resource' (recipe.json format).
-        Call this before start() so the carousel reflects the chosen image.
-        """
-        if not slides:
-            return
-
-        # Remove all existing pages.
-        while self.carousel_tour.get_n_pages() > 0:
-            page = self.carousel_tour.get_nth_page(0)
-            self.carousel_tour.remove(page)
-
-        for slide in slides:
-            self.carousel_tour.append(VanillaTour(self.__window, slide))
-
-        # Scroll back to first page.
-        if self.carousel_tour.get_n_pages() > 0:
-            self.carousel_tour.scroll_to(self.carousel_tour.get_nth_page(0), False)
-        self.__on_page_changed()

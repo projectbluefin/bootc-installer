@@ -57,6 +57,9 @@ class VanillaDefaultConnCheck(Adw.Bin):
     def step_id(self):
         return self.__key
 
+    def should_show(self, context: dict) -> bool:
+        return True
+
     def get_finals(self):
         return {}
 

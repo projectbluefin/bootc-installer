@@ -536,10 +536,17 @@ class VanillaDefaultImage(Adw.Bin):
 
     # ── Test / finals ─────────────────────────────────────────────────────────
 
+    def should_show(self, context: dict) -> bool:
+        return context.get("leaf_count", 2) > 1
+
     @property
     def skip_screen(self) -> bool:
         """True when the manifest contains only one selectable image."""
-        return _LEAF_COUNT <= 1
+        return not self.should_show({"leaf_count": self.leaf_count})
+
+    @property
+    def leaf_count(self) -> int:
+        return _LEAF_COUNT
 
     @property
     def selected_needs_user_creation(self) -> bool:

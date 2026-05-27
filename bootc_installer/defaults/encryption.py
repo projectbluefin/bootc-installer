@@ -59,6 +59,9 @@ class VanillaDefaultEncryption(Adw.Bin):
 
         self.__update_btn_next()
 
+    def should_show(self, context: dict) -> bool:
+        return True
+
     def test_auto_advance(self):
         # Ensure encryption is off — TPM2 won't work on virtual/loop disks
         self.use_encryption_switch.set_active(False)

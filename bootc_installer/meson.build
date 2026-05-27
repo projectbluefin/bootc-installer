@@ -12,6 +12,7 @@ if blueprint_compiler.found()
       'gtk/default-conn-check.blp',
       'gtk/default-disk.blp',
       'gtk/default-encryption.blp',
+      'gtk/default-hardware.blp',
       'gtk/default-image.blp',
       'gtk/default-keyboard.blp',
       'gtk/default-language.blp',
@@ -32,6 +33,7 @@ if blueprint_compiler.found()
       'gtk/layout-preferences.blp',
       'gtk/layout-yes-no.blp',
       'gtk/progress.blp',
+      'gtk/recovery-key.blp',
       'gtk/tour.blp',
       'gtk/widget-choice.blp',
       'gtk/widget-page-header.blp',
@@ -75,8 +77,7 @@ python = import('python')
 
 conf = configuration_data()
 conf.set('PYTHON', python.find_installation('python3').path())
-_version_string = run_command('cat', meson.source_root() / 'VERSION', check: false).stdout().strip()
-conf.set('VERSION', _version_string != '' ? _version_string : meson.project_version())
+conf.set('VERSION', meson.project_version())
 conf.set('localedir', join_paths(get_option('prefix'), get_option('localedir')))
 conf.set('pkgdatadir', pkgdatadir)
 
@@ -145,7 +146,7 @@ subdir('views')
 subdir('widgets')
 subdir('windows')
 
-# Bake the version string from the VERSION file into _version.py at build time.
+# Bake the Meson project version into _version.py at build time.
 configure_file(
   input: '_version.py.in',
   output: '_version.py',

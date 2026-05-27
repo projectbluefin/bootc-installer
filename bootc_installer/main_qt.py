@@ -42,6 +42,11 @@ except ImportError as e:
 
 from bootc_installer.core.system import Systeminfo
 
+try:
+    from bootc_installer._version import VERSION as APP_VERSION
+except ImportError:
+    APP_VERSION = "unknown"
+
 logger = logging.getLogger("Installer::Main")
 
 
@@ -52,7 +57,7 @@ class KDEBootcInstaller(QApplication):
         logger.info("KDEBootcInstaller.__init__")
         super().__init__(sys.argv)
         self.setApplicationName("bootc Installer")
-        self.setApplicationVersion("0.1.0")
+        self.setApplicationVersion(APP_VERSION)
         self.setOrganizationName("org.kdeinstaller")
 
     def run(self):
@@ -69,7 +74,7 @@ class KDEBootcInstaller(QApplication):
             logger.error(f"QML file not found: {qml_path}")
             logger.warning("Using fallback GTK4 interface")
             from bootc_installer.main import main
-            return main("0.1.0")
+            return main(APP_VERSION)
 
         if not engine.rootObjects():
             logger.error("Failed to load QML engine")

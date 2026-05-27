@@ -117,9 +117,14 @@ class Builder:
                 )
                 logger.info(_("(%s) Widgets initialized") % key)
                 self.__register_widgets.append(_widget)
-                # Expose the image step on the window so later steps can query it.
+                # Expose step metadata on the window so later steps can query it.
                 if step["template"] == "image":
                     self.__window.image_step = _widget
+                    self.__window._image_leaf_count = getattr(_widget, "leaf_count", 2)
+                if step["template"] == "disk":
+                    self.__window._installable_disk_count = getattr(
+                        _widget, "installable_disk_count", 2
+                    )
             self.__property_list.append(step)
 
     def get_finals(self):

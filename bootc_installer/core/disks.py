@@ -316,6 +316,8 @@ class DisksManager:
         self.__boot_disk = Diskutils.get_boot_disk()
         if self.__boot_disk:
             logger.info(f"Boot disk excluded from selection: {self.__boot_disk}")
+        else:
+            logger.info("Boot disk not detected; showing all disks")
         self.__disks = self.__get_disks()
 
     def __get_disks(self):

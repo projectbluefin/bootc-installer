@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import pathlib
 import subprocess
 from gettext import gettext as _
 from typing import Union
@@ -680,7 +681,7 @@ class VanillaDefaultDisk(Adw.Bin):
     var_disk_switch = Gtk.Template.Child()
     group_var_disks = Gtk.Template.Child()
     group_var_disk_existing = Gtk.Template.Child()
-    battery_warning_banner = Gtk.Template.Child()
+    battery_banner = Gtk.Template.Child()
     var_disk_keep_row = Gtk.Template.Child()
     var_disk_keep_switch = Gtk.Template.Child()
 
@@ -747,6 +748,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__filesystem_options = ["xfs"]
         self.__window.carousel.connect("page-changed", self.__on_carousel_page_changed)
         self.__refresh_from_image_step()
+        self.auto_select_single_disk()
 
         # Auto-select virtual disk if still no physical disks are available
         if not self.__registry_disks:
@@ -760,12 +762,35 @@ class VanillaDefaultDisk(Adw.Bin):
             self.__check_battery()
 
     def __check_battery(self):
+        on_battery = False
         try:
-            with open("/sys/class/power_supply/AC/online") as f:
-                on_ac = f.read().strip() == "1"
-        except OSError:
-            on_ac = True  # assume plugged in if can't tell
-        self.battery_warning_banner.set_revealed(not on_ac)
+            for supply in pathlib.Path("/sys/class/power_supply").iterdir():
+                supply_type_file = supply / "type"
+                if not supply_type_file.exists():
+                    continue
+
+                try:
+                    supply_type = supply_type_file.read_text().strip()
+                except OSError:
+                    continue
+
+                if supply_type not in ("Mains", "UPS"):
+                    continue
+
+                online_file = supply / "online"
+                if not online_file.exists():
+                    continue
+
+                try:
+                    if online_file.read_text().strip() == "0":
+                        on_battery = True
+                        break
+                except OSError:
+                    continue
+        except Exception:
+            logger.debug("Failed to determine power state", exc_info=True)
+
+        self.battery_banner.set_revealed(on_battery)
 
     def __refresh_from_image_step(self):
         """Re-read image metadata and update filesystem picker and hostname."""
@@ -857,6 +882,52 @@ class VanillaDefaultDisk(Adw.Bin):
 
     def __on_btn_exit_clicked(self, button):
         self.__window.get_application().quit()
+
+    def should_show(self, context: dict) -> bool:
+        return context.get("disk_count", 2) > 1
+
+    def _set_auto_partition_recipe(self, disk):
+        self.__partition_recipe = {
+            "auto": {
+                "disk": disk.disk,
+                "pretty_size": disk.pretty_size,
+                "size": disk.size,
+                "vgs_to_remove": [],
+                "pvs_to_remove": [],
+            }
+        }
+        self.__update_next_button()
+
+    def auto_select_single_disk(self):
+        disks = self.__disks.all_disks(include_removable=False)
+        if not disks:
+            disks = self.__disks.all_disks(include_removable=True)
+
+        if len(disks) != 1:
+            return False
+
+        disk = disks[0]
+        self.__use_virtual_disk = False
+
+        if not self.__selected_disks or self.__selected_disks[0].disk != disk.disk:
+            matched_entry = next(
+                (entry for entry in self.__registry_disks if entry.disk.disk == disk.disk),
+                None,
+            )
+            if matched_entry is not None:
+                matched_entry.chk_button.set_active(True)
+            else:
+                self.__selected_disks = [disk]
+                self.__selected_disks_sum = disk.size
+                self.__update_action_buttons()
+
+        self._set_auto_partition_recipe(disk)
+        logger.info("Auto-selected only installable disk: %s", disk.disk)
+        return True
+
+    @property
+    def installable_disk_count(self) -> int:
+        return len(self.__registry_disks)
 
     def test_auto_advance(self):
         self.btn_auto.emit("clicked")
@@ -986,15 +1057,7 @@ class VanillaDefaultDisk(Adw.Bin):
                 }
             }
         else:
-            self.__partition_recipe = {
-                "auto": {
-                    "disk": self.__selected_disks[0].disk,
-                    "pretty_size": self.__selected_disks[0].pretty_size,
-                    "size": self.__selected_disks[0].size,
-                    "vgs_to_remove": [],
-                    "pvs_to_remove": [],
-                }
-            }
+            self._set_auto_partition_recipe(self.__selected_disks[0])
         # In test mode skip the confirm modal and advance directly
         if os.environ.get("TUNA_TEST"):
             self.__window.next()

@@ -36,11 +36,30 @@ template $VanillaDefaultWelcome: Adw.Bin {
           }
         }
 
+        Adw.ActionRow row_bluetooth {
+          title: _("Connect Bluetooth Devices");
+          subtitle: _("Pair your keyboard or mouse to continue");
+          icon-name: "bluetooth-symbolic";
+          activatable: true;
+          visible: false;
+
+          Image {
+            icon-name: "go-next-symbolic";
+            halign: center;
+            valign: center;
+
+            styles [
+              "flat",
+            ]
+          }
+        }
+
         Adw.ActionRow row_recovery {
           title: _("Recovery");
           subtitle: _("Troubleshoot or repair an existing installation.");
           icon-name: "emoji-symbols-symbolic";
           activatable: true;
+          visible: false;
 
           Image {
             icon-name: "go-next-symbolic";

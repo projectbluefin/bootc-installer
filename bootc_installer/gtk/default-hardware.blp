@@ -1,0 +1,176 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $VanillaDefaultHardware: Adw.Bin {
+  halign: fill;
+  valign: fill;
+  hexpand: true;
+  vexpand: true;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    vexpand: true;
+    hexpand: true;
+
+    Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        $TunaPageHeader page_header {
+          margin-top: 24;
+          title: _("System Check");
+          subtitle: _("Verifying hardware compatibility");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Revealer status_banner {
+          reveal-child: false;
+
+          Box {
+            orientation: vertical;
+            spacing: 12;
+            halign: center;
+            margin-top: 12;
+            margin-bottom: 12;
+            margin-start: 18;
+            margin-end: 18;
+
+            Image status_icon {
+              icon-name: "emblem-ok-symbolic";
+              pixel-size: 48;
+              halign: center;
+            }
+
+            Label status_label {
+              label: _("Your system is ready");
+              halign: center;
+              justify: center;
+              wrap: true;
+
+              styles [
+                "title-4",
+                "success",
+              ]
+            }
+          }
+        }
+      }
+
+      Adw.PreferencesGroup group_hardware {
+        title: _("Hardware");
+        description: _("We’ll quickly review the main components needed for a smooth installation and first boot.");
+
+        Adw.ActionRow row_gpu {
+          title: _("Graphics");
+          icon-name: "video-display-symbolic";
+
+          [suffix]
+          Label label_gpu {
+            label: _("Scanning…");
+            valign: center;
+            xalign: 1;
+
+            styles [
+              "dim-label",
+            ]
+          }
+        }
+
+        Adw.ActionRow row_cpu {
+          title: _("Processor");
+          icon-name: "processor-symbolic";
+
+          [suffix]
+          Label label_cpu {
+            label: _("Scanning…");
+            valign: center;
+            xalign: 1;
+
+            styles [
+              "dim-label",
+            ]
+          }
+        }
+
+        Adw.ActionRow row_ram {
+          title: _("Memory");
+          icon-name: "drive-harddisk-solidstate-symbolic";
+
+          [suffix]
+          Label label_ram {
+            label: _("Scanning…");
+            valign: center;
+            xalign: 1;
+
+            styles [
+              "dim-label",
+            ]
+          }
+        }
+
+        Adw.ActionRow row_storage {
+          title: _("Storage");
+          icon-name: "drive-harddisk-system-symbolic";
+
+          [suffix]
+          Label label_storage {
+            label: _("Scanning…");
+            valign: center;
+            xalign: 1;
+
+            styles [
+              "dim-label",
+            ]
+          }
+        }
+
+        Adw.ActionRow row_tpm {
+          title: _("Security Chip");
+          icon-name: "channel-secure-symbolic";
+
+          [suffix]
+          Label label_tpm {
+            label: _("Scanning…");
+            valign: center;
+            xalign: 1;
+
+            styles [
+              "dim-label",
+            ]
+          }
+        }
+
+        Adw.ActionRow row_secureboot {
+          title: _("Secure Boot");
+          icon-name: "security-high-symbolic";
+
+          [suffix]
+          Label label_secureboot {
+            label: _("Scanning…");
+            valign: center;
+            xalign: 1;
+
+            styles [
+              "dim-label",
+            ]
+          }
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Box {
+          orientation: vertical;
+          spacing: 6;
+          halign: center;
+          margin-top: 6;
+          margin-bottom: 18;
+
+          Spinner scan_spinner {
+            spinning: true;
+            halign: center;
+            tooltip-text: _("Scanning hardware");
+          }
+        }
+      }
+    }
+  }
+}
