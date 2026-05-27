@@ -17,7 +17,6 @@
 import json
 import logging
 import os
-import re
 import shutil
 import stat
 import subprocess
@@ -25,9 +24,6 @@ import time
 from gettext import gettext as _
 
 logger = logging.getLogger("Installer::Progress")
-
-# Matches "Pulling image: layer 23/71" substep messages from fisherman.
-_RE_LAYER_PROGRESS = re.compile(r"Pulling image: layer (\d+)/(\d+)")
 
 _IN_FLATPAK = os.path.exists("/.flatpak-info")
 _LIVE_ISO = not _IN_FLATPAK and os.path.exists("/run/ostree-booted")
@@ -91,6 +87,7 @@ class VanillaProgress(Gtk.Box):
     progressbar_text = Gtk.Template.Child()
     progress_percentage = Gtk.Template.Child()
     progress_elapsed = Gtk.Template.Child()
+    progress_eta = Gtk.Template.Child()
     progress_substep = Gtk.Template.Child()
     console_button = Gtk.Template.Child()
     media_button = Gtk.Template.Child()
@@ -113,6 +110,7 @@ class VanillaProgress(Gtk.Box):
         self.__recipe_path = None   # path to recipe JSON (for cleanup)
         self.__start_time = None
         self.__elapsed_timer_id = None
+        self.__last_fraction = 0.0  # for ETA computation
 
         self.__build_ui()
         self.__log_buf = self.log_view.get_buffer()
@@ -200,7 +198,10 @@ class VanillaProgress(Gtk.Box):
         if display is None:
             return
         css = Gtk.CssProvider()
-        css.load_from_data(b".thick-progress trough, .thick-progress progress { min-height: 8px; }")
+        css.load_from_data(
+            b".thick-progress trough, .thick-progress progress { min-height: 8px; }"
+            b" .thick-progress progress { transition: all 300ms ease-in-out; }"
+        )
         Gtk.StyleContext.add_provider_for_display(
             display,
             css,
@@ -211,17 +212,39 @@ class VanillaProgress(Gtk.Box):
         fraction = max(0.0, min(fraction, 1.0))
         self.progressbar.set_fraction(fraction)
         self.progress_percentage.set_label(f"{int(fraction * 100)}%")
+        self.__last_fraction = fraction
+        self.__update_eta(fraction)
 
     def __format_elapsed(self, elapsed_seconds: float) -> str:
         total_seconds = max(0, int(elapsed_seconds))
         minutes, seconds = divmod(total_seconds, 60)
         return f"{minutes}:{seconds:02d}"
 
+    def __update_eta(self, fraction: float):
+        """Compute and display estimated time remaining."""
+        if self.__start_time is None or fraction < 0.05:
+            # Not enough data to estimate yet
+            self.progress_eta.set_label("")
+            return
+        elapsed = time.monotonic() - self.__start_time
+        if elapsed < 5:
+            return  # wait at least 5s before showing ETA
+        remaining = (elapsed / fraction) * (1.0 - fraction)
+        remaining = max(0, int(remaining))
+        if remaining < 60:
+            eta_text = _("~%d sec remaining") % remaining
+        else:
+            minutes = remaining // 60
+            eta_text = _("~%d min remaining") % minutes
+        self.progress_eta.set_label(eta_text)
+
     def __update_elapsed_label(self):
         if self.__start_time is None:
             return False
         elapsed = self.__format_elapsed(time.monotonic() - self.__start_time)
         self.progress_elapsed.set_label(_("%s elapsed") % elapsed)
+        # Also refresh ETA on the timer tick
+        self.__update_eta(self.__last_fraction)
         return True
 
     def __start_elapsed_timer(self):

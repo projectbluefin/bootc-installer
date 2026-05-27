@@ -24,6 +24,8 @@ class VanillaDefaultUsers(Adw.Bin):
     username_entry     = Gtk.Template.Child()
     password_entry     = Gtk.Template.Child()
     password_confirmation = Gtk.Template.Child()
+    password_strength_row = Gtk.Template.Child()
+    password_strength_label = Gtk.Template.Child()
 
     def __init__(self, window, distro_info, key, step, **kwargs):
         super().__init__(**kwargs)
@@ -122,7 +124,42 @@ class VanillaDefaultUsers(Adw.Bin):
         else:
             self.password_confirmation.remove_css_class("error")
 
+        self.__update_password_strength(password)
         self.__update_btn_next()
+
+    def __update_password_strength(self, password: str):
+        """Show a simple password strength indicator."""
+        if not password:
+            self.password_strength_row.set_visible(False)
+            return
+        self.password_strength_row.set_visible(True)
+        score = 0
+        if len(password) >= 8:
+            score += 1
+        if len(password) >= 12:
+            score += 1
+        if re.search(r"[A-Z]", password):
+            score += 1
+        if re.search(r"[0-9]", password):
+            score += 1
+        if re.search(r"[^a-zA-Z0-9]", password):
+            score += 1
+
+        if score <= 1:
+            label, color = "Weak", "error"
+        elif score <= 2:
+            label, color = "Fair", "warning"
+        elif score <= 3:
+            label, color = "Good", "success"
+        else:
+            label, color = "Strong", "success"
+
+        self.password_strength_label.set_label(label)
+        for cls in ("error", "warning", "success"):
+            if cls == color:
+                self.password_strength_label.add_css_class(cls)
+            else:
+                self.password_strength_label.remove_css_class(cls)
 
     def __update_btn_next(self):
         username = self.username_entry.get_text().strip()

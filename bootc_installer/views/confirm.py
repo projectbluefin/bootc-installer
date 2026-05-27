@@ -113,6 +113,12 @@ class VanillaConfirm(Adw.Bin):
                                 "drive-harddisk-system-symbolic",
                             )
                         )
+                        # Destructive action warning
+                        warning = Adw.ActionRow()
+                        warning.set_title(_("⚠️ ALL DATA ON THIS DISK WILL BE ERASED"))
+                        warning.set_subtitle(_("This action cannot be undone"))
+                        warning.add_css_class("error")
+                        self.active_widgets.append(warning)
                     else:
                         disks = {}
                         # block, device_block

@@ -65,6 +65,22 @@ template $VanillaDefaultUsers: Adw.Bin {
             input-purpose: password;
           }
 
+          Adw.ActionRow password_strength_row {
+            title: "";
+            sensitive: false;
+
+            [suffix]
+            Label password_strength_label {
+              label: "";
+              halign: end;
+              valign: center;
+
+              styles [
+                "caption",
+              ]
+            }
+          }
+
           Adw.PasswordEntryRow password_confirmation {
             title: _("Confirm Password");
             input-purpose: password;
