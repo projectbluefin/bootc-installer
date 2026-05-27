@@ -138,7 +138,6 @@ class VanillaProgress(Gtk.Box):
             "resource:///org/bootcinstaller/Installer/assets/installer-video.webm"
         )
         self.install_video.set_file(video_file)
-        self.__mute_install_video()
 
     def __configure_soundtrack(self):
         self._carousel_timer = None
@@ -249,7 +248,8 @@ class VanillaProgress(Gtk.Box):
         return True
 
     def __on_media_stream_changed(self, *_args):
-        self.__mute_install_video()
+        # Defer mute until the next main-loop iteration so GstPlayer is ready.
+        GLib.idle_add(self.__mute_install_video)
 
     def __mute_install_video(self):
         media_stream = self.install_video.get_media_stream()
