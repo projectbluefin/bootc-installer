@@ -103,7 +103,7 @@ class TestAutoDisk:
                    "encryption": {"use_encryption": False}}]
         path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
         r = _load(path)
-        assert r["hostname"] == "tunaos"  # sys recipe still provides distro_name fallback
+        assert r["hostname"] == "dakota"  # default hostname when sys_recipe has no hostname key
 
 
 # ── Encryption tests ───────────────────────────────────────────────────────────
