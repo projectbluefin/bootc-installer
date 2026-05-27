@@ -99,11 +99,16 @@ class TestAutoDisk:
         assert r["hostname"] == "fallback-host"
 
     def test_fallback_hostname_default(self):
+        """When no hostname is specified, a hardware-derived hostname is generated."""
         finals = [{"disk": {"auto": {"disk": "/dev/vda"}}, "selected_image": "ghcr.io/x:y",
                    "encryption": {"use_encryption": False}}]
         path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
         r = _load(path)
-        assert r["hostname"] == "dakota"  # default hostname when sys_recipe has no hostname key
+        # Hardware-derived hostname: lowercase, contains hyphens, ends with 4-char hex suffix
+        assert r["hostname"]  # non-empty
+        assert r["hostname"] != "dakota"  # not the old hardcoded default
+        import re
+        assert re.match(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$", r["hostname"])
 
 
 # ── Encryption tests ───────────────────────────────────────────────────────────
@@ -494,3 +499,70 @@ class TestVarDisk:
         path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
         r = _load(path)
         assert "varDisk" not in r
+
+
+# ── NVIDIA auto-detection tests ───────────────────────────────────────────────
+
+class TestNvidiaAutoDetect:
+    def test_nvidia_gpu_detected_uses_nvidia_image(self, monkeypatch):
+        """When NVIDIA GPU is present, both image and targetImgref use nvidia."""
+        monkeypatch.setattr(
+            "bootc_installer.core.system.Systeminfo.has_nvidia_gpu",
+            staticmethod(lambda: True),
+        )
+        finals = _auto_finals(image="ghcr.io/projectbluefin/dakota:latest")
+        finals[0]["nvidia_imgref"] = "ghcr.io/projectbluefin/dakota-nvidia:latest"
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/projectbluefin/dakota-nvidia:latest"
+        assert r["targetImgref"] == "ghcr.io/projectbluefin/dakota-nvidia:latest"
+
+    def test_no_nvidia_gpu_installs_nvidia_tracks_base(self, monkeypatch):
+        """Without NVIDIA GPU, install nvidia (on ISO) but track base for updates."""
+        monkeypatch.setattr(
+            "bootc_installer.core.system.Systeminfo.has_nvidia_gpu",
+            staticmethod(lambda: False),
+        )
+        finals = _auto_finals(image="ghcr.io/projectbluefin/dakota:latest")
+        finals[0]["nvidia_imgref"] = "ghcr.io/projectbluefin/dakota-nvidia:latest"
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/projectbluefin/dakota-nvidia:latest"
+        assert r["targetImgref"] == "ghcr.io/projectbluefin/dakota:latest"
+
+    def test_no_nvidia_imgref_skips_detection(self):
+        """When nvidia_imgref is empty, no NVIDIA logic runs."""
+        finals = _auto_finals(image="ghcr.io/tuna-os/yellowfin:gnome")
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/tuna-os/yellowfin:gnome"
+        assert r["targetImgref"] == "ghcr.io/tuna-os/yellowfin:gnome"
+
+
+# ── Hostname generation tests ─────────────────────────────────────────────────
+
+class TestHardwareHostname:
+    def test_explicit_hostname_used(self):
+        """User-provided hostname takes priority over hardware-derived."""
+        finals = _auto_finals(hostname="my-workstation")
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["hostname"] == "my-workstation"
+
+    def test_sys_recipe_hostname_used(self):
+        """sys_recipe hostname used when no user hostname provided."""
+        finals = _auto_finals(hostname="")
+        path = Processor.gen_install_recipe("log", finals, {"hostname": "sys-host"})
+        r = _load(path)
+        assert r["hostname"] == "sys-host"
+
+    def test_hardware_hostname_generated(self, monkeypatch):
+        """When no hostname from user or sys_recipe, hardware hostname is used."""
+        monkeypatch.setattr(
+            "bootc_installer.core.system.Systeminfo.generate_hostname",
+            staticmethod(lambda: "framework-13-a7c3"),
+        )
+        finals = _auto_finals(hostname="")
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["hostname"] == "framework-13-a7c3"

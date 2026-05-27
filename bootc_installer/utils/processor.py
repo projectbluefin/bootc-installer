@@ -22,6 +22,34 @@ import tempfile
 logger = logging.getLogger("Installer::Processor")
 
 
+def _find_nvidia_imgref_for(imgref: str) -> str:
+    """Search the image manifest for a nvidia_imgref associated with imgref.
+
+    Walks the manifest tree (inherited from parent nodes) looking for the node
+    whose imgref matches, then returns its nvidia_imgref field if present.
+    Returns empty string if not found.
+    """
+    try:
+        from bootc_installer.defaults.image import _MANIFEST
+        tree = _MANIFEST.get("images", [])
+    except Exception:
+        return ""
+
+    def _search(nodes, nvidia_ctx=""):
+        for node in nodes:
+            node_nvidia = node.get("nvidia_imgref", nvidia_ctx)
+            if node.get("imgref") == imgref:
+                return node_nvidia
+            children = node.get("children", [])
+            if children:
+                result = _search(children, node_nvidia)
+                if result:
+                    return result
+        return ""
+
+    return _search(tree)
+
+
 class Processor:
     @staticmethod
     def gen_install_recipe(log_path: str, finals: list, sys_recipe: dict) -> str:
@@ -129,6 +157,29 @@ class Processor:
         # installed system so that bootc upgrade tracks the correct upstream image.
         target_imgref = image
 
+        # NVIDIA auto-detection: if the selected image has a nvidia_imgref in the
+        # manifest, use the nvidia image as the install source (it's on the ISO)
+        # and set targetImgref based on whether NVIDIA hardware is present.
+        nvidia_imgref = merged.get("nvidia_imgref", "")
+        if not nvidia_imgref:
+            nvidia_imgref = _find_nvidia_imgref_for(image)
+        if nvidia_imgref:
+            from bootc_installer.core.system import Systeminfo
+            if Systeminfo.has_nvidia_gpu():
+                # NVIDIA present: install nvidia, track nvidia for updates
+                image = nvidia_imgref
+                target_imgref = nvidia_imgref
+                logger.info(f"NVIDIA GPU detected: using {nvidia_imgref} for install and updates")
+            else:
+                # No NVIDIA: install nvidia (it's on the ISO), but track the base image
+                # so bootc rebases to the lighter image on first update
+                target_imgref = image  # base (non-nvidia) imgref
+                image = nvidia_imgref  # install from the nvidia image on the ISO
+                logger.info(
+                    f"No NVIDIA GPU: installing {nvidia_imgref} (from ISO), "
+                    f"tracking {target_imgref} for updates"
+                )
+
         # local_imgref (live ISO only) is an optional install *source* override — e.g.
         # "containers-storage:ghcr.io/org/image:tag" for offline installs from a
         # pre-populated squashfs.  It is passed to fisherman as --source-imgref while
@@ -142,7 +193,13 @@ class Processor:
             image = local_imgref
 
         # --- Hostname ---
-        hostname = merged.get("hostname", sys_recipe.get("hostname", "dakota"))
+        # Use hardware-derived hostname if no explicit hostname was set by the user.
+        hostname = merged.get("hostname", "")
+        if not hostname:
+            hostname = sys_recipe.get("hostname", "")
+        if not hostname:
+            from bootc_installer.core.system import Systeminfo
+            hostname = Systeminfo.generate_hostname()
 
         # --- Flatpaks ---
         flatpaks = merged.get("flatpaks", [])

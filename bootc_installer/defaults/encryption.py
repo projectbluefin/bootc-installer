@@ -52,6 +52,11 @@ class VanillaDefaultEncryption(Adw.Bin):
             "changed", self.__on_password_changed
         )
 
+        # Default: encryption ON, TPM2 ON if hardware present
+        from bootc_installer.core.system import Systeminfo
+        self.use_encryption_switch.set_active(True)
+        self.tpm2_switch.set_active(Systeminfo.has_tpm2())
+
         self.__update_btn_next()
 
     def test_auto_advance(self):
