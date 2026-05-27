@@ -4,6 +4,31 @@ using Adw 1;
 template $VanillaProgress: Box {
   orientation: vertical;
 
+  Box mode_toggle_row {
+    orientation: horizontal;
+    halign: center;
+    spacing: 8;
+    margin-top: 12;
+    margin-bottom: 4;
+
+    ToggleButton btn_video_mode {
+      label: _("Video");
+      active: true;
+
+      styles [
+        "pill",
+      ]
+    }
+
+    ToggleButton btn_soundtrack_mode {
+      label: _("♫ Soundtrack");
+
+      styles [
+        "pill",
+      ]
+    }
+  }
+
   Box media_box {
     visible: true;
     vexpand: true;
@@ -77,6 +102,31 @@ template $VanillaProgress: Box {
     styles [
       "card",
     ]
+  }
+
+  Box soundtrack_box {
+    visible: false;
+    vexpand: true;
+    margin-start: 40;
+    margin-end: 40;
+    margin-top: 1;
+    margin-bottom: 18;
+    height-request: 550;
+    orientation: vertical;
+    spacing: 12;
+    halign: fill;
+    valign: center;
+
+    Adw.Carousel track_carousel {
+      hexpand: true;
+      vexpand: true;
+      allow-scroll-wheel: true;
+      interactive: true;
+    }
+
+    Adw.CarouselIndicatorDots {
+      carousel: track_carousel;
+    }
   }
 
   Box {
@@ -193,7 +243,7 @@ template $VanillaProgress: Box {
         icon-name: "media-playback-start-symbolic";
         halign: end;
         valign: center;
-        tooltip-text: _("Show Installation Video");
+        tooltip-text: _("Show Installation Media");
 
         styles [
           "circular",

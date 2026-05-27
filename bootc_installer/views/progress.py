@@ -14,12 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import io
 import json
 import logging
 import os
 import shutil
 import stat
 import subprocess
+import threading
 import time
 from gettext import gettext as _
 
@@ -82,7 +84,11 @@ class VanillaProgress(Gtk.Box):
     __gtype_name__ = "VanillaProgress"
 
     media_box = Gtk.Template.Child()
+    soundtrack_box = Gtk.Template.Child()
+    track_carousel = Gtk.Template.Child()
     install_video = Gtk.Template.Child()
+    btn_video_mode = Gtk.Template.Child()
+    btn_soundtrack_mode = Gtk.Template.Child()
     progressbar = Gtk.Template.Child()
     progressbar_text = Gtk.Template.Child()
     progress_percentage = Gtk.Template.Child()
@@ -111,6 +117,10 @@ class VanillaProgress(Gtk.Box):
         self.__start_time = None
         self.__elapsed_timer_id = None
         self.__last_fraction = 0.0  # for ETA computation
+        self.__current_media_mode = "video"
+        self.__syncing_mode_buttons = False
+        self._carousel_timer = None
+        self._tracks_loaded = False
 
         self.__build_ui()
         self.__log_buf = self.log_view.get_buffer()
@@ -118,6 +128,8 @@ class VanillaProgress(Gtk.Box):
         self.console_button.connect("clicked", self.__on_console_button)
         self.media_button.connect("clicked", self.__on_media_button)
         self.copy_log_button.connect("clicked", self.__on_copy_log)
+        self.btn_video_mode.connect("toggled", self.__on_video_mode_toggled)
+        self.btn_soundtrack_mode.connect("toggled", self.__on_soundtrack_mode_toggled)
 
 
     def __configure_install_video(self):
@@ -127,6 +139,114 @@ class VanillaProgress(Gtk.Box):
         )
         self.install_video.set_file(video_file)
         self.__mute_install_video()
+
+    def __configure_soundtrack(self):
+        self._carousel_timer = None
+        self._tracks_loaded = False
+        self.btn_soundtrack_mode.set_sensitive(False)
+        threading.Thread(target=self.__load_tracks, daemon=True).start()
+
+    def __load_tracks(self):
+        try:
+            tracks_bytes = Gio.resources_lookup_data(
+                "/org/bootcinstaller/Installer/data/tracks.json",
+                Gio.ResourceLookupFlags.NONE,
+            )
+            tracks = json.loads(tracks_bytes.get_data())
+        except Exception as e:
+            logger.warning("Failed to load soundtrack metadata: %s", e)
+            tracks = []
+        GLib.idle_add(self.__populate_carousel, tracks)
+
+    def __populate_carousel(self, tracks):
+        for track in tracks:
+            self.track_carousel.append(self._build_track_card(track))
+        self._tracks_loaded = bool(tracks)
+        self.btn_soundtrack_mode.set_sensitive(bool(tracks))
+        if tracks:
+            self._start_carousel_timer()
+        self.__show_selected_media_view()
+        return False
+
+    def _build_track_card(self, track):
+        card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        card.set_margin_start(24)
+        card.set_margin_end(24)
+        card.set_margin_top(16)
+        card.set_margin_bottom(16)
+        card.set_hexpand(True)
+        card.set_halign(Gtk.Align.FILL)
+        card.add_css_class("card")
+
+        qr_widget = None
+        try:
+            import segno
+
+            qr = segno.make(track["url"], error="M")
+            buf = io.BytesIO()
+            qr.save(buf, kind="png", scale=6, dark="#ffffff", light="#1e1e2e")
+            buf.seek(0)
+            texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(buf.read()))
+            qr_widget = Gtk.Picture.new_for_paintable(texture)
+        except Exception as e:
+            logger.debug("Falling back to soundtrack placeholder for %s: %s", track.get("title", "track"), e)
+            qr_widget = Gtk.Label(label=_("QR unavailable"))
+
+        qr_widget.set_size_request(160, 160)
+        card.append(qr_widget)
+
+        meta = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        meta.set_valign(Gtk.Align.CENTER)
+        meta.set_hexpand(True)
+
+        title_lbl = Gtk.Label(label=track["title"])
+        title_lbl.add_css_class("title-2")
+        title_lbl.set_wrap(True)
+        title_lbl.set_xalign(0)
+
+        artist_lbl = Gtk.Label(label=track["artist"])
+        artist_lbl.add_css_class("dim-label")
+        artist_lbl.set_wrap(True)
+        artist_lbl.set_xalign(0)
+
+        album_lbl = Gtk.Label(label=track.get("album", ""))
+        album_lbl.add_css_class("caption")
+        album_lbl.add_css_class("dim-label")
+        album_lbl.set_wrap(True)
+        album_lbl.set_xalign(0)
+
+        caption = Gtk.Label(label=_("Scan to listen on your phone"))
+        caption.add_css_class("caption")
+        caption.add_css_class("dim-label")
+        caption.set_xalign(0)
+
+        meta.append(title_lbl)
+        meta.append(artist_lbl)
+        if track.get("album"):
+            meta.append(album_lbl)
+        meta.append(caption)
+        card.append(meta)
+
+        return card
+
+    def _start_carousel_timer(self):
+        self.__stop_carousel_timer()
+        self._carousel_timer = GLib.timeout_add_seconds(50, self.__advance_carousel)
+
+    def __stop_carousel_timer(self):
+        if self._carousel_timer:
+            GLib.source_remove(self._carousel_timer)
+            self._carousel_timer = None
+
+    def __advance_carousel(self):
+        n_pages = self.track_carousel.get_n_pages()
+        if n_pages == 0:
+            return True
+        next_pos = (int(self.track_carousel.get_position()) + 1) % n_pages
+        page = self.track_carousel.get_nth_page(next_pos)
+        if page is not None:
+            self.track_carousel.scroll_to(page, True)
+        return True
 
     def __on_media_stream_changed(self, *_args):
         self.__mute_install_video()
@@ -147,24 +267,65 @@ class VanillaProgress(Gtk.Box):
         if media_stream is not None:
             media_stream.pause()
 
-    def __show_media_view(self):
-        self.media_box.set_visible(True)
+    def __set_media_mode(self, mode: str, sync_buttons: bool = True):
+        self.__current_media_mode = mode
+        if sync_buttons:
+            self.__syncing_mode_buttons = True
+            self.btn_video_mode.set_active(mode == "video")
+            self.btn_soundtrack_mode.set_active(mode == "soundtrack")
+            self.__syncing_mode_buttons = False
+        self.__show_selected_media_view()
+
+    def __show_selected_media_view(self):
         self.console_box.set_visible(False)
         self.media_button.set_visible(False)
         self.console_button.set_visible(True)
-        self.__play_install_video()
+
+        show_soundtrack = self.__current_media_mode == "soundtrack" and self._tracks_loaded
+        self.media_box.set_visible(not show_soundtrack)
+        self.soundtrack_box.set_visible(show_soundtrack)
+
+        if show_soundtrack:
+            self.__pause_install_video()
+        else:
+            self.__play_install_video()
+
+    def __show_media_view(self):
+        self.__show_selected_media_view()
 
     def __show_console_view(self):
         self.media_box.set_visible(False)
+        self.soundtrack_box.set_visible(False)
         self.console_box.set_visible(True)
         self.media_button.set_visible(True)
         self.console_button.set_visible(False)
+        self.__pause_install_video()
 
     def __on_console_button(self, *args):
         self.__show_console_view()
 
     def __on_media_button(self, *args):
-        self.__show_media_view()
+        self.__show_selected_media_view()
+
+    def __on_video_mode_toggled(self, btn):
+        if self.__syncing_mode_buttons:
+            return
+        if btn.get_active():
+            self.__set_media_mode("video", sync_buttons=False)
+        elif not self.btn_soundtrack_mode.get_active():
+            self.__syncing_mode_buttons = True
+            btn.set_active(True)
+            self.__syncing_mode_buttons = False
+
+    def __on_soundtrack_mode_toggled(self, btn):
+        if self.__syncing_mode_buttons:
+            return
+        if btn.get_active():
+            self.__set_media_mode("soundtrack", sync_buttons=False)
+        elif not self.btn_video_mode.get_active():
+            self.__syncing_mode_buttons = True
+            btn.set_active(True)
+            self.__syncing_mode_buttons = False
 
     def __on_copy_log(self, *args):
         """Copy the fisherman log to the clipboard."""
@@ -191,7 +352,8 @@ class VanillaProgress(Gtk.Box):
     def __build_ui(self):
         self.__install_progress_css()
         self.__configure_install_video()
-        self.__show_media_view()
+        self.__configure_soundtrack()
+        self.__set_media_mode("video")
 
     def __install_progress_css(self):
         display = Gdk.Display.get_default()
@@ -349,6 +511,7 @@ class VanillaProgress(Gtk.Box):
         if self.__start_time is not None:
             elapsed_secs = int(time.monotonic() - self.__start_time)
         self.__stop_elapsed_timer()
+        self.__stop_carousel_timer()
         self.__pause_install_video()
         # Securely delete the recipe file — it contains plaintext passphrases
         # and passwords that must not persist on disk after install.
@@ -398,6 +561,7 @@ class VanillaProgress(Gtk.Box):
 
         if update["complete"]:
             self.__stop_elapsed_timer()
+            self.__stop_carousel_timer()
             self.__pause_install_video()
             self.progress_substep.set_label("")
             self.__boot_id = self.__progress_state["boot_id"]
@@ -498,6 +662,7 @@ class VanillaProgress(Gtk.Box):
         This sends SIGTERM to the bash wrapper process group. fisherman's cleanup
         handler will attempt to unmount filesystems and close LUKS devices.
         """
+        self.__stop_carousel_timer()
         if self.__proc is None:
             return
         if self.__proc.poll() is not None:
