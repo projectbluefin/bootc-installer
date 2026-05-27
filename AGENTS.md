@@ -201,7 +201,7 @@ ssh james@192.168.0.119 "tail -f ~/.cache/tuna-installer/fisherman-output.log"
 
 - **Every push to `main`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous` pre-release on GitHub.
-- **`.github/workflows/python-test.yml`** runs on every push: 206+ unit tests
+- **`.github/workflows/python-test.yml`** runs on every push: 210+ unit tests
   (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
@@ -272,7 +272,7 @@ xvfb-run -a pytest tests/ui/ -v
 | `fisherman/fisherman/internal/disk/partition.go` | `Partition` (2-part), `PartitionEncrypted` (3-part) |
 | `fisherman/fisherman/internal/luks/luks.go` | LUKS format, open, close, `EnrollTPM2` |
 | `fisherman/fisherman/internal/install/install.go` | `BootcInstall` → podman command |
-| `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `CopyBluetoothPairings`, `CopyWiFiConnections`, `Cleanup` |
+| `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `CopyBluetoothPairings`, `CopyWiFiConnections`, `EnablePrintServices`, `Cleanup` |
 | `fisherman/fisherman/internal/post/audio.go` | WirePlumber friendly device names, hide S/PDIF, live+persist |
 | `fisherman/fisherman/internal/post/caches.go` | `WarmCaches` — pre-generate 8 system caches for instant first boot |
 | `fisherman/fisherman/internal/post/oem.go` | OEM vendor detection (ASUS/Framework/TUXEDO), first-boot brew packages |
@@ -286,6 +286,7 @@ xvfb-run -a pytest tests/ui/ -v
 | `bootc_installer/defaults/conn_check.py` | Connection check — skipped when offline_install=True |
 | `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder |
 | `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |
+| `bootc_installer/defaults/slurp.py` | Windows data slurp wizard step: async fisherman scan, category checkboxes, budget warning |
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
@@ -301,10 +302,11 @@ xvfb-run -a pytest tests/ui/ -v
 
 - **`bootc install finalize` is a no-op upstream**: We replicate the real finalization
   ops in `disk.FinalizeFilesystem()` ourselves (fstrim, remount ro, fsfreeze/thaw).
-- **Windows data slurp GUI**: The backend (`fisherman scan`, `ExtractData`, `InjectData`)
-  is complete (#22). The GUI wizard step (`bootc_installer/defaults/slurp.py`) is
-  implemented but the "category picker" modal (letting users choose *which* data
-  categories to migrate before install) is still incomplete.
+- **Windows data slurp GUI**: Fully implemented (#22, closed). Backend (`fisherman scan`,
+  `ExtractData`, `InjectData`) and GUI wizard step (`bootc_installer/defaults/slurp.py`)
+  are both complete. The step runs `fisherman scan` asynchronously, presents per-user
+  category checkboxes with size estimates, enforces a RAM budget warning, and emits a
+  `slurp` recipe key for fisherman to consume.
 - **Flatpak builder bare repo issue**: git sources in Flatpak manifests fail due to
   `safe.bareRepository=explicit` in the sandbox. Workaround: use `archive` sources
   with SHA256 instead of `git` sources.
@@ -326,6 +328,7 @@ These run automatically during the install pipeline (main.go) and require no use
 | Wallpaper slurp | `slurp/wallpaper.go` | Extracts Windows wallpapers, injects into target |
 | Wallpaper thumbnails | `slurp/wallpaper.go` | Pre-generates GNOME wallpaper capplet thumbnails |
 | Data slurp | `slurp/data.go` | Migrates documents/photos/music/bookmarks/fonts from Windows |
+| Print services | `post.go` | Enables cups-browsed, avahi-daemon, ipp-usb for USB/AirPrint support |
 
 ---
 
@@ -360,7 +363,7 @@ sudo umount /tmp/ir
 - **Move `images.json` to `fisherman` (Done)**: The image registry (`fisherman/data/images.json`) now lives in the `fisherman` backend. This allows `fisherman` to act as a universal registry of BootC images, containing not just the OCI references but also the specific installation requirements for each image (e.g., whether it requires manual user creation, specific kernel arguments, or filesystem defaults).
 - **Universal BootC Registry**: Evolving the image manifest into a standard format that other installers or tools could consume to understand the "metadata" of a BootC image.
 - **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/tuna-installer/install-video.webm`.
-- **Windows Data Slurp (In Progress — #22)**: Backend complete (`fisherman scan`, `ExtractData`, `InjectData`). Wallpaper extraction is fully wired as an easter egg (always-on). Full data migration needs a GUI category picker step that calls `fisherman scan <disk>` and presents results before install. RAM-backed scratch at `/run/fisherman-slurp/` with automatic budget enforcement.
+- **Windows Data Slurp (Done — #22)**: Backend (`fisherman scan`, `ExtractData`, `InjectData`) and GUI wizard step (`bootc_installer/defaults/slurp.py`) are fully implemented. The step runs an async scan, presents per-user category checkboxes with size estimates, and enforces a RAM budget warning. Wallpaper extraction also runs as an always-on easter egg.
 - **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
 
 ---
