@@ -88,6 +88,19 @@ template $VanillaDefaultWelcome: Adw.Bin {
           }
         }
       }
+
+      Adw.PreferencesGroup {
+        Label {
+          label: _("Press Super+Alt+S to enable the screen reader");
+          halign: center;
+          margin-top: 8;
+
+          styles [
+            "dim-label",
+            "caption",
+          ]
+        }
+      }
     }
   }
 }
