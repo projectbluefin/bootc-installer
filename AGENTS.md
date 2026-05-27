@@ -21,9 +21,10 @@ tuna-installer/               ← this repo (tuna-os/tuna-installer)
 │           ├── disk/         ← partition, format, mount, finalize
 │           ├── luks/         ← LUKS format, open, TPM2 enrol
 │           ├── install/      ← bootc install to-filesystem (podman run)
-│           ├── post/         ← hostname, flatpak copy, cleanup/unmount
+│           ├── post/         ← hostname, flatpak copy, bluetooth, cleanup/unmount
 │           ├── progress/     ← JSON-line progress emitter
 │           ├── recipe/       ← recipe.go schema + Validate()
+│           ├── slurp/        ← Windows data migration (wallpapers, scan, extract)
 │           └── runner/       ← Run() helper (exec + set-x logging)
 ├── flatpak/
 │   └── org.bootcinstaller.Installer.json   ← Flatpak manifest (GNOME 50 runtime)
@@ -263,17 +264,23 @@ xvfb-run -a pytest tests/ui/ -v
 
 | File | Purpose |
 |------|---------|
-| `fisherman/fisherman/cmd/fisherman/main.go` | Install pipeline, step ordering, totalSteps |
+| `fisherman/fisherman/cmd/fisherman/main.go` | Install pipeline, step ordering, totalSteps, `scan` subcommand |
 | `fisherman/fisherman/internal/disk/format.go` | `FinalizeFilesystem`, `FormatBoot`, `MountEFI`, `BindMount` |
 | `fisherman/fisherman/internal/disk/partition.go` | `Partition` (2-part), `PartitionEncrypted` (3-part) |
 | `fisherman/fisherman/internal/luks/luks.go` | LUKS format, open, close, `EnrollTPM2` |
 | `fisherman/fisherman/internal/install/install.go` | `BootcInstall` → podman command |
 | `fisherman/fisherman/internal/post/post.go` | `WriteHostname`, `CopyFlatpaks`, `CopyBluetoothPairings`, `Cleanup` |
-| `fisherman/fisherman/internal/recipe/recipe.go` | Recipe struct, `Validate()` |
+| `fisherman/fisherman/internal/slurp/wallpaper.go` | NTFS detect, wallpaper extraction/injection, thumbnail generation |
+| `fisherman/fisherman/internal/slurp/scan.go` | `Scan()` enumerates Windows user data by category, `ScanJSON()` for CLI |
+| `fisherman/fisherman/internal/slurp/data.go` | `ExtractData`/`InjectData` with RAM budget enforcement |
+| `fisherman/fisherman/internal/recipe/recipe.go` | Recipe struct, `SlurpSpec`, `Validate()` |
 | `bootc_installer/views/progress.py` | Video player, fisherman launch, JSON progress parsing |
 | `bootc_installer/views/recovery_key.py` | Recovery key screen (post-encrypted-install) |
 | `bootc_installer/views/done.py` | Final screen, reboot button, log viewer |
-| `flatpak/org.tunaos.Installer.json` | Flatpak manifest (runtime, finish-args, Go version) |
+| `bootc_installer/defaults/conn_check.py` | Connection check — skipped when offline_install=True |
+| `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder |
+| `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |
+| `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
 | `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
@@ -291,8 +298,12 @@ xvfb-run -a pytest tests/ui/ -v
   ops in `disk.FinalizeFilesystem()` ourselves (fstrim, remount ro, fsfreeze/thaw).
 - **Recovery key from fisherman**: The recovery key screen currently shows a placeholder.
   fisherman needs to emit `{"type":"recovery_key","key":"..."}` for real key display.
-- **Windows data migration**: Filed as #21 — detect NTFS partitions, offer to copy
-  user's Documents/Pictures/etc. to the installed system during post-install.
+- **Windows data slurp GUI**: The backend (`fisherman scan`, `ExtractData`, `InjectData`)
+  is complete (#22). Missing: GUI category picker page that calls `fisherman scan` and
+  lets users select which data to migrate.
+- **Flatpak builder bare repo issue**: git sources in Flatpak manifests fail due to
+  `safe.bareRepository=explicit` in the sandbox. Workaround: use `archive` sources
+  with SHA256 instead of `git` sources.
 
 ---
 
@@ -326,7 +337,9 @@ sudo umount /tmp/ir
 
 - **Move `images.json` to `fisherman` (Done)**: The image registry (`fisherman/data/images.json`) now lives in the `fisherman` backend. This allows `fisherman` to act as a universal registry of BootC images, containing not just the OCI references but also the specific installation requirements for each image (e.g., whether it requires manual user creation, specific kernel arguments, or filesystem defaults).
 - **Universal BootC Registry**: Evolving the image manifest into a standard format that other installers or tools could consume to understand the "metadata" of a BootC image.
-- **Dynamic Installation Carousel**: The `images.json` should eventually include a `carousel` property for each image or group, allowing for distribution-specific slideshows during the installation process, with support for inheritance and `/etc` overrides.
+- **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/tuna-installer/install-video.webm`.
+- **Windows Data Slurp (In Progress — #22)**: Backend complete (`fisherman scan`, `ExtractData`, `InjectData`). Wallpaper extraction is fully wired as an easter egg (always-on). Full data migration needs a GUI category picker step that calls `fisherman scan <disk>` and presents results before install. RAM-backed scratch at `/run/fisherman-slurp/` with automatic budget enforcement.
+- **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
 
 ---
 
