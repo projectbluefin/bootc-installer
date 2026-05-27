@@ -667,7 +667,6 @@ class VanillaDefaultDisk(Adw.Bin):
 
     btn_next = Gtk.Template.Child()
     btn_auto = Gtk.Template.Child()
-    btn_manual = Gtk.Template.Child()
     btn_exit = Gtk.Template.Child()
     group_disks = Gtk.Template.Child()
     disk_space_err_box = Gtk.Template.Child()
@@ -728,7 +727,6 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__all_disks_button.connect("activated", self.__on_btn_all_disks)
         self.btn_next.connect("clicked", self.__on_btn_next_clicked)
         self.btn_auto.connect("clicked", self.__on_auto_clicked)
-        self.btn_manual.connect("clicked", self.__on_manual_clicked)
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
 
         # Populate filesystem picker and hostname from the selected image's metadata.
@@ -848,7 +846,6 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__selected_disks_sum = 0
         self.disk_space_err_box.set_visible(False)
         self.btn_auto.set_sensitive(True)
-        self.btn_manual.set_sensitive(False)
         self.__virtual_check.set_active(True)
         logger.info("Virtual disk selected")
 
@@ -943,10 +940,6 @@ class VanillaDefaultDisk(Adw.Bin):
                 self.group_disks.add(entry)
                 self.__registry_disks.append(entry)
 
-    def __on_close_default_disk_part_modal(self, *args):
-        self.__update_next_button()
-        self.confirm_partition_changes()
-
     def __on_auto_clicked(self, button):
         if self.__use_virtual_disk:
             loop_dev = self.__setup_loopback()
@@ -979,11 +972,6 @@ class VanillaDefaultDisk(Adw.Bin):
             return
         self.confirm_partition_changes()
 
-    def __on_manual_clicked(self, button):
-        modal = VanillaDefaultDiskPartModal(self.__window, self, self.__selected_disks)
-        modal.connect("partitioning-set", self.__on_close_default_disk_part_modal)
-        modal.present()
-
     def __update_action_buttons(self):
         if (
             self.__selected_disks_sum / 1_048_576 < self.min_disk_size
@@ -991,11 +979,9 @@ class VanillaDefaultDisk(Adw.Bin):
         ):
             self.disk_space_err_box.set_visible(True)
             self.btn_auto.set_sensitive(False)
-            self.btn_manual.set_sensitive(False)
         else:
             self.disk_space_err_box.set_visible(False)
             self.btn_auto.set_sensitive(len(self.__selected_disks) == 1)
-            self.btn_manual.set_sensitive(len(self.__selected_disks) > 0)
 
     def on_disk_entry_toggled(self, widget, disk):
         self.__use_virtual_disk = False
