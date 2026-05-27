@@ -45,7 +45,15 @@ class VanillaDefaultUsers(Adw.Bin):
         """Skip this step unless the selected image requires user creation."""
         image_step = getattr(self.__window, "image_step", None)
         if image_step is None:
-            # Live ISO mode: no image selection step; read needs_user_creation from images.json
+            # No image step: check sys_recipe["images"] first (handles removed image
+            # step case in dakota-style recipes), then fall back to images.json.
+            sys_recipe = getattr(self.__window, "recipe", {})
+            recipe_images = sys_recipe.get("images", [])
+            if recipe_images:
+                nuc = recipe_images[0].get("needs_user_creation", True)
+                logger.info("skip_screen (recipe images): needs_user_creation=%s → skip=%s", nuc, not nuc)
+                return not nuc
+            # Live ISO mode: read needs_user_creation from /etc/bootc-installer/images.json
             try:
                 with open(_IMAGES_JSON) as f:
                     data = json.load(f)
