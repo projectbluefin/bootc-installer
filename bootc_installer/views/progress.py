@@ -18,6 +18,7 @@ import io
 import json
 import logging
 import os
+import pathlib
 import shutil
 import stat
 import subprocess
@@ -29,6 +30,9 @@ logger = logging.getLogger("Installer::Progress")
 
 _IN_FLATPAK = os.path.exists("/.flatpak-info")
 _LIVE_ISO = not _IN_FLATPAK and os.path.exists("/run/ostree-booted")
+_RESOURCE_PREFIX = "/org/bootcinstaller/Installer"
+_ASSET_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets"
+_TRACK_QR_DIR = _ASSET_DIR / "qr"
 
 # Where to stage fisherman so the host can see it (shared via --filesystem=host)
 _FISHERMAN_CACHE_DIR = os.path.join(os.environ.get("HOME", "/tmp"), ".cache", "bootc-installer")
@@ -36,6 +40,25 @@ _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
 from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state
+from bootc_installer.utils.pastry_compat import new_grid_spinner
+
+
+def _track_qr_resource_path(track: dict) -> str | None:
+    qr_asset = track.get("qr_asset")
+    if not qr_asset:
+        return None
+    return f"{_RESOURCE_PREFIX}/assets/qr/{qr_asset}"
+
+
+def _track_qr_dev_path(track: dict) -> pathlib.Path | None:
+    qr_asset = track.get("qr_asset")
+    if not qr_asset:
+        return None
+    return _TRACK_QR_DIR / qr_asset
+
+
+def _media_stream_is_prepared(media_stream) -> bool:
+    return media_stream is not None and media_stream.is_prepared()
 
 
 def _fisherman_argv_direct(recipe: str) -> list:
@@ -87,6 +110,7 @@ class VanillaProgress(Gtk.Box):
     soundtrack_box = Gtk.Template.Child()
     track_carousel = Gtk.Template.Child()
     install_video = Gtk.Template.Child()
+    video_fallback_box = Gtk.Template.Child()
     btn_video_mode = Gtk.Template.Child()
     btn_soundtrack_mode = Gtk.Template.Child()
     progressbar = Gtk.Template.Child()
@@ -122,6 +146,9 @@ class VanillaProgress(Gtk.Box):
         self._carousel_timer = None
         self._tracks_loaded = False
         self._video_configured = False
+        self._video_fallback_timeout_id = None
+        self._video_spinner = None
+        self._media_overlay = None
 
         self.__build_ui()
         self.__log_buf = self.log_view.get_buffer()
@@ -139,8 +166,10 @@ class VanillaProgress(Gtk.Box):
         before we attempt to set properties like mute/volume (fixes #33).
         """
         self.install_video.connect("notify::media-stream", self.__on_media_stream_changed)
+        self.__hide_video_fallback()
+        self.__arm_video_fallback_timeout()
         video_file = Gio.File.new_for_uri(
-            "resource:///org/bootcinstaller/Installer/assets/installer-video.webm"
+            f"resource://{_RESOURCE_PREFIX}/assets/installer-video.webm"
         )
         self.install_video.set_file(video_file)
 
@@ -189,34 +218,11 @@ class VanillaProgress(Gtk.Box):
         card.set_halign(Gtk.Align.FILL)
         card.add_css_class("card")
 
-        qr_widget = None
-        try:
-            import segno
-
-            qr = segno.make(track["url"], error="M")
-            buf = io.BytesIO()
-            qr.save(buf, kind="png", scale=6, dark="#ffffff", light="#1e1e2e")
-            buf.seek(0)
-            texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(buf.read()))
-            qr_widget = Gtk.Picture.new_for_paintable(texture)
-        except Exception as e:
-            logger.debug("QR generation unavailable for %s: %s", track.get("title", "track"), e)
-            # Fallback: show a music note icon + the URL as a label
-            fallback_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-            fallback_box.set_valign(Gtk.Align.CENTER)
-            fallback_box.set_halign(Gtk.Align.CENTER)
-            icon = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic")
-            icon.set_pixel_size(64)
-            icon.add_css_class("dim-label")
-            fallback_box.append(icon)
-            url_label = Gtk.Label(label=track.get("url", ""))
-            url_label.set_wrap(True)
-            url_label.set_max_width_chars(20)
-            url_label.add_css_class("caption")
-            url_label.add_css_class("dim-label")
-            url_label.set_selectable(True)
-            fallback_box.append(url_label)
-            qr_widget = fallback_box
+        qr_widget = self.__build_bundled_track_qr(track)
+        if qr_widget is None:
+            qr_widget = self.__build_runtime_track_qr(track)
+        if qr_widget is None:
+            qr_widget = self.__build_track_qr_fallback(track)
 
         qr_widget.set_size_request(160, 160)
         card.append(qr_widget)
@@ -255,6 +261,64 @@ class VanillaProgress(Gtk.Box):
 
         return card
 
+    def __build_bundled_track_qr(self, track):
+        resource_path = _track_qr_resource_path(track)
+        if resource_path:
+            try:
+                Gio.resources_lookup_data(resource_path, Gio.ResourceLookupFlags.NONE)
+                picture = Gtk.Picture.new_for_resource(resource_path)
+                picture.set_can_shrink(True)
+                picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+                return picture
+            except Exception as e:
+                logger.debug("Bundled QR unavailable in GResource for %s: %s", track.get("title", "track"), e)
+
+        dev_path = _track_qr_dev_path(track)
+        if dev_path and dev_path.exists():
+            try:
+                picture = Gtk.Picture.new_for_file(Gio.File.new_for_path(str(dev_path)))
+                picture.set_can_shrink(True)
+                picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+                return picture
+            except Exception as e:
+                logger.debug("Bundled QR unavailable in dev path for %s: %s", track.get("title", "track"), e)
+
+        return None
+
+    def __build_runtime_track_qr(self, track):
+        try:
+            import segno
+
+            qr = segno.make(track["url"], error="M")
+            buf = io.BytesIO()
+            qr.save(buf, kind="png", scale=6, dark="#ffffff", light="#1e1e2e")
+            buf.seek(0)
+            texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(buf.read()))
+            picture = Gtk.Picture.new_for_paintable(texture)
+            picture.set_can_shrink(True)
+            picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+            return picture
+        except Exception as e:
+            logger.debug("Runtime QR generation unavailable for %s: %s", track.get("title", "track"), e)
+            return None
+
+    def __build_track_qr_fallback(self, track):
+        fallback_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        fallback_box.set_valign(Gtk.Align.CENTER)
+        fallback_box.set_halign(Gtk.Align.CENTER)
+        icon = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic")
+        icon.set_pixel_size(64)
+        icon.add_css_class("dim-label")
+        fallback_box.append(icon)
+        url_label = Gtk.Label(label=track.get("url", ""))
+        url_label.set_wrap(True)
+        url_label.set_max_width_chars(20)
+        url_label.add_css_class("caption")
+        url_label.add_css_class("dim-label")
+        url_label.set_selectable(True)
+        fallback_box.append(url_label)
+        return fallback_box
+
     def _start_carousel_timer(self):
         self.__stop_carousel_timer()
         self._carousel_timer = GLib.timeout_add_seconds(50, self.__advance_carousel)
@@ -280,30 +344,63 @@ class VanillaProgress(Gtk.Box):
         media_stream = self.install_video.get_media_stream()
         if media_stream is None:
             return
-        if media_stream.is_prepared():
+        if _media_stream_is_prepared(media_stream):
+            self.__cancel_video_fallback_timeout()
+            self.__hide_video_fallback()
             GLib.idle_add(self.__mute_install_video)
         else:
             media_stream.connect("notify::prepared", self.__on_media_prepared)
+            self.__arm_video_fallback_timeout()
 
     def __on_media_prepared(self, media_stream, *_args):
-        if media_stream.is_prepared():
+        if _media_stream_is_prepared(media_stream):
+            self.__cancel_video_fallback_timeout()
+            self.__hide_video_fallback()
             GLib.idle_add(self.__mute_install_video)
 
     def __mute_install_video(self):
         media_stream = self.install_video.get_media_stream()
-        if media_stream is not None and media_stream.is_prepared():
+        if _media_stream_is_prepared(media_stream):
             media_stream.set_muted(True)
 
     def __play_install_video(self):
         media_stream = self.install_video.get_media_stream()
-        if media_stream is not None and media_stream.is_prepared():
+        if _media_stream_is_prepared(media_stream):
             media_stream.play()
             media_stream.set_muted(True)
 
     def __pause_install_video(self):
         media_stream = self.install_video.get_media_stream()
-        if media_stream is not None and media_stream.is_prepared():
+        if _media_stream_is_prepared(media_stream):
             media_stream.pause()
+
+    def __arm_video_fallback_timeout(self):
+        self.__cancel_video_fallback_timeout()
+        self.__show_video_spinner()
+        self._video_fallback_timeout_id = GLib.timeout_add_seconds(5, self.__on_video_prepare_timeout)
+
+    def __cancel_video_fallback_timeout(self):
+        self.__hide_video_spinner()
+        if self._video_fallback_timeout_id is not None:
+            context = GLib.MainContext.default()
+            if context is not None and context.find_source_by_id(self._video_fallback_timeout_id):
+                GLib.source_remove(self._video_fallback_timeout_id)
+            self._video_fallback_timeout_id = None
+
+    def __on_video_prepare_timeout(self):
+        if not _media_stream_is_prepared(self.install_video.get_media_stream()):
+            logger.warning("Install video was not prepared in time; showing fallback")
+            self.__show_video_fallback()
+        self._video_fallback_timeout_id = None
+        return False
+
+    def __show_video_fallback(self):
+        self.__hide_video_spinner()
+        self.video_fallback_box.set_visible(True)
+        self.__pause_install_video()
+
+    def __hide_video_fallback(self):
+        self.video_fallback_box.set_visible(False)
 
     def __set_media_mode(self, mode: str, sync_buttons: bool = True):
         self.__current_media_mode = mode
@@ -349,6 +446,9 @@ class VanillaProgress(Gtk.Box):
         if self.__syncing_mode_buttons:
             return
         if btn.get_active():
+            self.__syncing_mode_buttons = True
+            self.btn_soundtrack_mode.set_active(False)
+            self.__syncing_mode_buttons = False
             self.__set_media_mode("video", sync_buttons=False)
         elif not self.btn_soundtrack_mode.get_active():
             self.__syncing_mode_buttons = True
@@ -359,6 +459,9 @@ class VanillaProgress(Gtk.Box):
         if self.__syncing_mode_buttons:
             return
         if btn.get_active():
+            self.__syncing_mode_buttons = True
+            self.btn_video_mode.set_active(False)
+            self.__syncing_mode_buttons = False
             self.__set_media_mode("soundtrack", sync_buttons=False)
         elif not self.btn_video_mode.get_active():
             self.__syncing_mode_buttons = True
@@ -389,20 +492,35 @@ class VanillaProgress(Gtk.Box):
 
     def __build_ui(self):
         self.__install_progress_css()
+        self.__build_pastry_spinner()
         # Defer video setup to when the widget is actually shown — avoids
         # GStreamer-Player-CRITICAL from muting before GstPlayer is constructed.
         self.connect("map", self.__on_first_map)
         self.__configure_soundtrack()
         self.__set_media_mode("video")
 
+    def __build_pastry_spinner(self):
+        self._media_overlay = self.media_box.get_first_child()
+        self._video_spinner = new_grid_spinner()
+        if self._video_spinner is not None and self._media_overlay is not None:
+            self._media_overlay.add_overlay(self._video_spinner)
+
+    def __show_video_spinner(self):
+        if self._video_spinner is not None:
+            self._video_spinner.set_visible(True)
+
+    def __hide_video_spinner(self):
+        if self._video_spinner is not None:
+            self._video_spinner.set_visible(False)
+
     def __install_progress_css(self):
         display = Gdk.Display.get_default()
         if display is None:
             return
         css = Gtk.CssProvider()
-        css.load_from_data(
-            b".thick-progress trough, .thick-progress progress { min-height: 8px; }"
-            b" .thick-progress progress { transition: all 300ms ease-in-out; }"
+        css.load_from_string(
+            ".thick-progress trough, .thick-progress progress { min-height: 8px; }"
+            " .thick-progress progress { transition: all 300ms ease-in-out; }"
         )
         Gtk.StyleContext.add_provider_for_display(
             display,
@@ -562,6 +680,7 @@ class VanillaProgress(Gtk.Box):
             elapsed_secs = int(time.monotonic() - self.__start_time)
         self.__stop_elapsed_timer()
         self.__stop_carousel_timer()
+        self.__cancel_video_fallback_timeout()
         self.__pause_install_video()
         # Securely delete the recipe file — it contains plaintext passphrases
         # and passwords that must not persist on disk after install.
@@ -612,6 +731,7 @@ class VanillaProgress(Gtk.Box):
         if update["complete"]:
             self.__stop_elapsed_timer()
             self.__stop_carousel_timer()
+            self.__cancel_video_fallback_timeout()
             self.__pause_install_video()
             self.progress_substep.set_label("")
             self.__boot_id = self.__progress_state["boot_id"]
@@ -642,6 +762,7 @@ class VanillaProgress(Gtk.Box):
         self.__set_progress_fraction(0.0)
         self.progress_substep.set_label("")
         self.progress_elapsed.set_label(_("0:00 elapsed"))
+        self.__hide_video_fallback()
         self.__show_media_view()
 
         def _fire_step(index):
@@ -652,7 +773,7 @@ class VanillaProgress(Gtk.Box):
                 self.progressbar_text.set_label(_("Installation complete!"))
                 GLib.timeout_add(600, lambda: self.__window.set_installation_result(True, None, "") or False)
                 return False
-            _, fraction, label = _STEPS[index]
+            _delay, fraction, label = _STEPS[index]
             self.__set_progress_fraction(fraction)
             self.progress_substep.set_label("")
             self.progressbar_text.set_label(_(label))
@@ -660,6 +781,7 @@ class VanillaProgress(Gtk.Box):
 
         for i, (delay, _frac, _label) in enumerate(_STEPS):
             GLib.timeout_add(int(delay * 1000), _fire_step, i)
+        GLib.timeout_add(int((_STEPS[-1][0] + 0.6) * 1000), _fire_step, len(_STEPS))
 
     def start(self, recipe):
         # If VANILLA_FAKE was passed as argument
@@ -695,6 +817,7 @@ class VanillaProgress(Gtk.Box):
         self.__set_progress_fraction(0.0)
         self.progressbar_text.set_label(_("Installing"))
         self.progress_substep.set_label("")
+        self.__hide_video_fallback()
         self.__show_media_view()
         GLib.timeout_add(200, self.__pulse_progress)
         logger.info("Launching fisherman: %s", argv)
@@ -713,6 +836,7 @@ class VanillaProgress(Gtk.Box):
         handler will attempt to unmount filesystems and close LUKS devices.
         """
         self.__stop_carousel_timer()
+        self.__cancel_video_fallback_timeout()
         if self.__proc is None:
             return
         if self.__proc.poll() is not None:
@@ -727,4 +851,3 @@ class VanillaProgress(Gtk.Box):
             except OSError as e:
                 logger.debug("Could not terminate fisherman process: %s", e)
         self.__cleanup_recipe_file()
-
