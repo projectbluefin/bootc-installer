@@ -45,7 +45,7 @@ def host_window():
 
 def _make_done(window):
     controller = SimpleNamespace(
-        recipe={"distro_name": "Bluefin"},
+        recipe={"distro_name": "Bluefin", "store_url": "https://example.com"},
         close=MagicMock(),
         on_installation_confirmed=MagicMock(),
     )

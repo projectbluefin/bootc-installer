@@ -3,23 +3,14 @@ Unit tests for confirm.py and related helpers — pure Python, no GTK required.
 Covers _ENC_LABELS lookup, quote selection logic, and keyboard formatting.
 """
 
-import sys
 import os
+import sys
 import unittest
-from unittest.mock import MagicMock, patch
-
-# Stub out gi.repository before importing confirm so no display is needed.
-for _mod in (
-    "gi", "gi.repository", "gi.repository.Adw", "gi.repository.Gdk",
-    "gi.repository.Gio", "gi.repository.GLib", "gi.repository.Gtk",
-    "gi.repository.GObject",
-):
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from bootc_installer.views.confirm import _ENC_LABELS, _SENNA_QUOTES  # noqa: E402
+from bootc_installer.views.confirm_data import _ENC_LABELS, _SENNA_QUOTES  # noqa: E402
 
 
 class TestEncLabels(unittest.TestCase):

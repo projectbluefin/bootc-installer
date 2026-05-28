@@ -751,14 +751,24 @@ class BootcDefaultDisk(Adw.Bin):
         self.__virtual_row = self.__build_virtual_disk_row()
         self.group_disks.add(self.__virtual_row)
 
-        self.__all_disks_button = Adw.ButtonRow()
+        if hasattr(Adw, 'ButtonRow'):
+            self.__all_disks_button = Adw.ButtonRow()
+        else:
+            # Fallback for libadwaita < 1.6 (e.g. Ubuntu 24.04)
+            self.__all_disks_button = Adw.ActionRow()
+            self.__all_disks_button.set_activatable(True)
         self.__all_disks_button.set_title(_("Show removable disks"))
         self.group_disks.add(self.__all_disks_button)
         # Hide the button if removable disks are already shown
         if not self.__disks.all_disks(include_removable=False):
             self.__all_disks_button.set_visible(False)
 
-        self.__all_disks_button.connect("activated", self.__on_btn_all_disks)
+        try:
+            self.__all_disks_button.connect("activated", self.__on_btn_all_disks)
+        except TypeError:
+            # ActionRow fallback doesn't have 'activated' signal;
+            # users can still access removable disks when no fixed disks exist
+            pass
         self.btn_next.connect("clicked", self.__on_btn_next_clicked)
         self.btn_auto.connect("clicked", self.__on_auto_clicked)
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
