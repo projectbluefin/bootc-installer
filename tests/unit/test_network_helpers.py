@@ -53,9 +53,22 @@ def _build_gi_stubs():
         })
         DeviceState = type("DeviceState", (), {
             "ACTIVATED": 100,
+            "NEED_AUTH": 60,
+            "PREPARE": 40,
+            "CONFIG": 50,
+            "IP_CONFIG": 70,
+            "IP_CHECK": 80,
+            "SECONDARIES": 90,
+            "DISCONNECTED": 30,
+            "DEACTIVATING": 110,
+            "FAILED": 120,
+            "UNKNOWN": 0,
+            "UNMANAGED": 10,
+            "UNAVAILABLE": 20,
         })
         Device = _Stub
         DeviceWifi = _Stub
+        DeviceEthernet = _Stub
 
     for lib in ("Gtk", "Adw", "GLib", "Gio", "Gdk", "NMA4"):
         stub = types.ModuleType(f"gi.repository.{lib}")
