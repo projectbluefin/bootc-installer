@@ -61,7 +61,7 @@ class TestConfirmQuoteSelection(unittest.TestCase):
     """Quote selection logic: Senna for pt_BR, Zavala otherwise."""
 
     def _select_quote(self, selected_language):
-        """Mirror the logic in VanillaConfirm.update() — returns quote category."""
+        """Mirror the logic in BootcConfirm.update() — returns quote category."""
         if selected_language and selected_language.startswith("pt_BR"):
             return "senna"
         return "zavala"
@@ -90,7 +90,7 @@ class TestConfirmQuoteSelection(unittest.TestCase):
 
 
 class TestConfirmSennaQuotes(unittest.TestCase):
-    """VanillaConfirm._SENNA_QUOTES contains valid non-empty quote strings."""
+    """BootcConfirm._SENNA_QUOTES contains valid non-empty quote strings."""
 
     def _get_quotes(self):
         return _SENNA_QUOTES
@@ -111,7 +111,7 @@ class TestConfirmSennaQuotes(unittest.TestCase):
 
 
 class TestKeyboardFormatting(unittest.TestCase):
-    """process_keyboards produces correct VanillaChoiceEntry arguments."""
+    """process_keyboards produces correct BootcChoiceEntry arguments."""
 
     def _get_keyboard_labels(self, selected_keyboards):
         """Return list of (title, value) pairs that process_keyboards would create,

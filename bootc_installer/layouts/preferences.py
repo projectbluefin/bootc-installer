@@ -18,12 +18,12 @@ from gettext import gettext as _
 
 from gi.repository import Adw, Gtk
 
-from bootc_installer.windows.dialog import VanillaDialog
+from bootc_installer.windows.dialog import BootcDialog
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/layout-preferences.ui")
-class VanillaLayoutPreferences(Adw.Bin):
-    __gtype_name__ = "VanillaLayoutPreferences"
+class BootcLayoutPreferences(Adw.Bin):
+    __gtype_name__ = "BootcLayoutPreferences"
 
     page_header = Gtk.Template.Child()
     prefs_list = Gtk.Template.Child()
@@ -68,7 +68,7 @@ class VanillaLayoutPreferences(Adw.Bin):
                 return
 
             if ws.get("message", None):
-                dialog = VanillaDialog(
+                dialog = BootcDialog(
                     self.__window,
                     ws.get("title", "No selection"),
                     ws.get("message"),

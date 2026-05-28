@@ -29,7 +29,7 @@ from gi.repository import NM, NMA4, Adw, GLib, Gtk
 
 from bootc_installer.utils.run_async import RunAsync
 
-logger = logging.getLogger("VanillaInstaller::Network")
+logger = logging.getLogger("BootcInstaller::Network")
 
 # Dictionary mapping security types to a tuple containing
 # their pretty name and whether it is a secure protocol.
@@ -248,8 +248,8 @@ class WirelessRow(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-network.ui")
-class VanillaDefaultNetwork(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultNetwork"
+class BootcDefaultNetwork(Adw.Bin):
+    __gtype_name__ = "BootcDefaultNetwork"
 
     wired_group = Gtk.Template.Child()
     wireless_group = Gtk.Template.Child()

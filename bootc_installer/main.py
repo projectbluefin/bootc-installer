@@ -23,7 +23,7 @@ _log_level = logging.DEBUG if _debug else logging.INFO
 
 _cache_dir = os.path.join(
     os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
-    "tuna-installer",
+    "bootc-installer",
 )
 os.makedirs(_cache_dir, exist_ok=True)
 _log_file = os.path.join(_cache_dir, "installer-debug.log")
@@ -51,11 +51,11 @@ logger_boot.info("Adw/Gio imported")
 
 from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — must load before blueprints
 logger_boot.info("TunaPageHeader imported")
-from bootc_installer.windows.main_window import VanillaWindow
-logger_boot.info("VanillaWindow imported")
-from bootc_installer.windows.window_unsupported import VanillaUnsupportedWindow
-from bootc_installer.windows.window_ram import VanillaRamWindow
-from bootc_installer.windows.window_cpu import VanillaCpuWindow
+from bootc_installer.windows.main_window import BootcWindow
+logger_boot.info("BootcWindow imported")
+from bootc_installer.windows.window_unsupported import BootcUnsupportedWindow
+from bootc_installer.windows.window_ram import BootcRamWindow
+from bootc_installer.windows.window_cpu import BootcCpuWindow
 from bootc_installer.core.system import Systeminfo
 logger_boot.info("All imports done")
 
@@ -63,11 +63,11 @@ logger = logging.getLogger("Installer::Main")
 
 
 
-class VanillaInstaller(Adw.Application):
+class BootcInstaller(Adw.Application):
     """The main application singleton class."""
 
     def __init__(self):
-        logger.info("VanillaInstaller.__init__")
+        logger.info("BootcInstaller.__init__")
         app_id = os.environ.get("BOOTC_APP_ID", "org.bootcinstaller.Installer")
         variant = os.environ.get("BOOTC_VARIANT", "gnome")
         logger.info(f"Running {variant} variant with app_id={app_id}")
@@ -103,20 +103,20 @@ class VanillaInstaller(Adw.Application):
                 logger.info("Checking system requirements")
                 if self._autoinstall_recipe:
                     # Skip wizard, go straight to the main window in autoinstall mode.
-                    win = VanillaWindow(application=self,
+                    win = BootcWindow(application=self,
                                        autoinstall_recipe=self._autoinstall_recipe)
                 elif "IGNORE_RAM" not in os.environ and not Systeminfo.is_ram_enough():
                     logger.info("Not enough RAM")
-                    win = VanillaRamWindow(application=self)
+                    win = BootcRamWindow(application=self)
                 elif "IGNORE_CPU" not in os.environ and not Systeminfo.is_cpu_enough():
                     logger.info("Not enough CPU")
-                    win = VanillaCpuWindow(application=self)
+                    win = BootcCpuWindow(application=self)
                 elif not Systeminfo.is_uefi():
                     logger.info("Not UEFI")
-                    win = VanillaUnsupportedWindow(application=self)
+                    win = BootcUnsupportedWindow(application=self)
                 else:
                     logger.info("Creating main window")
-                    win = VanillaWindow(application=self)
+                    win = BootcWindow(application=self)
                     logger.info("Main window created")
             except Exception:
                 logger.exception("Fatal error in do_activate")
@@ -146,8 +146,8 @@ class VanillaInstaller(Adw.Application):
 
 def main(version):
     """The application's entry point."""
-    logger.info("Creating VanillaInstaller instance")
-    app = VanillaInstaller()
+    logger.info("Creating BootcInstaller instance")
+    app = BootcInstaller()
     logger.info("Calling app.run()")
     ret = app.run(sys.argv)
     logger.info("app.run() returned: %s", ret)

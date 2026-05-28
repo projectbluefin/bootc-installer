@@ -22,8 +22,8 @@ from bootc_installer.utils.recipe import RecipeLoader
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/window-cpu.ui")
-class VanillaCpuWindow(Adw.Window):
-    __gtype_name__ = "VanillaCpuWindow"
+class BootcCpuWindow(Adw.Window):
+    __gtype_name__ = "BootcCpuWindow"
 
     btn_continue = Gtk.Template.Child()
     description_label = Gtk.Template.Child()

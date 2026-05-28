@@ -11,7 +11,7 @@ _log_level = logging.DEBUG if _debug else logging.INFO
 
 _cache_dir = os.path.join(
     os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
-    "tuna-installer",
+    "bootc-installer",
 )
 os.makedirs(_cache_dir, exist_ok=True)
 _log_file = os.path.join(_cache_dir, "installer-debug.log")

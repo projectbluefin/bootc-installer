@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-**tuna-installer** is a GTK4/Libadwaita Flatpak GUI installer for TunaOS and Universal Blue bootc container images. It has two components: a Python GTK4 frontend and a Go backend (`fisherman`) that runs as a git submodule.
+**bootc-installer** is a GTK4/Libadwaita Flatpak GUI installer for TunaOS and Universal Blue bootc container images. It has two components: a Python GTK4 frontend and a Go backend (`fisherman`) that runs as a git submodule.
 
 ## Build commands
 
@@ -52,11 +52,11 @@ Steps: partition disk → format EFI + /boot → LUKS setup (optional) → forma
 - Scratch space is `/var/fisherman-tmp` (disk-backed, bind-mounted to `/var/tmp`). Do NOT change to `/run/*` — `/run` is tmpfs and too small for large image blobs.
 - `--skip-finalize` is passed to bootc so step 9 can manually finalize (fstrim → remount ro → fsfreeze/thaw), because `bootc install finalize` is a no-op upstream.
 
-### tuna-installer (Python, `tuna_installer/`)
+### bootc-installer (Python, `tuna_installer/`)
 GTK4/Adwaita GUI that collects user choices, writes a recipe JSON, then launches fisherman via a VTE terminal widget and parses its JSON progress output.
 
 **Flatpak sandbox constraints:**
-- fisherman is staged to `~/.cache/tuna-installer/fisherman` by `_stage_fisherman_on_host()` in `progress.py` (host-visible via `--filesystem=host`).
+- fisherman is staged to `~/.cache/bootc-installer/fisherman` by `_stage_fisherman_on_host()` in `progress.py` (host-visible via `--filesystem=host`).
 - fisherman runs on the **host** via `flatpak-spawn --host pkexec <path>`.
 - Reboot must use `flatpak-spawn --host systemctl reboot` (see `done.py`).
 
@@ -72,7 +72,7 @@ fisherman (`fisherman/`) is a separate git repo (`tuna-os/fisherman`). Changes t
 cd fisherman/fisherman && git add -A && git commit -m "..." && git push
 
 # 2. Update pointer in parent repo
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add fisherman && git commit -m "chore: update fisherman submodule (...)" && git push
 ```
 
@@ -80,7 +80,7 @@ CI checks out submodules recursively — always verify CI passes after both push
 
 ## Image catalog
 
-`fisherman/data/images.json` is a recursive JSON tree of distro groups/leaves. Distros can override it at `/etc/tuna-installer/images.json` (system) or `$XDG_CONFIG_HOME/tuna-installer/images.json` (user).
+`fisherman/data/images.json` is a recursive JSON tree of distro groups/leaves. Distros can override it at `/etc/bootc-installer/images.json` (system) or `$XDG_CONFIG_HOME/bootc-installer/images.json` (user).
 
 ## Known issues
 
@@ -90,7 +90,7 @@ CI checks out submodules recursively — always verify CI passes after both push
 ## Useful diagnostic commands (on install target)
 
 ```bash
-tail -f ~/.cache/tuna-installer/fisherman-output.log
-ls -lt ~/.cache/tuna-installer/tuna-recipe-*.json | head -1 | xargs cat
+tail -f ~/.cache/bootc-installer/fisherman-output.log
+ls -lt ~/.cache/bootc-installer/tuna-recipe-*.json | head -1 | xargs cat
 sudo lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID /dev/nvme0n1
 ```

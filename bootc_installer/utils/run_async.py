@@ -23,7 +23,7 @@ import traceback
 
 from gi.repository import GLib
 
-logger = logging.getLogger("VanillaInstaller::Async")
+logger = logging.getLogger("BootcInstaller::Async")
 
 
 class RunAsync(threading.Thread):

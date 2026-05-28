@@ -1,4 +1,4 @@
-# AGENTS.md — AI Agent Guide for tuna-installer
+# AGENTS.md — AI Agent Guide for bootc-installer
 
 This document describes the architecture, dev workflow, and key commands needed
 to work on this project as an AI agent. Read it before making changes.
@@ -8,7 +8,7 @@ to work on this project as an AI agent. Read it before making changes.
 ## Repository layout
 
 ```
-tuna-installer/               ← this repo (tuna-os/tuna-installer)
+bootc-installer/               ← this repo (tuna-os/bootc-installer)
 ├── bootc_installer/          ← Python GTK4/Adwaita GUI (the Flatpak app)
 │   └── views/
 │       ├── progress.py       ← fisherman launcher, log-file watcher, progress JSON parser
@@ -78,19 +78,19 @@ disk install pipeline. It emits newline-delimited JSON progress to stdout:
   `PartitionEncrypted()` produce the same 3-partition GPT table; the difference
   is that encrypted installs additionally set up LUKS on p3.
 
-### tuna-installer (Python, GTK4/Adwaita)
+### bootc-installer (Python, GTK4/Adwaita)
 
 The GUI collects user choices and writes a recipe JSON, then launches fisherman
 and tails its JSON log output (via a `GLib.timeout_add` polling loop in
 `progress.py`).
 
 **Flatpak sandbox constraints:**
-- fisherman is staged to `~/.cache/tuna-installer/fisherman` (host-visible via
+- fisherman is staged to `~/.cache/bootc-installer/fisherman` (host-visible via
   `--filesystem=host`) by `_stage_fisherman_on_host()` in `progress.py`.
 - fisherman runs on the **host** via `flatpak-spawn --host pkexec <path>`.
 - `systemctl reboot` must be called as `flatpak-spawn --host systemctl reboot`
   from inside the sandbox (see `done.py`).
-- The installer log is written to `~/.cache/tuna-installer/fisherman-output.log`.
+- The installer log is written to `~/.cache/bootc-installer/fisherman-output.log`.
 
 **Recipe JSON written by the GUI:**
 
@@ -135,7 +135,7 @@ git add -A && git commit -m "fix: describe the change"
 git push
 
 # 3. Update the submodule pointer in the parent repo
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add fisherman
 git commit -m "chore: update fisherman submodule (describe the change)"
 git push
@@ -144,7 +144,7 @@ git push
 ### Making changes to the Python GUI
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 # edit tuna_installer/views/*.py or other files
 git add -A && git commit -m "fix: describe the change"
 git push
@@ -153,7 +153,7 @@ git push
 ### Building and deploying the Flatpak locally
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 
 # Build and install locally (takes ~10 min first time; cached after)
 flatpak run org.flatpak.Builder \
@@ -192,7 +192,7 @@ go build -o /tmp/fisherman ./cmd/fisherman/
 sudo /tmp/fisherman /path/to/recipe.json
 
 # Watch the log on a remote machine
-ssh james@192.168.0.119 "tail -f ~/.cache/tuna-installer/fisherman-output.log"
+ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 ```
 
 ---
@@ -336,10 +336,10 @@ These run automatically during the install pipeline (main.go) and require no use
 
 ```bash
 # Watch the live install log
-tail -f ~/.cache/tuna-installer/fisherman-output.log
+tail -f ~/.cache/bootc-installer/fisherman-output.log
 
 # Check the most recent recipe used
-ls -lt ~/.cache/tuna-installer/tuna-recipe-*.json | head -1 | xargs cat
+ls -lt ~/.cache/bootc-installer/tuna-recipe-*.json | head -1 | xargs cat
 
 # Inspect the installed disk after install (replace nvme0n1 with actual disk)
 sudo lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID /dev/nvme0n1
@@ -362,7 +362,7 @@ sudo umount /tmp/ir
 
 - **Move `images.json` to `fisherman` (Done)**: The image registry (`fisherman/data/images.json`) now lives in the `fisherman` backend. This allows `fisherman` to act as a universal registry of BootC images, containing not just the OCI references but also the specific installation requirements for each image (e.g., whether it requires manual user creation, specific kernel arguments, or filesystem defaults).
 - **Universal BootC Registry**: Evolving the image manifest into a standard format that other installers or tools could consume to understand the "metadata" of a BootC image.
-- **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/tuna-installer/install-video.webm`.
+- **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/bootc-installer/install-video.webm`.
 - **Windows Data Slurp (Done — #22)**: Backend (`fisherman scan`, `ExtractData`, `InjectData`) and GUI wizard step (`bootc_installer/defaults/slurp.py`) are fully implemented. The step runs an async scan, presents per-user category checkboxes with size estimates, and enforces a RAM budget warning. Wallpaper extraction also runs as an always-on easter egg.
 - **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
 
@@ -370,8 +370,8 @@ sudo umount /tmp/ir
 
 ## GitHub org context
 
-- **`castrojo/dakota-installer`** — this repo (pending rename from `castrojo/tuna-installer`; see issue #2)
-- **`tuna-os/tuna-installer`** — upstream source repo (read-only)
+- **`castrojo/dakota-installer`** — this repo (pending rename from `castrojo/bootc-installer`; see issue #2)
+- **`tuna-os/bootc-installer`** — upstream source repo (read-only)
 - **`tuna-os/fisherman`** — Go backend (submodule at `fisherman/`)
 - **`tuna-os/github-copr`** — COPR definitions for c10s-gnome COPRs used in the image
 - Images are published to `ghcr.io/tuna-os/` (e.g. `yellowfin:gnome50`, `yellowfin:gnome-hwe`)

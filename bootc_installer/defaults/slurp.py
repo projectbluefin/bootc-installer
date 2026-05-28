@@ -33,8 +33,8 @@ def _fmt_bytes(size: int) -> str:
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-slurp.ui")
-class VanillaDefaultSlurp(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultSlurp"
+class BootcDefaultSlurp(Adw.Bin):
+    __gtype_name__ = "BootcDefaultSlurp"
 
     btn_next = Gtk.Template.Child()
     btn_skip = Gtk.Template.Child()

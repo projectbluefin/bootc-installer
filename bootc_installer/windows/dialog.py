@@ -20,8 +20,8 @@ from gi.repository import Adw, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog.ui")
-class VanillaDialog(Adw.Window):
-    __gtype_name__ = "VanillaDialog"
+class BootcDialog(Adw.Window):
+    __gtype_name__ = "BootcDialog"
 
     label_text = Gtk.Template.Child()
 

@@ -23,8 +23,8 @@ from gi.repository import Adw, GLib, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-poweroff.ui")
-class VanillaPoweroffDialog(Adw.Window):
-    __gtype_name__ = "VanillaPoweroffDialog"
+class BootcPoweroffDialog(Adw.Window):
+    __gtype_name__ = "BootcPoweroffDialog"
 
     row_poweroff = Gtk.Template.Child()
     row_reboot = Gtk.Template.Child()

@@ -165,14 +165,14 @@ def _import_done():
 
 
 def _make_done_obj(recipe):
-    """Build a minimal VanillaDone-like object with just the store logic wired up."""
+    """Build a minimal BootcDone-like object with just the store logic wired up."""
     done_mod = _import_done()
 
     window = MagicMock()
     window.recipe = recipe
 
-    obj = object.__new__(done_mod.VanillaDone)
-    obj._VanillaDone__window = window
+    obj = object.__new__(done_mod.BootcDone)
+    obj._BootcDone__window = window
     obj.store_qr = MagicMock()
     obj.store_group = MagicMock()
     return obj, done_mod
@@ -183,14 +183,14 @@ class TestDoneStoreQR(unittest.TestCase):
 
     def test_store_hidden_when_no_store_url(self):
         obj, done_mod = _make_done_obj(GENERIC_RECIPE)
-        with patch.object(done_mod.VanillaDone, "_VanillaDone__is_us_locale", return_value=True):
-            done_mod.VanillaDone._VanillaDone__maybe_show_store(obj)
+        with patch.object(done_mod.BootcDone, "_BootcDone__is_us_locale", return_value=True):
+            done_mod.BootcDone._BootcDone__maybe_show_store(obj)
         obj.store_group.set_visible.assert_not_called()
 
     def test_store_shown_for_dakota_recipe_us_locale(self):
         obj, done_mod = _make_done_obj(DAKOTA_RECIPE)
-        with patch.object(done_mod.VanillaDone, "_VanillaDone__is_us_locale", return_value=True):
-            done_mod.VanillaDone._VanillaDone__maybe_show_store(obj)
+        with patch.object(done_mod.BootcDone, "_BootcDone__is_us_locale", return_value=True):
+            done_mod.BootcDone._BootcDone__maybe_show_store(obj)
         obj.store_qr.set_resource.assert_called_once_with(
             DAKOTA_RECIPE["store_qr_resource"]
         )
@@ -198,16 +198,16 @@ class TestDoneStoreQR(unittest.TestCase):
 
     def test_store_hidden_for_dakota_recipe_non_us_locale(self):
         obj, done_mod = _make_done_obj(DAKOTA_RECIPE)
-        with patch.object(done_mod.VanillaDone, "_VanillaDone__is_us_locale", return_value=False):
-            done_mod.VanillaDone._VanillaDone__maybe_show_store(obj)
+        with patch.object(done_mod.BootcDone, "_BootcDone__is_us_locale", return_value=False):
+            done_mod.BootcDone._BootcDone__maybe_show_store(obj)
         obj.store_group.set_visible.assert_not_called()
 
     def test_store_qr_resource_defaults_to_builtin_when_key_absent(self):
         """If store_url is set but store_qr_resource is absent, use the built-in asset."""
         recipe = {k: v for k, v in DAKOTA_RECIPE.items() if k != "store_qr_resource"}
         obj, done_mod = _make_done_obj(recipe)
-        with patch.object(done_mod.VanillaDone, "_VanillaDone__is_us_locale", return_value=True):
-            done_mod.VanillaDone._VanillaDone__maybe_show_store(obj)
+        with patch.object(done_mod.BootcDone, "_BootcDone__is_us_locale", return_value=True):
+            done_mod.BootcDone._BootcDone__maybe_show_store(obj)
         obj.store_qr.set_resource.assert_called_once_with(
             "/org/bootcinstaller/Installer/assets/store-qr.svg"
         )
@@ -229,9 +229,9 @@ def _make_progress_obj(recipe):
     prog_mod = _import_progress()
     window = MagicMock()
     window.recipe = recipe
-    obj = object.__new__(prog_mod.VanillaProgress)
-    obj._VanillaProgress__window = window
-    obj._VanillaProgress__populate_carousel = MagicMock()
+    obj = object.__new__(prog_mod.BootcProgress)
+    obj._BootcProgress__window = window
+    obj._BootcProgress__populate_carousel = MagicMock()
     prog_mod.GLib.idle_add = lambda fn, *args: fn(*args)
     return obj, prog_mod
 
@@ -249,8 +249,8 @@ class TestProgressSoundtrackData(unittest.TestCase):
             obj, prog_mod = _make_progress_obj(recipe)
             # GResource lookup should not be reached
             prog_mod.Gio.resources_lookup_data = MagicMock(side_effect=Exception("no resource"))
-            prog_mod.VanillaProgress._VanillaProgress__load_tracks(obj)
-            obj._VanillaProgress__populate_carousel.assert_called_once_with(tracks)
+            prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
+            obj._BootcProgress__populate_carousel.assert_called_once_with(tracks)
         finally:
             os.unlink(tmp_path)
 
@@ -261,8 +261,8 @@ class TestProgressSoundtrackData(unittest.TestCase):
         mock_bytes = MagicMock()
         mock_bytes.get_data.return_value = json.dumps(tracks).encode()
         prog_mod.Gio.resources_lookup_data = MagicMock(return_value=mock_bytes)
-        prog_mod.VanillaProgress._VanillaProgress__load_tracks(obj)
-        obj._VanillaProgress__populate_carousel.assert_called_once_with(tracks)
+        prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
+        obj._BootcProgress__populate_carousel.assert_called_once_with(tracks)
 
     def test_recipe_soundtrack_data_gresource_path(self):
         """A soundtrack_data starting with /org/ is loaded via Gio.resources_lookup_data."""
@@ -272,7 +272,7 @@ class TestProgressSoundtrackData(unittest.TestCase):
         mock_bytes = MagicMock()
         mock_bytes.get_data.return_value = json.dumps(tracks).encode()
         prog_mod.Gio.resources_lookup_data = MagicMock(return_value=mock_bytes)
-        prog_mod.VanillaProgress._VanillaProgress__load_tracks(obj)
+        prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
         prog_mod.Gio.resources_lookup_data.assert_called_with(
             DAKOTA_RECIPE["soundtrack_data"],
             prog_mod.Gio.ResourceLookupFlags.NONE,

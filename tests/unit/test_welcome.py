@@ -39,10 +39,10 @@ def _mock_welcome_imports():
     done.apply_icon = lambda *args, **kwargs: None
 
     dialog_recovery = types.ModuleType("bootc_installer.windows.dialog_recovery")
-    dialog_recovery.VanillaRecoveryDialog = type("VanillaRecoveryDialog", (), {"show": lambda self: None})
+    dialog_recovery.BootcRecoveryDialog = type("BootcRecoveryDialog", (), {"show": lambda self: None})
 
     dialog_poweroff = types.ModuleType("bootc_installer.windows.dialog_poweroff")
-    dialog_poweroff.VanillaPoweroffDialog = type("VanillaPoweroffDialog", (), {"show": lambda self: None})
+    dialog_poweroff.BootcPoweroffDialog = type("BootcPoweroffDialog", (), {"show": lambda self: None})
 
     return {
         "gi": gi,
@@ -133,7 +133,7 @@ class TestWelcomeBluetoothLogic(unittest.TestCase):
     def test_bluetooth_launcher_uses_host_command_in_flatpak(self):
         self.mod._IN_FLATPAK = True
         with patch.object(self.mod.subprocess, "Popen", side_effect=FileNotFoundError) as popen:
-            self.mod.VanillaDefaultWelcome._VanillaDefaultWelcome__on_bluetooth_clicked(object(), None)
+            self.mod.BootcDefaultWelcome._BootcDefaultWelcome__on_bluetooth_clicked(object(), None)
 
         attempted = [call.args[0] for call in popen.call_args_list]
         self.assertEqual(

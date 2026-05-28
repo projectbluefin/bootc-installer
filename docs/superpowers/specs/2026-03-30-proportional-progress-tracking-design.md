@@ -1,7 +1,7 @@
 # Proportional Progress Tracking Design
 
 **Date:** 2026-03-30
-**Scope:** fisherman (Go) + tuna-installer Python GUI
+**Scope:** fisherman (Go) + bootc-installer Python GUI
 **Empirical basis:** Loop-device install of `ghcr.io/tuna-os/yellowfin:gnome-hwe` (264.7s total)
 
 ## Background

@@ -25,12 +25,12 @@ from gi.repository import Adw, Gtk
 from bootc_installer.utils.run_async import RunAsync
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("VanillaInstaller::Conn_Check")
+logger = logging.getLogger("BootcInstaller::Conn_Check")
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-conn-check.ui")
-class VanillaDefaultConnCheck(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultConnCheck"
+class BootcDefaultConnCheck(Adw.Bin):
+    __gtype_name__ = "BootcDefaultConnCheck"
 
     btn_recheck = Gtk.Template.Child()
     page_header = Gtk.Template.Child()

@@ -21,8 +21,8 @@ import subprocess
 from gi.repository import Adw, Gtk
 
 from bootc_installer.views.done import apply_icon
-from bootc_installer.windows.dialog_recovery import VanillaRecoveryDialog
-from bootc_installer.windows.dialog_poweroff import VanillaPoweroffDialog
+from bootc_installer.windows.dialog_recovery import BootcRecoveryDialog
+from bootc_installer.windows.dialog_poweroff import BootcPoweroffDialog
 
 _IN_FLATPAK = os.path.exists("/.flatpak-info")
 
@@ -67,8 +67,8 @@ def _needs_bluetooth_pairing() -> bool:
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-welcome.ui")
-class VanillaDefaultWelcome(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultWelcome"
+class BootcDefaultWelcome(Adw.Bin):
+    __gtype_name__ = "BootcDefaultWelcome"
 
     page_header = Gtk.Template.Child()
     row_install = Gtk.Template.Child()
@@ -135,10 +135,10 @@ class VanillaDefaultWelcome(Adw.Bin):
                 return
 
     def __on_recovery_clicked(self, row):
-        VanillaRecoveryDialog(self.__window).show()
+        BootcRecoveryDialog(self.__window).show()
 
     def __on_poweroff_clicked(self, row):
-        VanillaPoweroffDialog(self.__window).show()
+        BootcPoweroffDialog(self.__window).show()
 
     def __on_credits_clicked(self, button):
         from bootc_installer.windows.dialog_credits import TunaCreditsWindow

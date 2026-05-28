@@ -29,8 +29,8 @@ from gi.repository import Adw, GLib, GObject, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-choice.ui")
-class VanillaChoiceEntry(Adw.ActionRow):
-    __gtype_name__ = "VanillaChoiceEntry"
+class BootcChoiceEntry(Adw.ActionRow):
+    __gtype_name__ = "BootcChoiceEntry"
 
     img_choice = Gtk.Template.Child()
 
@@ -42,8 +42,8 @@ class VanillaChoiceEntry(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-choice-expander.ui")
-class VanillaChoiceExpanderEntry(Adw.ExpanderRow):
-    __gtype_name__ = "VanillaChoiceExpanderEntry"
+class BootcChoiceExpanderEntry(Adw.ExpanderRow):
+    __gtype_name__ = "BootcChoiceExpanderEntry"
 
     img_choice = Gtk.Template.Child()
 
@@ -63,8 +63,8 @@ _SENNA_QUOTES = [
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/confirm.ui")
-class VanillaConfirm(Adw.Bin):
-    __gtype_name__ = "VanillaConfirm"
+class BootcConfirm(Adw.Bin):
+    __gtype_name__ = "BootcConfirm"
     __gsignals__ = {
         "installation-confirmed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
@@ -95,7 +95,7 @@ class VanillaConfirm(Adw.Bin):
                 if key == "language":
                     selected_language = value
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Language"), value, "preferences-desktop-locale-symbolic"
                         )
                     )
@@ -103,7 +103,7 @@ class VanillaConfirm(Adw.Bin):
                     self.process_keyboards(value)
                 elif key == "timezone":
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Timezone"),
                             f"{value['region']} {value['zone']}",
                             "preferences-system-time-symbolic",
@@ -111,7 +111,7 @@ class VanillaConfirm(Adw.Bin):
                     )
                 elif key == "users":
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Users"),
                             f"{value['username']} ({value['fullname']})",
                             "system-users-symbolic",
@@ -120,7 +120,7 @@ class VanillaConfirm(Adw.Bin):
                 elif key == "disk":
                     if "auto" in value:
                         self.active_widgets.append(
-                            VanillaChoiceEntry(
+                            BootcChoiceEntry(
                                 _("Disk"),
                                 f"{value['auto']['disk']} ({value['auto']['pretty_size']})",
                                 "drive-harddisk-system-symbolic",
@@ -142,7 +142,7 @@ class VanillaConfirm(Adw.Bin):
                                 re.MULTILINE,
                             )[0]
                             if part_disk not in disks:
-                                disks[part_disk] = VanillaChoiceExpanderEntry(
+                                disks[part_disk] = BootcChoiceExpanderEntry(
                                     _("Disk"),
                                     part_disk,
                                     "drive-harddisk-system-symbolic",
@@ -150,7 +150,7 @@ class VanillaConfirm(Adw.Bin):
                                 self.active_widgets.append(disks[part_disk])
 
                             disks[part_disk].add_row(
-                                VanillaChoiceEntry(
+                                BootcChoiceEntry(
                                     part,
                                     f"{info['fs']} {info['mp']} ({info['pretty_size']})",
                                     "drive-harddisk-system-symbolic",
@@ -160,7 +160,7 @@ class VanillaConfirm(Adw.Bin):
                     enc_type = value.get("type", "none") if isinstance(value, dict) else str(value)
                     label = _ENC_LABELS.get(enc_type, enc_type)
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Encryption"),
                             label,
                             "channel-secure-symbolic",
@@ -168,7 +168,7 @@ class VanillaConfirm(Adw.Bin):
                     )
                 elif key == "hostname":
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Hostname"),
                             value,
                             "network-server-symbolic",
@@ -178,7 +178,7 @@ class VanillaConfirm(Adw.Bin):
                     pn = final.get("pretty_name") or value
                     pretty_name = pn
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Image"),
                             pn,
                             "application-x-appliance-symbolic",
@@ -188,7 +188,7 @@ class VanillaConfirm(Adw.Bin):
                     pn = final.get("pretty_name") or value
                     pretty_name = pn
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Image"),
                             value,
                             "image-missing-symbolic"
@@ -201,7 +201,7 @@ class VanillaConfirm(Adw.Bin):
         if gpu_label:
             gpu_icon = Systeminfo.gpu_icon_name()
             self.active_widgets.append(
-                VanillaChoiceEntry(
+                BootcChoiceEntry(
                     _("Graphics"),
                     gpu_label,
                     gpu_icon,
@@ -242,7 +242,7 @@ class VanillaConfirm(Adw.Bin):
             if len(selected_keyboards) > 1:
                 keyboard_index += 1
             self.active_widgets.append(
-                VanillaChoiceEntry(
+                BootcChoiceEntry(
                     _(f"Keyboard {keyboard_index}"), value,"input-keyboard-symbolic"
                 )
             )

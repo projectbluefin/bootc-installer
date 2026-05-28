@@ -17,12 +17,12 @@
 # Class overview (all are GTK widget subclasses — kept in one file due to
 # tight coupling; extract only if they grow independent):
 #
-#   VanillaDefaultDiskEntry      — single disk item row (auto-select list)
+#   BootcDefaultDiskEntry      — single disk item row (auto-select list)
 #   PartitionRow                 — single partition row in the manual selector
 #   PartitionSelector            — full manual partition selector page
-#   VanillaDefaultDiskPartModal  — modal window wrapping PartitionSelector
-#   VanillaDefaultDiskConfirmModal — confirmation modal before manual install
-#   VanillaDefaultDisk           — main disk wizard step (auto + manual tabs)
+#   BootcDefaultDiskPartModal  — modal window wrapping PartitionSelector
+#   BootcDefaultDiskConfirmModal — confirmation modal before manual install
+#   BootcDefaultDisk           — main disk wizard step (auto + manual tabs)
 
 import pathlib
 import subprocess
@@ -42,8 +42,8 @@ logger = logging.getLogger("Installer::Disk")
 # ── Disk list row ──────────────────────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-disk.ui")
-class VanillaDefaultDiskEntry(Adw.ActionRow):
-    __gtype_name__ = "VanillaDefaultDiskEntry"
+class BootcDefaultDiskEntry(Adw.ActionRow):
+    __gtype_name__ = "BootcDefaultDiskEntry"
 
     chk_button = Gtk.Template.Child()
 
@@ -506,8 +506,8 @@ class PartitionSelector(Adw.PreferencesPage):
 # ── Partition selection modal window ──────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-disk.ui")
-class VanillaDefaultDiskPartModal(Adw.Window):
-    __gtype_name__ = "VanillaDefaultDiskPartModal"
+class BootcDefaultDiskPartModal(Adw.Window):
+    __gtype_name__ = "BootcDefaultDiskPartModal"
     __gsignals__ = {
         "partitioning-set": (GObject.SignalFlags.RUN_FIRST, None, (str,)),
     }
@@ -604,8 +604,8 @@ class VanillaDefaultDiskPartModal(Adw.Window):
 # ── Manual install confirmation modal ─────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-disk-confirm.ui")
-class VanillaDefaultDiskConfirmModal(Adw.Window):
-    __gtype_name__ = "VanillaDefaultDiskConfirmModal"
+class BootcDefaultDiskConfirmModal(Adw.Window):
+    __gtype_name__ = "BootcDefaultDiskConfirmModal"
 
     btn_cancel = Gtk.Template.Child()
     btn_apply = Gtk.Template.Child()
@@ -688,8 +688,8 @@ class VanillaDefaultDiskConfirmModal(Adw.Window):
 # ── Main disk wizard step ──────────────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-disk.ui")
-class VanillaDefaultDisk(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultDisk"
+class BootcDefaultDisk(Adw.Bin):
+    __gtype_name__ = "BootcDefaultDisk"
 
     btn_next = Gtk.Template.Child()
     btn_auto = Gtk.Template.Child()
@@ -725,7 +725,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__use_virtual_disk = False
         self.__fs_tool_ok = True  # optimistic default; updated by __check_fs_tool
         self.__var_disk_selected = None  # Disk object for the optional /var disk
-        self.__var_registry_disks = []   # VanillaDefaultDiskEntry rows for var picker
+        self.__var_registry_disks = []   # BootcDefaultDiskEntry rows for var picker
 
         self.min_disk_size = self.__window.recipe.get("min_disk_size", 51200)
         self.disk_space_err_label.set_label(
@@ -735,7 +735,7 @@ class VanillaDefaultDisk(Adw.Bin):
 
         # Append real disk rows
         for disk in self.__disks.all_disks(include_removable=False):
-            entry = VanillaDefaultDiskEntry(self, disk)
+            entry = BootcDefaultDiskEntry(self, disk)
             self.group_disks.add(entry)
             self.__registry_disks.append(entry)
 
@@ -743,7 +743,7 @@ class VanillaDefaultDisk(Adw.Bin):
         if not self.__registry_disks:
             for disk in self.__disks.all_disks(include_removable=True):
                 if disk.is_removable:
-                    entry = VanillaDefaultDiskEntry(self, disk)
+                    entry = BootcDefaultDiskEntry(self, disk)
                     self.group_disks.add(entry)
                     self.__registry_disks.append(entry)
 
@@ -1049,7 +1049,7 @@ class VanillaDefaultDisk(Adw.Bin):
         }
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG
-            result["virtual_disk_loop"] = getattr(self, "_VanillaDefaultDisk__loop_device", None)
+            result["virtual_disk_loop"] = getattr(self, "_BootcDefaultDisk__loop_device", None)
         if self.var_disk_switch.get_active() and self.__var_disk_selected:
             result["var_disk"] = {
                 "disk": self.__var_disk_selected.disk,
@@ -1062,7 +1062,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__all_disks_button.set_visible(False)
         for disk in self.__disks.all_disks(include_removable=True):
             if disk.is_removable:
-                entry = VanillaDefaultDiskEntry(self, disk)
+                entry = BootcDefaultDiskEntry(self, disk)
                 self.group_disks.add(entry)
                 self.__registry_disks.append(entry)
 
@@ -1138,12 +1138,12 @@ class VanillaDefaultDisk(Adw.Bin):
         for d in self.__disks.all_disks(include_removable=False):
             if system_disk and d.disk == system_disk:
                 continue
-            entry = VanillaDefaultDiskEntry(self, d, role="var")
+            entry = BootcDefaultDiskEntry(self, d, role="var")
             self.group_var_disks.add(entry)
             self.__var_registry_disks.append(entry)
 
     def on_var_disk_entry_toggled(self, widget, disk):
-        """Called by VanillaDefaultDiskEntry when role='var' and user toggles it."""
+        """Called by BootcDefaultDiskEntry when role='var' and user toggles it."""
         if widget.get_active():
             self.__var_disk_selected = disk
             self.__check_var_disk_existing(disk)
@@ -1177,5 +1177,5 @@ class VanillaDefaultDisk(Adw.Bin):
         self.confirm_partition_changes()
 
     def confirm_partition_changes(self):
-        modal = VanillaDefaultDiskConfirmModal(self.__window, self.__partition_recipe)
+        modal = BootcDefaultDiskConfirmModal(self.__window, self.__partition_recipe)
         modal.present()

@@ -49,8 +49,8 @@ class RecipeLoader:
 
     def __load(self):
         paths = (
-            [os.environ["VANILLA_CUSTOM_RECIPE"]]
-            if "VANILLA_CUSTOM_RECIPE" in os.environ
+            [os.environ["BOOTC_CUSTOM_RECIPE"]]
+            if "BOOTC_CUSTOM_RECIPE" in os.environ
             else self.recipe_paths
         )
 

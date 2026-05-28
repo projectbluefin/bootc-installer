@@ -262,8 +262,8 @@ def _make_icon(icon_spec: str, size: int = 32) -> "Gtk.Image | None":
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-image.ui")
-class VanillaDefaultImage(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultImage"
+class BootcDefaultImage(Adw.Bin):
+    __gtype_name__ = "BootcDefaultImage"
 
     btn_next        = Gtk.Template.Child()
     search_entry    = Gtk.Template.Child()

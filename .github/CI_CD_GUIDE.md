@@ -213,14 +213,14 @@ Launch the installer on the live system, then monitor the host-visible log:
 
 ```bash
 ssh ${TARGET} "flatpak run org.bootcinstaller.Installer"
-ssh ${TARGET} "tail -f ~/.cache/tuna-installer/fisherman-output.log"
+ssh ${TARGET} "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 ```
 
 Capture at minimum:
 
 - confirm screen screenshot
 - done or failure screen screenshot
-- `~/.cache/tuna-installer/fisherman-output.log`
+- `~/.cache/bootc-installer/fisherman-output.log`
 - the recipe JSON used
 - `lsblk` before and after install
 - first boot `journalctl -b --no-pager`

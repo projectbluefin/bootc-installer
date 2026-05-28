@@ -111,8 +111,8 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Adw
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/progress.ui")
-class VanillaProgress(Gtk.Box):
-    __gtype_name__ = "VanillaProgress"
+class BootcProgress(Gtk.Box):
+    __gtype_name__ = "BootcProgress"
 
     media_box = Gtk.Template.Child()
     soundtrack_box = Gtk.Template.Child()
@@ -796,7 +796,7 @@ class VanillaProgress(Gtk.Box):
 
     def __cleanup_recipe_file(self):
         """Remove the temporary recipe JSON file containing sensitive credentials."""
-        recipe_path = getattr(self, "_VanillaProgress__recipe_path", None)
+        recipe_path = getattr(self, "_BootcProgress__recipe_path", None)
         if not recipe_path:
             return
         try:

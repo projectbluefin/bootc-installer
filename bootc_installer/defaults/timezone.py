@@ -30,7 +30,7 @@ from bootc_installer.core.timezones import (
     get_timezone_preview,
 )
 
-logger = logging.getLogger("VanillaInstaller::Timezone")
+logger = logging.getLogger("BootcInstaller::Timezone")
 
 
 def _load_dinosaurs():
@@ -76,8 +76,8 @@ class TimezoneRow(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-timezone.ui")
-class VanillaDefaultTimezone(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultTimezone"
+class BootcDefaultTimezone(Adw.Bin):
+    __gtype_name__ = "BootcDefaultTimezone"
 
     btn_next = Gtk.Template.Child()
     entry_search_timezone = Gtk.Template.Child()

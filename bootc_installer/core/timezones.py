@@ -5,7 +5,7 @@ import requests
 from gi.repository import GLib, GWeather
 from zoneinfo import ZoneInfo
 
-logger = logging.getLogger("VanillaInstaller::Timezones")
+logger = logging.getLogger("BootcInstaller::Timezones")
 
 regions: dict[str, dict[str, dict[str, str]]] = {}
 world = GWeather.Location.get_world()

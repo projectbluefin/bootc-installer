@@ -10,7 +10,7 @@ from bootc_installer.utils.pastry_compat import add_glass_root, wrap_glass
 
 _CREDITS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "credits.json")
 
-logger = logging.getLogger("VanillaInstaller::Credits")
+logger = logging.getLogger("BootcInstaller::Credits")
 
 # CSS for the glass-effect hero cards and animations
 _CREDITS_CSS = """

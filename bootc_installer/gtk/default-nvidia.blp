@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultNvidia: Adw.Bin {
+template $BootcDefaultNvidia: Adw.Bin {
   halign: fill;
   valign: fill;
   hexpand: true;
@@ -76,7 +76,7 @@ template $VanillaDefaultNvidia: Adw.Bin {
 
                 Label {
                   label: _(
-                    "A proprietary driver has private code that neither Vanilla OS nor Debian developers can review.\n\nSecurity and other updates are dependent on the driver vendor."
+                    "A proprietary driver has private code that neither bootc installer nor Debian developers can review.\n\nSecurity and other updates are dependent on the driver vendor."
                   );
                   wrap: true;
                   max-width-chars: 50;

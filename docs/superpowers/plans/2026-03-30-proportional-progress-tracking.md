@@ -865,7 +865,7 @@ Expected: pushes to `tuna-os/fisherman` remote.
 - [ ] **Step 2: Update submodule pointer in parent repo**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add fisherman
 git commit -m "chore: update fisherman submodule (proportional progress tracking)"
 git push

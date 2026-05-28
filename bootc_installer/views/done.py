@@ -10,7 +10,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 
 from bootc_installer.utils.pastry_compat import wrap_glass
 from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
-from bootc_installer.windows.dialog_output import VanillaDialogOutput
+from bootc_installer.windows.dialog_output import BootcDialogOutput
 
 log = logging.getLogger("Installer::Done")
 
@@ -90,8 +90,8 @@ def do_reboot(in_flatpak):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/done.ui")
-class VanillaDone(Adw.Bin):
-    __gtype_name__ = "VanillaDone"
+class BootcDone(Adw.Bin):
+    __gtype_name__ = "BootcDone"
 
     page_header = Gtk.Template.Child()
     btn_reboot = Gtk.Template.Child()
@@ -267,7 +267,7 @@ class VanillaDone(Adw.Bin):
         self.__window.on_installation_confirmed()
 
     def __on_log_clicked(self, button):
-        dialog = VanillaDialogOutput(self.__window)
+        dialog = BootcDialogOutput(self.__window)
         dialog.present()
 
     def __maybe_show_store(self):

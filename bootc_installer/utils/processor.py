@@ -72,7 +72,7 @@ class Processor:
         logger.info(f"Building fisherman recipe from finals: {list(merged.keys())}")
 
         # --- Disk ---
-        # disk_info comes from VanillaDefaultDisk.get_finals() as one of:
+        # disk_info comes from BootcDefaultDisk.get_finals() as one of:
         #   Auto:   {"auto": {"disk": "/dev/vda", ...}}
         #   Manual: {"/dev/sda1": {"fs": "fat32", "mp": "/boot/efi"}, "/dev/sda2": {...}, ...}
         disk_info = merged.get("disk", {})

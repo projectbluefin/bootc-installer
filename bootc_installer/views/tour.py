@@ -23,8 +23,8 @@ from gi.repository import Adw, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/tour.ui")
-class VanillaTour(Adw.Bin):
-    __gtype_name__ = "VanillaTour"
+class BootcTour(Adw.Bin):
+    __gtype_name__ = "BootcTour"
 
     page_header = Gtk.Template.Child()
     assets_svg = Gtk.Template.Child()

@@ -1,7 +1,7 @@
-# Building a bootc Live ISO with tuna-installer
+# Building a bootc Live ISO with bootc-installer
 
 This document explains how to build a bootable live ISO that auto-launches
-tuna-installer for offline installation of a bootc image. It documents the
+bootc-installer for offline installation of a bootc image. It documents the
 configuration conventions the installer expects, and the OS-image-side setup
 needed to make everything work end-to-end.
 
@@ -11,7 +11,7 @@ The reference implementation is [tuna-os/dakota-iso](https://github.com/tuna-os/
 
 ## Overview
 
-A live ISO built for tuna-installer must:
+A live ISO built for bootc-installer must:
 
 1. Embed the target OCI image in the squashfs (as VFS containers-storage).
 2. Auto-start the installer Flatpak as the live user.
@@ -177,13 +177,13 @@ Place a `.desktop` file in `/etc/xdg/autostart/`:
 ```ini
 [Desktop Entry]
 Name=My OS Installer
-Exec=flatpak run --env=VANILLA_CUSTOM_RECIPE=/run/host/etc/bootc-installer/recipe.json org.bootcinstaller.Installer
+Exec=flatpak run --env=BOOTC_CUSTOM_RECIPE=/run/host/etc/bootc-installer/recipe.json org.bootcinstaller.Installer
 Icon=/usr/share/pixmaps/my-os.png
 Type=Application
 X-GNOME-Autostart-enabled=true
 ```
 
-**Important:** pass `VANILLA_CUSTOM_RECIPE` at the `/run/host/etc/...` path.
+**Important:** pass `BOOTC_CUSTOM_RECIPE` at the `/run/host/etc/...` path.
 Inside the Flatpak sandbox, the host `/etc` is bind-mounted at `/run/host/etc`;
 the installer's recipe loader uses this prefix automatically when the
 `live-iso-mode` flag is present.
@@ -200,7 +200,7 @@ liveuser must be allowed to trigger this without a password.
 
 ### The exec action ID issue
 
-tuna-installer copies the fisherman binary from the Flatpak bundle to a
+bootc-installer copies the fisherman binary from the Flatpak bundle to a
 **temporary path** (e.g. `/var/home/liveuser/.cache/bootc-installer/fisherman`)
 and calls `pkexec` on that path. Because the path does not match any
 `org.freedesktop.policykit.exec.path` annotation, polkit fires the generic
@@ -450,7 +450,7 @@ AutomaticLogin=liveuser
 - [ ] `/etc/bootc-installer/live-iso-mode` (empty flag file)
 - [ ] `/etc/bootc-installer/images.json` with `needs_user_creation: false` and correct `bootloader`/`filesystem`/`composefs`/`flatpak_var_path`
 - [ ] `/etc/bootc-installer/recipe.json` with distro branding
-- [ ] `/etc/xdg/autostart/tuna-installer.desktop` with `VANILLA_CUSTOM_RECIPE=/run/host/etc/...`
+- [ ] `/etc/xdg/autostart/bootc-installer.desktop` with `BOOTC_CUSTOM_RECIPE=/run/host/etc/...`
 - [ ] `/usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy`
 - [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS rule covering **both** `org.tunaos.Installer.install` and `org.freedesktop.policykit.exec`
 - [ ] `/usr/local/bin/fisherman` symlink into Flatpak bundle

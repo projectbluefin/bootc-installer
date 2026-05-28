@@ -10,7 +10,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import GLib, Gtk  # noqa: E402
 
-from bootc_installer.views.done import VanillaDone
+from bootc_installer.views.done import BootcDone
 from bootc_installer.windows.dialog_credits import TunaCreditsWindow
 
 _CREDITS_JSON = (
@@ -49,7 +49,7 @@ def _make_done(window):
         close=MagicMock(),
         on_installation_confirmed=MagicMock(),
     )
-    widget = VanillaDone(controller)
+    widget = BootcDone(controller)
     window.set_child(widget)
     _pump()
     return widget, controller
@@ -61,7 +61,7 @@ class TestDoneScreen:
         controller.pretty_name = "Bluefin DX"
 
         with patch.object(
-            VanillaDone, "_VanillaDone__is_us_locale", return_value=True
+            BootcDone, "_BootcDone__is_us_locale", return_value=True
         ):
             done.set_result(True, terminal=object(), elapsed_secs=125)
 
@@ -80,7 +80,7 @@ class TestDoneScreen:
 
         with patch.object(
             done,
-            "_VanillaDone__extract_failure_hint",
+            "_BootcDone__extract_failure_hint",
             return_value="Check your network and try again.",
         ):
             done.set_result(False, terminal=object())
@@ -119,13 +119,13 @@ class TestDoneScreen:
 
         with patch.object(
             done,
-            "_VanillaDone__extract_failure_hint",
+            "_BootcDone__extract_failure_hint",
             return_value="Pull failed.",
         ):
             done.set_result(False, terminal=object())
 
         with patch.object(
-            VanillaDone, "_VanillaDone__is_us_locale", return_value=False
+            BootcDone, "_BootcDone__is_us_locale", return_value=False
         ):
             done.set_result(True, terminal=object(), elapsed_secs=9)
 
@@ -144,7 +144,7 @@ class TestDoneScreen:
     def test_buttons_call_window_actions_and_show_log_dialog(self, host_window):
         done, controller = _make_done(host_window)
 
-        with patch("bootc_installer.views.done.VanillaDialogOutput") as dialog_cls:
+        with patch("bootc_installer.views.done.BootcDialogOutput") as dialog_cls:
             dialog = dialog_cls.return_value
 
             done.btn_retry.emit("clicked")
