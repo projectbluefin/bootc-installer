@@ -4,6 +4,7 @@ viewsdir = join_paths(pkgdatadir, 'bootc_installer/views')
 sources = [
   '__init__.py',
   'confirm.py',
+  'confirm_data.py',
   'done.py',
   'progress.py',
   'recovery_key.py',
