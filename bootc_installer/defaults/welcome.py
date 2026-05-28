@@ -141,8 +141,8 @@ class BootcDefaultWelcome(Adw.Bin):
         BootcPoweroffDialog(self.__window).show()
 
     def __on_credits_clicked(self, button):
-        from bootc_installer.windows.dialog_credits import TunaCreditsWindow
-        TunaCreditsWindow(self.__window).show()
+        from bootc_installer.windows.dialog_credits import BootcCreditsWindow
+        BootcCreditsWindow(self.__window).show()
 
     def __install(self, _):
         if self.__window.install_mode == 1:

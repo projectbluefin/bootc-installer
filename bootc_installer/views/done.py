@@ -9,7 +9,7 @@ from gettext import gettext as _
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from bootc_installer.utils.pastry_compat import wrap_glass
-from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
 from bootc_installer.windows.dialog_output import BootcDialogOutput
 
 log = logging.getLogger("Installer::Done")

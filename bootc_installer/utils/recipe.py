@@ -36,7 +36,7 @@ class RecipeLoader:
     def recipe_paths(self):
         return [
             f"{self._etc}/bootc-installer/recipe.json",
-            f"{self._etc}/tunaos-installer/recipe.json",
+            f"{self._etc}/bootcos-installer/recipe.json",
             f"{self._etc}/vanilla-installer/recipe.json",
             "/app/share/bootc-installer/recipe.json",
         ]

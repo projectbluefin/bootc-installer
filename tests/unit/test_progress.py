@@ -70,7 +70,7 @@ class TestFishermanArgvDirect(unittest.TestCase):
         """Flatpak: bash must run on the HOST so the log redirect works."""
         fn = self._fn(in_flatpak=True, live_iso=False)
         with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("TUNA_TEST", None)
+            os.environ.pop("BOOTC_TEST", None)
             argv = fn("/tmp/recipe.json")
         self.assertEqual(argv[0], "flatpak-spawn")
         self.assertIn("--host", argv)
@@ -80,10 +80,10 @@ class TestFishermanArgvDirect(unittest.TestCase):
         self.assertNotIn("flatpak-spawn", script)
         self.assertEqual(argv[-1], "/tmp/recipe.json")
 
-    def test_flatpak_tuna_test(self):
-        """TUNA_TEST env: uses sudo with custom fisherman path on the host."""
+    def test_flatpak_bootc_test(self):
+        """BOOTC_TEST env: uses sudo with custom fisherman path on the host."""
         fn = self._fn(in_flatpak=True, live_iso=False)
-        with patch.dict(os.environ, {"TUNA_TEST": "1", "TUNA_FISHERMAN_PATH": "/custom/fisherman"}):
+        with patch.dict(os.environ, {"BOOTC_TEST": "1", "BOOTC_FISHERMAN_PATH": "/custom/fisherman"}):
             argv = fn("/tmp/recipe.json")
         self.assertEqual(argv[0], "flatpak-spawn")
         self.assertIn("--host", argv)

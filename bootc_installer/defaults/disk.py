@@ -707,7 +707,7 @@ class BootcDefaultDisk(Adw.Bin):
     var_disk_keep_row = Gtk.Template.Child()
     var_disk_keep_switch = Gtk.Template.Child()
 
-    _VIRTUAL_DISK_IMG = "/var/home/james/tuna-virtual-disk.img"
+    _VIRTUAL_DISK_IMG = "/var/home/james/bootc-virtual-disk.img"
     _VIRTUAL_DISK_SIZE = "50G"
 
     def __init__(self, window, distro_info, key, step, **kwargs):
@@ -1005,7 +1005,7 @@ class BootcDefaultDisk(Adw.Bin):
         import subprocess
 
         # If a loop device was pre-created outside the sandbox, use it directly.
-        pre_created = os.environ.get("TUNA_VIRTUAL_DISK", "")
+        pre_created = os.environ.get("BOOTC_VIRTUAL_DISK", "")
         if pre_created:
             logger.info(f"Using pre-created virtual disk: {pre_created}")
             return pre_created
@@ -1085,7 +1085,7 @@ class BootcDefaultDisk(Adw.Bin):
         else:
             self._set_auto_partition_recipe(self.__selected_disks[0])
         # In test mode skip the confirm modal and advance directly
-        if os.environ.get("TUNA_TEST"):
+        if os.environ.get("BOOTC_TEST"):
             self.__window.next()
             return
         self.confirm_partition_changes()

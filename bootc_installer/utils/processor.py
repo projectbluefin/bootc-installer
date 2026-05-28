@@ -1,6 +1,6 @@
 # processor.py
 #
-# Copyright 2024 TunaOS contributors
+# Copyright 2024 BootcOS contributors
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ class Processor:
         Args:
             log_path: path for the installation log (unused by fisherman, kept for API compat)
             finals: list of dicts collected from each installer step's get_finals()
-            sys_recipe: the loaded system recipe (from /etc/tunaos-installer/recipe.json)
+            sys_recipe: the loaded system recipe (from /etc/bootcos-installer/recipe.json)
 
         Returns:
             Path to a temporary JSON file containing the fisherman recipe.
@@ -320,7 +320,7 @@ class Processor:
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".json",
-            prefix="tuna-recipe-",
+            prefix="bootc-recipe-",
             dir=tmp_dir,
             delete=False,
         ) as f:

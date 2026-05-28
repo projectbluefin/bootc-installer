@@ -79,8 +79,8 @@ def _fisherman_argv_direct(recipe: str) -> list:
     """
     log = _FISHERMAN_LOG_PATH
     if _IN_FLATPAK:
-        if os.environ.get("TUNA_TEST"):
-            bin_ = os.environ.get("TUNA_FISHERMAN_PATH", _FISHERMAN_HOST_PATH)
+        if os.environ.get("BOOTC_TEST"):
+            bin_ = os.environ.get("BOOTC_FISHERMAN_PATH", _FISHERMAN_HOST_PATH)
             cmd = f'sudo "{bin_}" "$1" >"{log}" 2>&1; exit $?'
         else:
             cmd = f'pkexec "{_FISHERMAN_HOST_PATH}" "$1" >"{log}" 2>&1; exit $?'
@@ -97,7 +97,7 @@ def _stage_fisherman_on_host() -> bool:
         return True
 
     os.makedirs(_FISHERMAN_CACHE_DIR, exist_ok=True)
-    fisherman_src = os.environ.get("TUNA_FISHERMAN_PATH", "/app/bin/fisherman")
+    fisherman_src = os.environ.get("BOOTC_FISHERMAN_PATH", "/app/bin/fisherman")
     try:
         shutil.copy2(fisherman_src, _FISHERMAN_HOST_PATH)
         os.chmod(_FISHERMAN_HOST_PATH, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)

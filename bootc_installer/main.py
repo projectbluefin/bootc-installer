@@ -49,8 +49,8 @@ logger_boot.info("gi.require_version done")
 from gi.repository import Adw, Gio, GLib
 logger_boot.info("Adw/Gio imported")
 
-from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — must load before blueprints
-logger_boot.info("TunaPageHeader imported")
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401 — must load before blueprints
+logger_boot.info("BootcPageHeader imported")
 from bootc_installer.windows.main_window import BootcWindow
 logger_boot.info("BootcWindow imported")
 from bootc_installer.windows.window_unsupported import BootcUnsupportedWindow

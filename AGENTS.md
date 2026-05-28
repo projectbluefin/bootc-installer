@@ -45,7 +45,7 @@ disk install pipeline. It emits newline-delimited JSON progress to stdout:
 ```json
 {"type":"step","step":2,"total_steps":9,"step_name":"Formatting EFI partition"}
 {"type":"substep","message":"Pulling container image"}
-{"type":"info","message":"Writing hostname: tunaos"}
+{"type":"info","message":"Writing hostname: bootcos"}
 {"type":"complete","message":"Installation complete!"}
 ```
 
@@ -106,7 +106,7 @@ and tails its JSON log output (via a `GLib.timeout_add` polling loop in
   "image": "ghcr.io/tuna-os/yellowfin:gnome50",
   "targetImgref": "ghcr.io/tuna-os/yellowfin:gnome50",
   "selinuxDisabled": true,
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": ["org.mozilla.firefox", "..."]
 }
 ```
@@ -145,7 +145,7 @@ git push
 
 ```bash
 cd /var/home/james/dev/bootc-installer
-# edit tuna_installer/views/*.py or other files
+# edit bootc_installer/views/*.py or other files
 git add -A && git commit -m "fix: describe the change"
 git push
 ```
@@ -158,27 +158,27 @@ cd /var/home/james/dev/bootc-installer
 # Build and install locally (takes ~10 min first time; cached after)
 flatpak run org.flatpak.Builder \
   --force-clean --user --install \
-  _build flatpak/org.tunaos.Installer.json
+  _build flatpak/org.bootcos.Installer.json
 
 # Bundle for deployment to a remote machine
 flatpak build-bundle \
   ~/.local/share/flatpak/repo \
-  org.tunaos.Installer.flatpak \
-  org.tunaos.Installer
+  org.bootcos.Installer.flatpak \
+  org.bootcos.Installer
 
 # Deploy to a remote machine (e.g. 192.168.0.119)
-scp org.tunaos.Installer.flatpak james@192.168.0.119:~
+scp org.bootcos.Installer.flatpak james@192.168.0.119:~
 ssh james@192.168.0.119 \
-  "flatpak uninstall --user -y org.tunaos.Installer; \
-   flatpak install --user --bundle -y ~/org.tunaos.Installer.flatpak"
+  "flatpak uninstall --user -y org.bootcos.Installer; \
+   flatpak install --user --bundle -y ~/org.bootcos.Installer.flatpak"
 ```
 
 ### Running the installer (on a live machine)
 
 ```bash
-flatpak run org.tunaos.Installer
+flatpak run org.bootcos.Installer
 # Or with a local fisherman binary (dev/test):
-TUNA_FISHERMAN_PATH=/path/to/fisherman flatpak run org.tunaos.Installer
+BOOTC_FISHERMAN_PATH=/path/to/fisherman flatpak run org.bootcos.Installer
 ```
 
 ### Invoking fisherman directly (for testing)
@@ -238,7 +238,7 @@ xvfb-run -a pytest tests/ui/ -v
 
 ### Rules for keeping tests in sync with UI changes
 
-**When you change `tuna_installer/utils/processor.py`:**
+**When you change `bootc_installer/utils/processor.py`:**
 - Update `tests/unit/test_processor.py` to cover new fields or changed logic.
 - Every new recipe field emitted by `processor.py` should have at least one
   parametrized test asserting the correct JSON value in the output recipe.
@@ -339,7 +339,7 @@ These run automatically during the install pipeline (main.go) and require no use
 tail -f ~/.cache/bootc-installer/fisherman-output.log
 
 # Check the most recent recipe used
-ls -lt ~/.cache/bootc-installer/tuna-recipe-*.json | head -1 | xargs cat
+ls -lt ~/.cache/bootc-installer/bootc-recipe-*.json | head -1 | xargs cat
 
 # Inspect the installed disk after install (replace nvme0n1 with actual disk)
 sudo lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID /dev/nvme0n1

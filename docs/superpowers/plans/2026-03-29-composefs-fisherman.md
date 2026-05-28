@@ -441,7 +441,7 @@ func TestWriteHostname_ComposeFsNative(t *testing.T) {
 func TestWriteHostname_ComposeFsNative_CreatesEtcDir(t *testing.T) {
 	target := t.TempDir()
 	// No ostree dir, no etc dir — both should be created.
-	if err := post.WriteHostname(target, "tunaos"); err != nil {
+	if err := post.WriteHostname(target, "bootcos"); err != nil {
 		t.Fatalf("WriteHostname: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(target, "etc", "hostname")); err != nil {
@@ -476,7 +476,7 @@ func TestWriteHostname_OstreeBackend(t *testing.T) {
 	rec := setupRecorder(t)
 	_ = rec // no exec calls expected in this path
 
-	if err := post.WriteHostname(target, "tunahost"); err != nil {
+	if err := post.WriteHostname(target, "bootchost"); err != nil {
 		t.Fatalf("WriteHostname: %v", err)
 	}
 
@@ -486,8 +486,8 @@ func TestWriteHostname_OstreeBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading hostname from deploy dir: %v", err)
 	}
-	if string(data) != "tunahost\n" {
-		t.Errorf("hostname = %q, want %q", string(data), "tunahost\n")
+	if string(data) != "bootchost\n" {
+		t.Errorf("hostname = %q, want %q", string(data), "bootchost\n")
 	}
 
 	// The direct target/etc/hostname must NOT exist.

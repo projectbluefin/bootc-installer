@@ -109,7 +109,7 @@ DAKOTA_RECIPE = {
 
 GENERIC_RECIPE = {
     "log_file": "/var/log/bootc-installer.log",
-    "distro_name": "TunaOS",
+    "distro_name": "BootcOS",
     "distro_logo": "org.bootcinstaller.Installer",
     "welcome_title": "",
     "steps": {},
@@ -295,7 +295,7 @@ def _make_credits_obj(recipe):
     dc_mod = _import_credits()
     window = MagicMock()
     window.recipe = recipe
-    obj = object.__new__(dc_mod.TunaCreditsWindow)
+    obj = object.__new__(dc_mod.BootcCreditsWindow)
     obj._window = window
     obj.header_title = MagicMock()
     obj.header_subtitle = MagicMock()
@@ -319,7 +319,7 @@ _SAMPLE_CREDITS = {
 
 
 class TestCreditsData(unittest.TestCase):
-    """TunaCreditsWindow must prefer recipe['credits_data'] over the built-in path."""
+    """BootcCreditsWindow must prefer recipe['credits_data'] over the built-in path."""
 
     def test_uses_recipe_credits_data_filesystem_path(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -330,7 +330,7 @@ class TestCreditsData(unittest.TestCase):
             obj, dc_mod = _make_credits_obj(recipe)
             # GResource should not be reached
             dc_mod.Gio.File.new_for_uri = MagicMock(side_effect=Exception("no resource"))
-            dc_mod.TunaCreditsWindow._load_credits(obj)
+            dc_mod.BootcCreditsWindow._load_credits(obj)
             obj.header_title.set_label.assert_called_with("Dakota Credits")
         finally:
             os.unlink(tmp_path)
@@ -340,7 +340,7 @@ class TestCreditsData(unittest.TestCase):
         obj, dc_mod = _make_credits_obj(GENERIC_RECIPE)
         dc_mod.Gio.File.new_for_uri = MagicMock(side_effect=Exception("no resource"))
         with patch("builtins.open", side_effect=FileNotFoundError):
-            dc_mod.TunaCreditsWindow._load_credits(obj)
+            dc_mod.BootcCreditsWindow._load_credits(obj)
         obj.header_title.set_label.assert_called_with("Credits")
 
     def test_credits_data_gresource_path_is_tried_first(self):
@@ -350,7 +350,7 @@ class TestCreditsData(unittest.TestCase):
         mock_gfile = MagicMock()
         mock_gfile.load_contents.return_value = (True, json.dumps(_SAMPLE_CREDITS).encode())
         dc_mod.Gio.File.new_for_uri = MagicMock(return_value=mock_gfile)
-        dc_mod.TunaCreditsWindow._load_credits(obj)
+        dc_mod.BootcCreditsWindow._load_credits(obj)
         dc_mod.Gio.File.new_for_uri.assert_called_with(
             f"resource://{DAKOTA_RECIPE['credits_data']}"
         )

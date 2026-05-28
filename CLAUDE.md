@@ -4,20 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-**bootc-installer** is a GTK4/Libadwaita Flatpak GUI installer for TunaOS and Universal Blue bootc container images. It has two components: a Python GTK4 frontend and a Go backend (`fisherman`) that runs as a git submodule.
+**bootc-installer** is a GTK4/Libadwaita Flatpak GUI installer for BootcOS and Universal Blue bootc container images. It has two components: a Python GTK4 frontend and a Go backend (`fisherman`) that runs as a git submodule.
 
 ## Build commands
 
 ```bash
 # Build and install Flatpak locally (~10 min first time, cached after)
-flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.tunaos.Installer.json
+flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcos.Installer.json
 
 # Bundle for deployment to another machine
-flatpak build-bundle ~/.local/share/flatpak/repo org.tunaos.Installer.flatpak org.tunaos.Installer
+flatpak build-bundle ~/.local/share/flatpak/repo org.bootcos.Installer.flatpak org.bootcos.Installer
 
 # Deploy to a remote machine
-scp org.tunaos.Installer.flatpak james@<ip>:~
-ssh james@<ip> "flatpak uninstall --user -y org.tunaos.Installer; flatpak install --user --bundle -y ~/org.tunaos.Installer.flatpak"
+scp org.bootcos.Installer.flatpak james@<ip>:~
+ssh james@<ip> "flatpak uninstall --user -y org.bootcos.Installer; flatpak install --user --bundle -y ~/org.bootcos.Installer.flatpak"
 
 # Native (non-Flatpak) build
 meson setup build && ninja -C build && sudo ninja -C build install
@@ -52,7 +52,7 @@ Steps: partition disk → format EFI + /boot → LUKS setup (optional) → forma
 - Scratch space is `/var/fisherman-tmp` (disk-backed, bind-mounted to `/var/tmp`). Do NOT change to `/run/*` — `/run` is tmpfs and too small for large image blobs.
 - `--skip-finalize` is passed to bootc so step 9 can manually finalize (fstrim → remount ro → fsfreeze/thaw), because `bootc install finalize` is a no-op upstream.
 
-### bootc-installer (Python, `tuna_installer/`)
+### bootc-installer (Python, `bootc_installer/`)
 GTK4/Adwaita GUI that collects user choices, writes a recipe JSON, then launches fisherman via a VTE terminal widget and parses its JSON progress output.
 
 **Flatpak sandbox constraints:**
@@ -91,6 +91,6 @@ CI checks out submodules recursively — always verify CI passes after both push
 
 ```bash
 tail -f ~/.cache/bootc-installer/fisherman-output.log
-ls -lt ~/.cache/bootc-installer/tuna-recipe-*.json | head -1 | xargs cat
+ls -lt ~/.cache/bootc-installer/bootc-recipe-*.json | head -1 | xargs cat
 sudo lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID /dev/nvme0n1
 ```

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from bootc_installer.utils.processor import Processor
 
-# A minimal system recipe (the tuna recipe.json, NOT the fisherman recipe).
+# A minimal system recipe (the bootc recipe.json, NOT the fisherman recipe).
 _SYS_RECIPE = {}
 
 

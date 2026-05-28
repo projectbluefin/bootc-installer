@@ -11,7 +11,7 @@ gi.require_version("Adw", "1")
 from gi.repository import GLib, Gtk  # noqa: E402
 
 from bootc_installer.views.done import BootcDone
-from bootc_installer.windows.dialog_credits import TunaCreditsWindow
+from bootc_installer.windows.dialog_credits import BootcCreditsWindow
 
 _CREDITS_JSON = (
     Path(__file__).resolve().parents[2] / "bootc_installer" / "data" / "credits.json"
@@ -161,7 +161,7 @@ class TestDoneScreen:
 class TestCreditsWindow:
     def test_populates_header_sections_and_cards(self, host_window):
         data = json.loads(_CREDITS_JSON.read_text())
-        credits = TunaCreditsWindow(host_window)
+        credits = BootcCreditsWindow(host_window)
 
         assert credits.header_title.get_label() == data["header"]["title"]
         assert credits.header_subtitle.get_label() == data["header"]["subtitle"]
@@ -212,7 +212,7 @@ class TestCreditsWindow:
             "builtins.open",
             side_effect=FileNotFoundError("missing file"),
         ):
-            credits = TunaCreditsWindow(host_window)
+            credits = BootcCreditsWindow(host_window)
 
         assert credits.header_title.get_label() == "Credits"
         assert credits.header_subtitle.get_label() == "Data not available"

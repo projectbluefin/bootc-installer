@@ -205,7 +205,7 @@ bootc-installer copies the fisherman binary from the Flatpak bundle to a
 and calls `pkexec` on that path. Because the path does not match any
 `org.freedesktop.policykit.exec.path` annotation, polkit fires the generic
 **`org.freedesktop.policykit.exec`** action instead of
-`org.tunaos.Installer.install`.
+`org.bootcos.Installer.install`.
 
 The custom polkit action definition (with `exec.path=/usr/local/bin/fisherman`)
 therefore **never fires** in practice. The JS rules approach below is what
@@ -223,7 +223,7 @@ installed at build time:
   "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
   "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <action id="org.tunaos.Installer.install">
+  <action id="org.bootcos.Installer.install">
     <description>Install an operating system to disk</description>
     <message>Authentication is required to install an operating system</message>
     <icon_name>drive-harddisk</icon_name>
@@ -240,14 +240,14 @@ installed at build time:
 
 ### 2. JS rules — the effective grant
 
-A JS rule is required to cover both `org.tunaos.Installer.install` **and**
+A JS rule is required to cover both `org.bootcos.Installer.install` **and**
 `org.freedesktop.policykit.exec` (the action actually fired when pkexec is
 called on the temp fisherman path):
 
 ```javascript
 // /etc/polkit-1/rules.d/99-live-installer.rules
 polkit.addRule(function(action, subject) {
-    if ((action.id === "org.tunaos.Installer.install" ||
+    if ((action.id === "org.bootcos.Installer.install" ||
          action.id === "org.freedesktop.policykit.exec") &&
             subject.user === "liveuser" && subject.local) {
         return polkit.Result.YES;
@@ -452,7 +452,7 @@ AutomaticLogin=liveuser
 - [ ] `/etc/bootc-installer/recipe.json` with distro branding
 - [ ] `/etc/xdg/autostart/bootc-installer.desktop` with `BOOTC_CUSTOM_RECIPE=/run/host/etc/...`
 - [ ] `/usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy`
-- [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS rule covering **both** `org.tunaos.Installer.install` and `org.freedesktop.policykit.exec`
+- [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS rule covering **both** `org.bootcos.Installer.install` and `org.freedesktop.policykit.exec`
 - [ ] `/usr/local/bin/fisherman` symlink into Flatpak bundle
 - [ ] `/etc/containers/storage.conf` with `driver = "vfs"`
 - [ ] `/usr/bin/skopeo` wrapper redirecting scratch to target `@scratch` btrfs subvolume

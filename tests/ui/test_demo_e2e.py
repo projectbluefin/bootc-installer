@@ -123,8 +123,8 @@ def _view(window, name):
 
 
 class TestDemoEndToEnd:
-    def test_bootc_demo_and_tuna_test_reach_done_screen(self):
-        window, scheduler, patchers = _make_window({"BOOTC_DEMO": "1", "TUNA_TEST": "1"})
+    def test_bootc_demo_and_bootc_test_reach_done_screen(self):
+        window, scheduler, patchers = _make_window({"BOOTC_DEMO": "1", "BOOTC_TEST": "1"})
 
         try:
             builder = getattr(window, "_BootcWindow__builder")

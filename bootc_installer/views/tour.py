@@ -50,5 +50,5 @@ class BootcTour(Adw.Bin):
         elif asset.startswith("/") and os.path.exists(asset):
             self.assets_svg.set_filename(asset)
         elif asset:
-            # Plain GResource path ("/org/tunaos/...") — used by recipe.json tour.
+            # Plain GResource path ("/org/bootcos/...") — used by recipe.json tour.
             self.assets_svg.set_resource(asset)

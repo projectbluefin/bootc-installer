@@ -1,7 +1,7 @@
 <div align="center">
-    <img src="data/icons/hicolor/scalable/apps/org.tunaos.Installer.svg" height="64">
-    <h1>TunaOS Installer</h1>
-    <p>A GTK 4 / Libadwaita Flatpak installer for <a href="https://github.com/tuna-os">TunaOS</a> and other <a href="https://universal-blue.org">Universal Blue</a> bootc images.</p>
+    <img src="data/icons/hicolor/scalable/apps/org.bootcos.Installer.svg" height="64">
+    <h1>BootcOS Installer</h1>
+    <p>A GTK 4 / Libadwaita Flatpak installer for <a href="https://github.com/tuna-os">BootcOS</a> and other <a href="https://universal-blue.org">Universal Blue</a> bootc images.</p>
     <hr />
 </div>
 
@@ -12,7 +12,7 @@
 ```bash
 curl -Lo installer.flatpak \
   https://github.com/tuna-os/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
-  && sudo flatpak uninstall -y org.bootcinstaller.Installer org.tunaos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
+  && sudo flatpak uninstall -y org.bootcinstaller.Installer org.bootcos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
 ### Devel (latest `dev` branch build)
@@ -29,7 +29,7 @@ curl -Lo installer-devel.flatpak \
 
 The installer drives the `fisherman` backend with a JSON recipe file. The wizard generates one automatically, but you can write one by hand for automation or liveISO customisation.
 
-### Minimal recipe (TunaOS GNOME 50, XFS, no encryption)
+### Minimal recipe (BootcOS GNOME 50, XFS, no encryption)
 
 ```json
 {
@@ -43,7 +43,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": [],
   "user": {
     "username": "james",
@@ -68,7 +68,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": ["org.mozilla.firefox", "org.gnome.Console"],
   "user": {
     "username": "james",
@@ -96,7 +96,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": [],
   "user": { "username": "", "fullname": "", "password": "", "groups": [] }
 }
@@ -116,7 +116,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": true,
   "bootloader": "systemd",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": [],
   "user": { "username": "", "fullname": "", "password": "", "groups": [] }
 }
@@ -325,7 +325,7 @@ The installer's image catalog is defined in [`fisherman/data/images.json`](fishe
 | `bootloader` | `"grub2"` or `"systemd"` |
 | `filesystem` | `"xfs"` or `"btrfs"` |
 
-Drop your SVG/PNG into `fisherman/data/images/` and add it to `tuna_installer/bootc-installer.gresource.xml`.
+Drop your SVG/PNG into `fisherman/data/images/` and add it to `bootc_installer/bootc-installer.gresource.xml`.
 
 PRs to add new images, icons, or flatpak lists are very welcome!
 

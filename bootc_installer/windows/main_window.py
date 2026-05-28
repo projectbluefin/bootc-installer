@@ -122,7 +122,7 @@ class BootcWindow(Adw.ApplicationWindow):
         self.__view_confirm.connect("installation-confirmed", self.on_installation_confirmed)
         self.__view_recovery_key.connect("recovery-key-acknowledged", self.__on_recovery_key_acknowledged)
 
-        if os.environ.get("TUNA_TEST"):
+        if os.environ.get("BOOTC_TEST"):
             self.carousel.connect("page-changed", self.__on_page_changed_test)
             GLib.timeout_add(600, self.__test_advance_first_page)
 
@@ -440,8 +440,8 @@ class BootcWindow(Adw.ApplicationWindow):
         dialog.present(self)
 
     def __on_credits_clicked(self, *args):
-        from bootc_installer.windows.dialog_credits import TunaCreditsWindow
-        TunaCreditsWindow(self).show()
+        from bootc_installer.windows.dialog_credits import BootcCreditsWindow
+        BootcCreditsWindow(self).show()
 
     def __on_exit_clicked(self, *args):
         if self.__is_done():

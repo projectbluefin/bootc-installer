@@ -176,7 +176,7 @@ class BootcDefaultSlurp(Adw.Bin):
         ).start()
 
     def __resolve_fisherman_path(self) -> str | None:
-        env_path = os.environ.get("TUNA_FISHERMAN_PATH", "")
+        env_path = os.environ.get("BOOTC_FISHERMAN_PATH", "")
 
         if _IN_FLATPAK:
             if os.path.exists(_FISHERMAN_HOST_PATH):

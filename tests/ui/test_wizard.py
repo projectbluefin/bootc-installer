@@ -28,7 +28,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Minimal system recipe — mirrors the installed recipe.json but has no extra steps.
 _SYS_RECIPE = {
     "log_file": "/dev/null",
-    "distro_name": "TunaOS Test",
+    "distro_name": "BootcOS Test",
     "distro_logo": "org.bootcinstaller.Installer",
     "tour": {
         "welcome": {"resource": "/org/bootcinstaller/Installer/assets/welcome.png",
@@ -209,7 +209,7 @@ class TestDiskStepFsToolCheck:
         from unittest.mock import MagicMock, patch
 
         from bootc_installer.defaults.disk import BootcDefaultDisk
-        from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — registers GType
+        from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401 — registers GType
 
         try:
             Adw.ButtonRow  # noqa: B018 — probe for ≥1.6 widget used in BootcDefaultDisk.__init__

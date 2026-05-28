@@ -124,8 +124,8 @@ _CREDITS_CSS = """
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-credits.ui")
-class TunaCreditsWindow(Adw.Window):
-    __gtype_name__ = "TunaCreditsWindow"
+class BootcCreditsWindow(Adw.Window):
+    __gtype_name__ = "BootcCreditsWindow"
 
     header_title = Gtk.Template.Child()
     header_subtitle = Gtk.Template.Child()

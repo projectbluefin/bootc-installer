@@ -117,9 +117,9 @@ class TestApplyIcon(unittest.TestCase):
 
     def test_resource_uri_calls_set_from_resource(self):
         page_header = MagicMock()
-        apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/tunaos.svg")
+        apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/bootcos.svg")
         page_header.set_from_resource.assert_called_once_with(
-            "/org/bootcinstaller/Installer/images/tunaos.svg"
+            "/org/bootcinstaller/Installer/images/bootcos.svg"
         )
 
     def test_icon_theme_name_calls_set_icon_name(self):
@@ -144,7 +144,7 @@ class TestMainWindowIconExtraction(unittest.TestCase):
 
     def test_selected_icon_extracted_from_finals(self):
         finals = [
-            {"hostname": "tunaos"},
+            {"hostname": "bootcos"},
             {"pretty_name": "Yellowfin", "icon": "resource:///org/bootcinstaller/Installer/images/yellowfin.svg"},
         ]
         pretty_name = None
@@ -162,7 +162,7 @@ class TestMainWindowIconExtraction(unittest.TestCase):
         self.assertEqual(selected_icon, "resource:///org/bootcinstaller/Installer/images/yellowfin.svg")
 
     def test_selected_icon_none_when_not_in_finals(self):
-        finals = [{"hostname": "tunaos"}, {"pretty_name": "Yellowfin"}]
+        finals = [{"hostname": "bootcos"}, {"pretty_name": "Yellowfin"}]
         selected_icon = None
         for f in finals:
             if isinstance(f, dict) and selected_icon is None and "icon" in f:

@@ -416,7 +416,7 @@ class BootcDefaultImage(Adw.Bin):
         row.set_activatable_widget(check)
         check.connect("toggled", self.__on_check_toggled, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, default_hostname, filesystems or [])
 
-        # Leaf icon — only for nodes that explicitly define one (e.g. TunaOS variants).
+        # Leaf icon — only for nodes that explicitly define one (e.g. BootcOS variants).
         if icon:
             img = _make_icon(icon, size=24)
             if img:
