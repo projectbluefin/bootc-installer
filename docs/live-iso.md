@@ -84,14 +84,88 @@ sent to fisherman.
 
 ```json
 {
+  "log_file": "/var/log/bootc-installer.log",
   "distro_name": "My OS",
-  "distro_version": "latest",
-  "tour_slides": [],
-  "steps": []
+  "distro_logo": "resource:///org/bootcinstaller/Installer/images/my-os.png",
+  "imgref": "ghcr.io/my-org/my-os:latest",
+  "welcome_title": "Welcome to My OS",
+  "welcome_subtitle": "A short tagline shown under the welcome title.",
+
+  "images": [
+    {
+      "name": "My OS",
+      "imgref": "ghcr.io/my-org/my-os:latest",
+      "bootloader": "systemd",
+      "filesystem": "btrfs",
+      "composefs": true,
+      "needs_user_creation": false,
+      "flatpak_var_path": "state/os/default/var",
+      "nvidia_imgref": "ghcr.io/my-org/my-os-nvidia:latest"
+    }
+  ],
+
+  "tour": {
+    "welcome": {
+      "resource": "/org/bootcinstaller/Installer/assets/welcome.png",
+      "title": "Installing My OS",
+      "description": "This will take a few minutes."
+    },
+    "completed": {
+      "resource": "/org/bootcinstaller/Installer/assets/complete.svg",
+      "title": "Installation Complete",
+      "description": "Your system is ready to use."
+    }
+  },
+
+  "steps": {
+    "welcome":    { "template": "welcome",    "protected": true },
+    "disk":       { "template": "disk" },
+    "slurp":      { "template": "slurp" },
+    "encryption": { "template": "encryption" },
+    "user":       { "template": "user" }
+  },
+
+  "store_url": "https://store.my-os.io",
+  "store_qr_resource": "/org/bootcinstaller/Installer/assets/store-qr.svg",
+  "credits_data": "/org/bootcinstaller/Installer/data/credits.json",
+  "soundtrack_data": "/org/bootcinstaller/Installer/data/tracks.json"
 }
 ```
 
-Refer to the tuna-installer source for the full schema.
+#### Field reference
+
+| Field | Required | Description |
+|---|---|---|
+| `log_file` | ✅ | Path where the installer writes its log |
+| `distro_name` | ✅ | Display name shown throughout the UI |
+| `distro_logo` | ✅ | GResource path or icon name for the distro logo |
+| `steps` | ✅ | Ordered wizard steps (see templates below) |
+| `imgref` | — | Default image reference (used in live ISO mode) |
+| `welcome_title` | — | Heading on the welcome screen; defaults to `"bootc Installer"` |
+| `welcome_subtitle` | — | Subtitle shown under the welcome heading |
+| `images` | — | Image catalog for the image-selection step |
+| `tour` | — | Progress screen tour slides (`welcome` and `completed`) |
+| `store_url` | — | If set, shows a merch store QR code for US-locale users on the done screen |
+| `store_qr_resource` | — | GResource path for the store QR SVG; defaults to the built-in `assets/store-qr.svg` |
+| `credits_data` | — | GResource path **or** filesystem path to a `credits.json` file; defaults to the built-in `data/credits.json` |
+| `soundtrack_data` | — | GResource path **or** filesystem path to a `tracks.json` file; defaults to the built-in `data/tracks.json` |
+
+#### Step templates
+
+| Template | Description |
+|---|---|
+| `welcome` | Welcome / launch screen |
+| `image` | Image selection (omit on live ISOs — removed automatically) |
+| `disk` | Disk selection |
+| `slurp` | Windows data migration wizard |
+| `encryption` | Encryption setup |
+| `user` | User account creation |
+
+#### Demo / preview mode
+
+Set `BOOTC_DEMO=1` or `BOOTC_PREVIEW_SCREEN=<step>` to run without a recipe.
+Set `BOOTC_DEMO_DISTRO_NAME` to override the distro name shown in demo mode
+(defaults to empty string).
 
 ---
 
