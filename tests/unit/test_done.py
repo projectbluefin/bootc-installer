@@ -5,18 +5,66 @@ No display required; GTK widgets are not instantiated.
 
 import subprocess
 import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch
 
-# Stub out gi.repository before importing done so no display is needed.
-for _mod in ("gi", "gi.repository", "gi.repository.Adw", "gi.repository.Gdk",
-             "gi.repository.Gio", "gi.repository.GLib", "gi.repository.Gtk"):
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
+def _build_gi_stubs():
+    gi_mod = types.ModuleType("gi")
+    repo_mod = types.ModuleType("gi.repository")
+
+    class _Template:
+        def __call__(self, *args, **kwargs):
+            return lambda cls: cls
+
+        def Child(self, *args, **kwargs):
+            return None
+
+    class _StubBin:
+        pass
+
+    gtk_mod = types.ModuleType("gi.repository.Gtk")
+    gtk_mod.Template = _Template()
+    gtk_mod.Box = _StubBin
+
+    adw_mod = types.ModuleType("gi.repository.Adw")
+    adw_mod.Bin = _StubBin
+
+    gobject_mod = types.ModuleType("gi.repository.GObject")
+
+    def _property(*args, **kwargs):
+        return lambda func: property(func)
+
+    gobject_mod.Property = _property
+
+    sys.modules["gi.repository.Gtk"] = gtk_mod
+    sys.modules["gi.repository.Adw"] = adw_mod
+    sys.modules["gi.repository.GObject"] = gobject_mod
+    repo_mod.Gtk = gtk_mod
+    repo_mod.Adw = adw_mod
+    repo_mod.GObject = gobject_mod
+
+    for lib in ("Gdk", "Gio", "GLib"):
+        stub = MagicMock()
+        setattr(repo_mod, lib, stub)
+        sys.modules[f"gi.repository.{lib}"] = stub
+
+    gi_mod.repository = repo_mod
+    gi_mod.require_version = lambda *a, **kw: None
+    sys.modules["gi"] = gi_mod
+    sys.modules["gi.repository"] = repo_mod
+
+
+_build_gi_stubs()
 if "bootc_installer.windows.dialog_output" not in sys.modules:
     sys.modules["bootc_installer.windows.dialog_output"] = MagicMock()
 
-from bootc_installer.views.done import apply_icon, do_reboot, warmup_registry  # noqa: E402
+from bootc_installer.views.done import (  # noqa: E402
+    VanillaDone,
+    apply_icon,
+    do_reboot,
+    warmup_registry,
+)
 
 
 class TestDoReboot(unittest.TestCase):
@@ -156,6 +204,97 @@ class TestRegistryWarmup(unittest.TestCase):
                 stderr=b"unauthorized: access denied",
             )
             warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+
+
+class TestFailureHintExtraction(unittest.TestCase):
+
+    def _extract_hint(self, log_data=None, open_side_effect=None):
+        import bootc_installer.views.done as done_mod
+
+        progress_mod = types.SimpleNamespace(_FISHERMAN_LOG_PATH="/unused/fisherman.log")
+        done_page = VanillaDone.__new__(VanillaDone)
+
+        with patch.dict(sys.modules, {"bootc_installer.views.progress": progress_mod}):
+            with patch("builtins.open", create=True) as mock_open:
+                if open_side_effect is not None:
+                    mock_open.side_effect = open_side_effect
+                else:
+                    mock_open.return_value.__enter__.return_value.readlines.return_value = (
+                        log_data or []
+                    )
+                return done_page._VanillaDone__extract_failure_hint()
+
+    def test_missing_log_returns_show_log_hint(self):
+        hint = self._extract_hint(open_side_effect=OSError("missing"))
+        self.assertEqual(
+            hint,
+            "Check the log for details. Click 'Show Log' below.",
+        )
+
+    def test_no_fatal_line_returns_unexpected_exit_hint(self):
+        hint = self._extract_hint(
+            [
+                '{"type":"step","step":6,"step_name":"Installing image"}\n',
+                'info: still working\n',
+            ]
+        )
+        self.assertEqual(
+            hint,
+            "The installer exited unexpectedly. Check the log for details.",
+        )
+
+    def test_failure_categories_return_expected_hints(self):
+        cases = [
+            (
+                "fatal: missing required host tool: sgdisk not found in PATH\n",
+                "A required system tool is missing. Ensure you are running from the official live media.",
+            ),
+            (
+                "fatal: pull failed: registry timeout while downloading image\n",
+                "Network error during image download. Check your internet connection and try again.",
+            ),
+            (
+                "fatal: write failed: no space left on device\n",
+                "Not enough disk space. Select a larger disk or free up space.",
+            ),
+            (
+                "fatal: permission denied opening target disk\n",
+                "Permission denied. The installer needs administrator access to proceed.",
+            ),
+            (
+                "fatal: cryptsetup luksFormat failed\n",
+                "Disk encryption setup failed. Try disabling encryption or check your passphrase.",
+            ),
+            (
+                "fatal: sfdisk failed to partition disk\n",
+                "Disk partitioning failed. The disk may be in use or damaged.",
+            ),
+            (
+                "fatal: mount /dev/sda3 failed\n",
+                "Filesystem mount failed. The disk may be in use by another process.",
+            ),
+        ]
+
+        for fatal_line, expected in cases:
+            with self.subTest(fatal_line=fatal_line.strip()):
+                hint = self._extract_hint([fatal_line])
+                self.assertEqual(hint, expected)
+
+    def test_last_fatal_line_wins(self):
+        hint = self._extract_hint(
+            [
+                "fatal: pull failed: registry timeout\n",
+                "fatal: mount /dev/sda3 failed\n",
+            ]
+        )
+        self.assertEqual(
+            hint,
+            "Filesystem mount failed. The disk may be in use by another process.",
+        )
+
+    def test_unknown_fatal_line_falls_back_to_error_prefix(self):
+        hint = self._extract_hint(["fatal: kernel said something mysterious happened\n"])
+        self.assertEqual(hint, "Error: kernel said something mysterious happened")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 """Unit tests for progress.py — no display required."""
+import json
 import os
 import sys
 import types
@@ -117,6 +118,72 @@ class TestFishermanArgvDirect(unittest.TestCase):
         script = self._script(argv)
         self.assertIn(">", script)
         self.assertIn(self.mod._FISHERMAN_LOG_PATH, script)
+
+
+class TestSoundtrackQrAssets(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with patch.dict("sys.modules", _mock_gtk_imports()):
+            import importlib
+            import bootc_installer.views.progress as mod
+            if not hasattr(mod, "_track_qr_resource_path"):
+                importlib.reload(mod)
+            cls.mod = mod
+
+        tracks_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "bootc_installer",
+            "data",
+            "tracks.json",
+        )
+        with open(tracks_path, encoding="utf-8") as f:
+            cls.tracks = json.load(f)
+
+    def test_all_tracks_declare_bundled_qr_assets(self):
+        missing = [track["title"] for track in self.tracks if not track.get("qr_asset")]
+        self.assertEqual(missing, [])
+
+    def test_qr_assets_map_to_gresource_paths(self):
+        for track in self.tracks:
+            resource_path = self.mod._track_qr_resource_path(track)
+            self.assertTrue(resource_path.startswith("/org/bootcinstaller/Installer/assets/qr/"))
+            self.assertTrue(resource_path.endswith(track["qr_asset"]))
+
+    def test_qr_assets_exist_in_dev_tree(self):
+        missing = []
+        for track in self.tracks:
+            dev_path = self.mod._track_qr_dev_path(track)
+            if dev_path is None or not dev_path.exists():
+                missing.append(track["qr_asset"])
+        self.assertEqual(missing, [])
+
+    def test_missing_qr_asset_returns_no_path(self):
+        track = {"title": "Broken track"}
+        self.assertIsNone(self.mod._track_qr_resource_path(track))
+        self.assertIsNone(self.mod._track_qr_dev_path(track))
+
+
+class TestMediaStreamReadiness(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with patch.dict("sys.modules", _mock_gtk_imports()):
+            import importlib
+            import bootc_installer.views.progress as mod
+            if not hasattr(mod, "_media_stream_is_prepared"):
+                importlib.reload(mod)
+            cls.mod = mod
+
+    def test_none_media_stream_is_not_prepared(self):
+        self.assertFalse(self.mod._media_stream_is_prepared(None))
+
+    def test_media_stream_readiness_uses_is_prepared(self):
+        media_stream = MagicMock()
+        media_stream.is_prepared.return_value = False
+        self.assertFalse(self.mod._media_stream_is_prepared(media_stream))
+        media_stream.is_prepared.return_value = True
+        self.assertTrue(self.mod._media_stream_is_prepared(media_stream))
 
 
 if __name__ == "__main__":
