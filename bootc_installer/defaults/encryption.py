@@ -19,8 +19,8 @@ from gi.repository import Adw, GLib, Gtk
 import os
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-encryption.ui")
-class VanillaDefaultEncryption(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultEncryption"
+class BootcDefaultEncryption(Adw.Bin):
+    __gtype_name__ = "BootcDefaultEncryption"
 
     btn_next = Gtk.Template.Child()
     page_header = Gtk.Template.Child()

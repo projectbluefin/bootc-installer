@@ -9,8 +9,8 @@ from gettext import gettext as _
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from bootc_installer.utils.pastry_compat import wrap_glass
-from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
-from bootc_installer.windows.dialog_output import VanillaDialogOutput
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
+from bootc_installer.windows.dialog_output import BootcDialogOutput
 
 log = logging.getLogger("Installer::Done")
 
@@ -90,8 +90,8 @@ def do_reboot(in_flatpak):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/done.ui")
-class VanillaDone(Adw.Bin):
-    __gtype_name__ = "VanillaDone"
+class BootcDone(Adw.Bin):
+    __gtype_name__ = "BootcDone"
 
     page_header = Gtk.Template.Child()
     btn_reboot = Gtk.Template.Child()
@@ -267,17 +267,28 @@ class VanillaDone(Adw.Bin):
         self.__window.on_installation_confirmed()
 
     def __on_log_clicked(self, button):
-        dialog = VanillaDialogOutput(self.__window)
+        dialog = BootcDialogOutput(self.__window)
         dialog.present()
 
     def __maybe_show_store(self):
-        """Show the merch store QR code for US-locale users only."""
+        """Show the merch store QR code for US-locale users only.
+
+        Requires ``store_url`` in the recipe. The QR image is loaded from
+        ``store_qr_resource`` (a GResource path) if provided, otherwise falls
+        back to the built-in ``assets/store-qr.svg``.  If ``store_url`` is
+        absent the widget stays hidden regardless of locale.
+        """
+        store_url = self.__window.recipe.get("store_url", "")
+        if not store_url:
+            return
         if not self.__is_us_locale():
             return
+        qr_resource = self.__window.recipe.get(
+            "store_qr_resource",
+            "/org/bootcinstaller/Installer/assets/store-qr.svg",
+        )
         try:
-            self.store_qr.set_resource(
-                "/org/bootcinstaller/Installer/assets/store-qr.svg"
-            )
+            self.store_qr.set_resource(qr_resource)
             self.store_group.set_visible(True)
         except Exception as e:
             log.debug("Could not load store QR: %s", e)

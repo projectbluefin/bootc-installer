@@ -79,8 +79,8 @@ def _fisherman_argv_direct(recipe: str) -> list:
     """
     log = _FISHERMAN_LOG_PATH
     if _IN_FLATPAK:
-        if os.environ.get("TUNA_TEST"):
-            bin_ = os.environ.get("TUNA_FISHERMAN_PATH", _FISHERMAN_HOST_PATH)
+        if os.environ.get("BOOTC_TEST"):
+            bin_ = os.environ.get("BOOTC_FISHERMAN_PATH", _FISHERMAN_HOST_PATH)
             cmd = f'sudo "{bin_}" "$1" >"{log}" 2>&1; exit $?'
         else:
             cmd = f'pkexec "{_FISHERMAN_HOST_PATH}" "$1" >"{log}" 2>&1; exit $?'
@@ -97,7 +97,7 @@ def _stage_fisherman_on_host() -> bool:
         return True
 
     os.makedirs(_FISHERMAN_CACHE_DIR, exist_ok=True)
-    fisherman_src = os.environ.get("TUNA_FISHERMAN_PATH", "/app/bin/fisherman")
+    fisherman_src = os.environ.get("BOOTC_FISHERMAN_PATH", "/app/bin/fisherman")
     try:
         shutil.copy2(fisherman_src, _FISHERMAN_HOST_PATH)
         os.chmod(_FISHERMAN_HOST_PATH, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
@@ -111,8 +111,8 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Adw
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/progress.ui")
-class VanillaProgress(Gtk.Box):
-    __gtype_name__ = "VanillaProgress"
+class BootcProgress(Gtk.Box):
+    __gtype_name__ = "BootcProgress"
 
     media_box = Gtk.Template.Child()
     soundtrack_box = Gtk.Template.Child()
@@ -218,22 +218,53 @@ class VanillaProgress(Gtk.Box):
         threading.Thread(target=self.__load_tracks, daemon=True).start()
 
     def __load_tracks(self):
+        """Load soundtrack track list.
+
+        Resolution order:
+        1. ``recipe["soundtrack_data"]`` — a GResource path or filesystem path
+           supplied by the branding layer.
+        2. Built-in GResource ``/org/bootcinstaller/Installer/data/tracks.json``.
+        3. Filesystem fallback next to this module (dev mode).
+        """
         tracks = []
-        try:
-            tracks_bytes = Gio.resources_lookup_data(
-                "/org/bootcinstaller/Installer/data/tracks.json",
-                Gio.ResourceLookupFlags.NONE,
-            )
-            tracks = json.loads(tracks_bytes.get_data())
-        except Exception as e:
-            logger.warning("Failed to load soundtrack from GResource: %s", e)
-            # Fallback: try loading from filesystem (dev mode)
-            import pathlib
-            dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "tracks.json"
+
+        # 1. Recipe-supplied override
+        recipe = getattr(self.__window, "recipe", {}) or {}
+        soundtrack_override = recipe.get("soundtrack_data", "")
+        if soundtrack_override:
+            if soundtrack_override.startswith("/org/"):
+                try:
+                    tracks_bytes = Gio.resources_lookup_data(
+                        soundtrack_override, Gio.ResourceLookupFlags.NONE
+                    )
+                    tracks = json.loads(tracks_bytes.get_data())
+                except Exception as e:
+                    logger.warning("Failed to load soundtrack from recipe GResource %s: %s", soundtrack_override, e)
+            else:
+                try:
+                    import pathlib
+                    tracks = json.loads(pathlib.Path(soundtrack_override).read_text())
+                except Exception as e:
+                    logger.warning("Failed to load soundtrack from recipe path %s: %s", soundtrack_override, e)
+
+        # 2. Built-in GResource
+        if not tracks:
             try:
-                tracks = json.loads(dev_path.read_text())
-            except Exception as e2:
-                logger.warning("Failed to load soundtrack from dev path: %s", e2)
+                tracks_bytes = Gio.resources_lookup_data(
+                    "/org/bootcinstaller/Installer/data/tracks.json",
+                    Gio.ResourceLookupFlags.NONE,
+                )
+                tracks = json.loads(tracks_bytes.get_data())
+            except Exception as e:
+                logger.warning("Failed to load soundtrack from GResource: %s", e)
+                # 3. Filesystem fallback (dev mode)
+                import pathlib
+                dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "tracks.json"
+                try:
+                    tracks = json.loads(dev_path.read_text())
+                except Exception as e2:
+                    logger.warning("Failed to load soundtrack from dev path: %s", e2)
+
         GLib.idle_add(self.__populate_carousel, tracks)
 
     def __populate_carousel(self, tracks):
@@ -765,7 +796,7 @@ class VanillaProgress(Gtk.Box):
 
     def __cleanup_recipe_file(self):
         """Remove the temporary recipe JSON file containing sensitive credentials."""
-        recipe_path = getattr(self, "_VanillaProgress__recipe_path", None)
+        recipe_path = getattr(self, "_BootcProgress__recipe_path", None)
         if not recipe_path:
             return
         try:

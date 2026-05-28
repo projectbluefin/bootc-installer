@@ -2,8 +2,8 @@ from gi.repository import GObject, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-page-header.ui")
-class TunaPageHeader(Gtk.Box):
-    __gtype_name__ = "TunaPageHeader"
+class BootcPageHeader(Gtk.Box):
+    __gtype_name__ = "BootcPageHeader"
 
     _icon = Gtk.Template.Child()
     _title_label = Gtk.Template.Child()

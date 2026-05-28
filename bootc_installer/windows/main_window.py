@@ -26,10 +26,10 @@ from gi.repository import Adw, GLib, Gtk
 from bootc_installer.utils.builder import Builder
 from bootc_installer.utils.pastry_compat import wrap_focus
 from bootc_installer.utils.processor import Processor
-from bootc_installer.views.confirm import VanillaConfirm
-from bootc_installer.views.done import VanillaDone
-from bootc_installer.views.progress import VanillaProgress
-from bootc_installer.views.recovery_key import VanillaRecoveryKey
+from bootc_installer.views.confirm import BootcConfirm
+from bootc_installer.views.done import BootcDone
+from bootc_installer.views.progress import BootcProgress
+from bootc_installer.views.recovery_key import BootcRecoveryKey
 
 try:
     from bootc_installer._version import VERSION as _APP_VERSION
@@ -40,8 +40,8 @@ logger = logging.getLogger("Installer::Window")
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/window.ui")
-class VanillaWindow(Adw.ApplicationWindow):
-    __gtype_name__ = "VanillaWindow"
+class BootcWindow(Adw.ApplicationWindow):
+    __gtype_name__ = "BootcWindow"
 
     carousel = Gtk.Template.Child()
     carousel_indicator_dots = Gtk.Template.Child()
@@ -64,10 +64,10 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.__builder = Builder(self)
 
         # system views
-        self.__view_confirm = VanillaConfirm(self)
-        self.__view_progress = VanillaProgress(self)
-        self.__view_recovery_key = VanillaRecoveryKey(self)
-        self.__view_done = VanillaDone(self)
+        self.__view_confirm = BootcConfirm(self)
+        self.__view_progress = BootcProgress(self)
+        self.__view_recovery_key = BootcRecoveryKey(self)
+        self.__view_done = BootcDone(self)
 
         self.__install_is_encrypted = False
         self.__install_recovery_key = ""
@@ -122,7 +122,7 @@ class VanillaWindow(Adw.ApplicationWindow):
         self.__view_confirm.connect("installation-confirmed", self.on_installation_confirmed)
         self.__view_recovery_key.connect("recovery-key-acknowledged", self.__on_recovery_key_acknowledged)
 
-        if os.environ.get("TUNA_TEST"):
+        if os.environ.get("BOOTC_TEST"):
             self.carousel.connect("page-changed", self.__on_page_changed_test)
             GLib.timeout_add(600, self.__test_advance_first_page)
 
@@ -440,8 +440,8 @@ class VanillaWindow(Adw.ApplicationWindow):
         dialog.present(self)
 
     def __on_credits_clicked(self, *args):
-        from bootc_installer.windows.dialog_credits import TunaCreditsWindow
-        TunaCreditsWindow(self).show()
+        from bootc_installer.windows.dialog_credits import BootcCreditsWindow
+        BootcCreditsWindow(self).show()
 
     def __on_exit_clicked(self, *args):
         if self.__is_done():

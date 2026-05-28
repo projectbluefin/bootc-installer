@@ -10,8 +10,8 @@ _LOG_PATH = os.path.join(
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-output.ui")
-class VanillaDialogOutput(Adw.Window):
-    __gtype_name__ = "VanillaDialogOutput"
+class BootcDialogOutput(Adw.Window):
+    __gtype_name__ = "BootcDialogOutput"
 
     log_view = Gtk.Template.Child()
     btn_copy = Gtk.Template.Child()

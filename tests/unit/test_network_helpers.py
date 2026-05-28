@@ -102,7 +102,7 @@ def _build_gi_stubs():
 _build_gi_stubs()
 
 from bootc_installer.defaults.network import (  # noqa: E402
-    VanillaDefaultNetwork,
+    BootcDefaultNetwork,
     AP_SECURITY_TYPES,
 )
 
@@ -147,5 +147,5 @@ class TestNetworkGetFinals:
     def test_get_finals_returns_empty_dict(self):
         from types import SimpleNamespace
         step = SimpleNamespace()
-        result = VanillaDefaultNetwork.get_finals(step)
+        result = BootcDefaultNetwork.get_finals(step)
         assert result == {}

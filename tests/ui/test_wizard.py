@@ -28,7 +28,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Minimal system recipe — mirrors the installed recipe.json but has no extra steps.
 _SYS_RECIPE = {
     "log_file": "/dev/null",
-    "distro_name": "TunaOS Test",
+    "distro_name": "BootcOS Test",
     "distro_logo": "org.bootcinstaller.Installer",
     "tour": {
         "welcome": {"resource": "/org/bootcinstaller/Installer/assets/welcome.png",
@@ -52,19 +52,19 @@ def _pump():
 
 @pytest.fixture()
 def window():
-    """Yield an initialised VanillaWindow (wizard root) for the test.
+    """Yield an initialised BootcWindow (wizard root) for the test.
 
     Adw.init() is called in pytest_configure (conftest) so all Adw widget
     types are registered before we try to build templates.
 
-    VanillaWindow.__init__ passes kwargs to GObject (which rejects unknown
-    properties), so we inject the test recipe via VANILLA_CUSTOM_RECIPE
+    BootcWindow.__init__ passes kwargs to GObject (which rejects unknown
+    properties), so we inject the test recipe via BOOTC_CUSTOM_RECIPE
     rather than as a constructor kwarg.
 
     GTK-CRITICAL "windows must be added after startup" is a soft warning;
     the window is still fully functional for tests.
     """
-    from bootc_installer.windows.main_window import VanillaWindow
+    from bootc_installer.windows.main_window import BootcWindow
 
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".json", delete=False
@@ -72,8 +72,8 @@ def window():
         json.dump(_SYS_RECIPE, tf)
         recipe_path = tf.name
 
-    old_recipe_env = os.environ.get("VANILLA_CUSTOM_RECIPE")
-    os.environ["VANILLA_CUSTOM_RECIPE"] = recipe_path
+    old_recipe_env = os.environ.get("BOOTC_CUSTOM_RECIPE")
+    os.environ["BOOTC_CUSTOM_RECIPE"] = recipe_path
 
     # On an ostree-booted dev machine, RecipeLoader detects "live ISO mode"
     # and strips the image step. Patch os.path.exists in the recipe module
@@ -92,7 +92,7 @@ def window():
         )
         with _mock_patch("bootc_installer.utils.recipe.os.path.exists",
                          side_effect=_flatpak_exists):
-            win = VanillaWindow(application=app)
+            win = BootcWindow(application=app)
         win.present()
         _pump()
         yield win
@@ -103,9 +103,9 @@ def window():
             pass
         _pump()
         if old_recipe_env is None:
-            os.environ.pop("VANILLA_CUSTOM_RECIPE", None)
+            os.environ.pop("BOOTC_CUSTOM_RECIPE", None)
         else:
-            os.environ["VANILLA_CUSTOM_RECIPE"] = old_recipe_env
+            os.environ["BOOTC_CUSTOM_RECIPE"] = old_recipe_env
         os.unlink(recipe_path)
 
 
@@ -119,7 +119,7 @@ class TestWindowSmoke:
         """The builder should have registered at least the welcome step."""
         from bootc_installer.utils.builder import Builder
         # The window exposes the builder via .builder property.
-        assert hasattr(window, "builder") or hasattr(window, "_VanillaWindow__builder")
+        assert hasattr(window, "builder") or hasattr(window, "_BootcWindow__builder")
 
     def test_image_step_assigned(self, window):
         """After build, window.image_step should point to the image widget."""
@@ -187,14 +187,14 @@ class TestDiskStepButtonState:
 
         from unittest.mock import MagicMock, patch
 
-        from bootc_installer.defaults.disk import VanillaDefaultDisk
+        from bootc_installer.defaults.disk import BootcDefaultDisk
 
         mock_window = MagicMock()
         mock_window.recipe = {"min_disk_size": 51200}
 
         with patch("bootc_installer.defaults.disk.DisksManager") as MockDM:
             MockDM.return_value.all_disks.return_value = []
-            widget = VanillaDefaultDisk(mock_window, {}, "disk", {})
+            widget = BootcDefaultDisk(mock_window, {}, "disk", {})
             _pump()
 
         assert not widget.btn_next.get_sensitive(), (
@@ -208,11 +208,11 @@ class TestDiskStepFsToolCheck:
     def _make_disk_widget(self):
         from unittest.mock import MagicMock, patch
 
-        from bootc_installer.defaults.disk import VanillaDefaultDisk
-        from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401 — registers GType
+        from bootc_installer.defaults.disk import BootcDefaultDisk
+        from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401 — registers GType
 
         try:
-            Adw.ButtonRow  # noqa: B018 — probe for ≥1.6 widget used in VanillaDefaultDisk.__init__
+            Adw.ButtonRow  # noqa: B018 — probe for ≥1.6 widget used in BootcDefaultDisk.__init__
         except AttributeError:
             pytest.skip("Adw.ButtonRow requires libadwaita >= 1.6")
 
@@ -224,7 +224,7 @@ class TestDiskStepFsToolCheck:
         }
         with patch("bootc_installer.defaults.disk.DisksManager") as MockDM:
             MockDM.return_value.all_disks.return_value = []
-            widget = VanillaDefaultDisk(mock_window, {}, "disk", {})
+            widget = BootcDefaultDisk(mock_window, {}, "disk", {})
             _pump()
         return widget
 
@@ -237,7 +237,7 @@ class TestDiskStepFsToolCheck:
 
         missing = subprocess.CompletedProcess(args=[], returncode=1)
         with patch("subprocess.run", return_value=missing):
-            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            widget._BootcDefaultDisk__check_fs_tool("xfs")
             _pump()
 
         assert widget.fs_tool_error_banner.get_visible(), (
@@ -258,7 +258,7 @@ class TestDiskStepFsToolCheck:
 
         present = subprocess.CompletedProcess(args=[], returncode=0)
         with patch("subprocess.run", return_value=present):
-            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            widget._BootcDefaultDisk__check_fs_tool("xfs")
             _pump()
 
         assert not widget.fs_tool_error_banner.get_visible(), (
@@ -278,7 +278,7 @@ class TestDiskStepFsToolCheck:
 
         missing = subprocess.CompletedProcess(args=[], returncode=1)
         with patch("subprocess.run", return_value=missing):
-            widget._VanillaDefaultDisk__check_fs_tool("btrfs")
+            widget._BootcDefaultDisk__check_fs_tool("btrfs")
             _pump()
 
         assert widget.fs_tool_error_banner.get_visible(), (
@@ -295,11 +295,11 @@ class TestDiskStepFsToolCheck:
 
         widget = self._make_disk_widget()
         # Simulate a partition recipe being set (as if the user picked a disk)
-        widget._VanillaDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
+        widget._BootcDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
 
         missing = subprocess.CompletedProcess(args=[], returncode=1)
         with patch("subprocess.run", return_value=missing):
-            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            widget._BootcDefaultDisk__check_fs_tool("xfs")
             _pump()
 
         assert not widget.btn_next.get_sensitive(), (
@@ -312,11 +312,11 @@ class TestDiskStepFsToolCheck:
         from unittest.mock import patch
 
         widget = self._make_disk_widget()
-        widget._VanillaDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
+        widget._BootcDefaultDisk__partition_recipe = {"disk": "/dev/sda"}
 
         present = subprocess.CompletedProcess(args=[], returncode=0)
         with patch("subprocess.run", return_value=present):
-            widget._VanillaDefaultDisk__check_fs_tool("xfs")
+            widget._BootcDefaultDisk__check_fs_tool("xfs")
             _pump()
 
         assert widget.btn_next.get_sensitive(), (

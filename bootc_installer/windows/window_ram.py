@@ -22,8 +22,8 @@ from bootc_installer.utils.recipe import RecipeLoader
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/window-ram.ui")
-class VanillaRamWindow(Adw.Window):
-    __gtype_name__ = "VanillaRamWindow"
+class BootcRamWindow(Adw.Window):
+    __gtype_name__ = "BootcRamWindow"
 
     btn_continue = Gtk.Template.Child()
     description_label = Gtk.Template.Child()

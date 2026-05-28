@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaConfirm: Adw.Bin {
+template $BootcConfirm: Adw.Bin {
   halign: fill;
   valign: fill;
   hexpand: true;
@@ -15,7 +15,7 @@ template $VanillaConfirm: Adw.Bin {
       hexpand: true;
 
       Adw.PreferencesGroup {
-        $TunaPageHeader page_header {
+        $BootcPageHeader page_header {
           margin-top: 24;
           title: _("Confirm Installation");
           subtitle: _("\"Indeed.\" — Commander Zavala");

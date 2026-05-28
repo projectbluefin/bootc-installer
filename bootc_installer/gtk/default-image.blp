@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultImage: Adw.Bin {
+template $BootcDefaultImage: Adw.Bin {
   halign: fill;
   valign: fill;
   hexpand: true;
@@ -34,11 +34,11 @@ template $VanillaDefaultImage: Adw.Bin {
 
       Adw.PreferencesPage {
         Adw.PreferencesGroup {
-          $TunaPageHeader page_header {
+          $BootcPageHeader page_header {
             margin-top: 24;
             icon-name: "media-optical-symbolic";
             title: _("Choose an Image");
-            subtitle: _("Select a TunaOS image to install, or enter a custom bootc-compatible image URL.");
+            subtitle: _("Select a BootcOS image to install, or enter a custom bootc-compatible image URL.");
           }
         }
 

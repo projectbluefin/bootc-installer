@@ -10,7 +10,7 @@ from bootc_installer.utils.pastry_compat import add_glass_root, wrap_glass
 
 _CREDITS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "credits.json")
 
-logger = logging.getLogger("VanillaInstaller::Credits")
+logger = logging.getLogger("BootcInstaller::Credits")
 
 # CSS for the glass-effect hero cards and animations
 _CREDITS_CSS = """
@@ -124,8 +124,8 @@ _CREDITS_CSS = """
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-credits.ui")
-class TunaCreditsWindow(Adw.Window):
-    __gtype_name__ = "TunaCreditsWindow"
+class BootcCreditsWindow(Adw.Window):
+    __gtype_name__ = "BootcCreditsWindow"
 
     header_title = Gtk.Template.Child()
     header_subtitle = Gtk.Template.Child()
@@ -142,6 +142,7 @@ class TunaCreditsWindow(Adw.Window):
         self._reveal_index = 0
         self._section_revealers = []
         self._current_section = 0
+        self._window = window
         add_glass_root(self)
 
         # Apply CSS
@@ -156,17 +157,45 @@ class TunaCreditsWindow(Adw.Window):
         self._load_credits()
 
     def _load_credits(self):
-        """Load credits data and populate the window."""
+        """Load credits data and populate the window.
+
+        Resolution order:
+        1. ``recipe["credits_data"]`` — a GResource path or filesystem path
+           supplied by the branding layer.
+        2. Built-in GResource ``/org/bootcinstaller/Installer/data/credits.json``.
+        3. Filesystem fallback next to this module (dev mode).
+        """
         data = None
 
-        # Try loading from GResource (Flatpak bundle)
-        try:
-            resource_path = "/org/bootcinstaller/Installer/data/credits.json"
-            gfile = Gio.File.new_for_uri(f"resource://{resource_path}")
-            content = gfile.load_contents(None)[1].decode("utf-8")
-            data = json.loads(content)
-        except Exception as e:
-            logger.debug("Could not load credits from GResource: %s", e)
+        # 1. Recipe-supplied override
+        recipe = getattr(self._window, "recipe", {}) or {}
+        credits_override = recipe.get("credits_data", "")
+        if credits_override:
+            if credits_override.startswith("/org/"):
+                try:
+                    gfile = Gio.File.new_for_uri(f"resource://{credits_override}")
+                    content = gfile.load_contents(None)[1].decode("utf-8")
+                    data = json.loads(content)
+                except Exception as e:
+                    logger.debug("Could not load credits from recipe GResource %s: %s", credits_override, e)
+            else:
+                try:
+                    with open(credits_override) as f:
+                        data = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError) as e:
+                    logger.debug("Could not load credits from recipe path %s: %s", credits_override, e)
+
+        # 2. Built-in GResource
+        if data is None:
+            try:
+                resource_path = "/org/bootcinstaller/Installer/data/credits.json"
+                gfile = Gio.File.new_for_uri(f"resource://{resource_path}")
+                content = gfile.load_contents(None)[1].decode("utf-8")
+                data = json.loads(content)
+            except Exception as e:
+                logger.debug("Could not load credits from GResource: %s", e)
+
+        # 3. Filesystem fallback (dev mode)
         if data is None:
             credits_path = _CREDITS_PATH
             if not os.path.exists(credits_path):

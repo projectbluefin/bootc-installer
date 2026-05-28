@@ -60,7 +60,7 @@ if "bootc_installer.windows.dialog_output" not in sys.modules:
     sys.modules["bootc_installer.windows.dialog_output"] = MagicMock()
 
 from bootc_installer.views.done import (  # noqa: E402
-    VanillaDone,
+    BootcDone,
     apply_icon,
     do_reboot,
     warmup_registry,
@@ -117,9 +117,9 @@ class TestApplyIcon(unittest.TestCase):
 
     def test_resource_uri_calls_set_from_resource(self):
         page_header = MagicMock()
-        apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/tunaos.svg")
+        apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/bootcos.svg")
         page_header.set_from_resource.assert_called_once_with(
-            "/org/bootcinstaller/Installer/images/tunaos.svg"
+            "/org/bootcinstaller/Installer/images/bootcos.svg"
         )
 
     def test_icon_theme_name_calls_set_icon_name(self):
@@ -144,7 +144,7 @@ class TestMainWindowIconExtraction(unittest.TestCase):
 
     def test_selected_icon_extracted_from_finals(self):
         finals = [
-            {"hostname": "tunaos"},
+            {"hostname": "bootcos"},
             {"pretty_name": "Yellowfin", "icon": "resource:///org/bootcinstaller/Installer/images/yellowfin.svg"},
         ]
         pretty_name = None
@@ -162,7 +162,7 @@ class TestMainWindowIconExtraction(unittest.TestCase):
         self.assertEqual(selected_icon, "resource:///org/bootcinstaller/Installer/images/yellowfin.svg")
 
     def test_selected_icon_none_when_not_in_finals(self):
-        finals = [{"hostname": "tunaos"}, {"pretty_name": "Yellowfin"}]
+        finals = [{"hostname": "bootcos"}, {"pretty_name": "Yellowfin"}]
         selected_icon = None
         for f in finals:
             if isinstance(f, dict) and selected_icon is None and "icon" in f:
@@ -212,7 +212,7 @@ class TestFailureHintExtraction(unittest.TestCase):
         import bootc_installer.views.done as done_mod
 
         progress_mod = types.SimpleNamespace(_FISHERMAN_LOG_PATH="/unused/fisherman.log")
-        done_page = VanillaDone.__new__(VanillaDone)
+        done_page = BootcDone.__new__(BootcDone)
 
         with patch.dict(sys.modules, {"bootc_installer.views.progress": progress_mod}):
             with patch("builtins.open", create=True) as mock_open:
@@ -222,7 +222,7 @@ class TestFailureHintExtraction(unittest.TestCase):
                     mock_open.return_value.__enter__.return_value.readlines.return_value = (
                         log_data or []
                     )
-                return done_page._VanillaDone__extract_failure_hint()
+                return done_page._BootcDone__extract_failure_hint()
 
     def test_missing_log_returns_show_log_hint(self):
         hint = self._extract_hint(open_side_effect=OSError("missing"))

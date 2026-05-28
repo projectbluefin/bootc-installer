@@ -79,7 +79,7 @@ _build_gi_stubs()
 # Now import the helpers we want to test.
 from bootc_installer.defaults.slurp import (  # noqa: E402
     _fmt_bytes,
-    VanillaDefaultSlurp,
+    BootcDefaultSlurp,
 )
 
 
@@ -100,7 +100,7 @@ class TestFmtBytes:
         assert _fmt_bytes(size) == expected
 
 
-# ── VanillaDefaultSlurp.should_show ───────────────────────────────────────────
+# ── BootcDefaultSlurp.should_show ───────────────────────────────────────────
 
 class TestSlurpShouldShow:
     def _step(self):
@@ -108,20 +108,20 @@ class TestSlurpShouldShow:
         return SimpleNamespace()
 
     def test_always_true(self):
-        assert VanillaDefaultSlurp.should_show(self._step(), {}) is True
+        assert BootcDefaultSlurp.should_show(self._step(), {}) is True
 
     def test_true_with_populated_context(self):
         ctx = {"finals": [{"disk": "/dev/sda"}], "leaf_count": 2}
-        assert VanillaDefaultSlurp.should_show(self._step(), ctx) is True
+        assert BootcDefaultSlurp.should_show(self._step(), ctx) is True
 
 
-# ── VanillaDefaultSlurp.__get_disk ────────────────────────────────────────────
+# ── BootcDefaultSlurp.__get_disk ────────────────────────────────────────────
 
 class TestSlurpGetDisk:
     def _get_disk(self, context):
         from types import SimpleNamespace
         step = SimpleNamespace()
-        return VanillaDefaultSlurp._VanillaDefaultSlurp__get_disk(step, context)
+        return BootcDefaultSlurp._BootcDefaultSlurp__get_disk(step, context)
 
     def test_auto_nested_dict(self):
         ctx = {"finals": [{"disk": {"auto": {"disk": "/dev/sda"}, "filesystem": "xfs"}}]}
@@ -147,14 +147,14 @@ class TestSlurpGetDisk:
         assert self._get_disk(ctx) == "/dev/sdc"
 
 
-# ── VanillaDefaultSlurp.get_finals ────────────────────────────────────────────
+# ── BootcDefaultSlurp.get_finals ────────────────────────────────────────────
 
 class TestSlurpGetFinals:
     def _get_finals(self, selection):
         from types import SimpleNamespace
         step = SimpleNamespace()
-        step._VanillaDefaultSlurp__selection = selection
-        return VanillaDefaultSlurp.get_finals(step)
+        step._BootcDefaultSlurp__selection = selection
+        return BootcDefaultSlurp.get_finals(step)
 
     def test_empty_selection(self):
         assert self._get_finals({}) == {"slurp": None}

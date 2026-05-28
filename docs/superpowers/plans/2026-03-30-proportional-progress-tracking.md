@@ -19,7 +19,7 @@
 | `fisherman/fisherman/internal/install/bootc.go` | Add `CheckImage()`; add `skopeoInspectFn` var; add `LayerCount`/`NeedsPull` to `Options`; remove `getLayerCount()`; fix blob counting; add `classifyLine` pattern |
 | `fisherman/fisherman/internal/install/bootc_test.go` | Add tests for `CheckImage`, `ClassifyLine` "layers needed" pattern |
 | `fisherman/fisherman/cmd/fisherman/main.go` | Fix `totalSteps` (9→8); add `step++` after configure; add `buildProfile()`; call `CheckImage` pre-flight; pass weights to all `progress.Step()` calls |
-| `tuna_installer/views/progress.py` | Use `cumulative_pct / 100.0` for bar fraction |
+| `bootc_installer/views/progress.py` | Use `cumulative_pct / 100.0` for bar fraction |
 
 ---
 
@@ -803,13 +803,13 @@ git commit -m "feat: wire weight profiles and CheckImage pre-flight into main in
 ## Task 7: Update Python GUI progress bar
 
 **Files:**
-- Modify: `tuna_installer/views/progress.py`
+- Modify: `bootc_installer/views/progress.py`
 
 One logical change: use `cumulative_pct` from the step event for bar position instead of `step/total_steps`.
 
 - [ ] **Step 1: Update the step handler in __on_vte_contents_changed**
 
-In `tuna_installer/views/progress.py`, find the `event_type == "step"` branch (around line 327). Replace the fraction calculation:
+In `bootc_installer/views/progress.py`, find the `event_type == "step"` branch (around line 327). Replace the fraction calculation:
 
 ```python
 # Before:
@@ -830,7 +830,7 @@ self.__current_weight_pct = 0
 - [ ] **Step 2: Verify the file looks right**
 
 ```bash
-python3 -c "import ast; ast.parse(open('tuna_installer/views/progress.py').read()); print('syntax OK')"
+python3 -c "import ast; ast.parse(open('bootc_installer/views/progress.py').read()); print('syntax OK')"
 ```
 
 Expected: `syntax OK`
@@ -838,7 +838,7 @@ Expected: `syntax OK`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add tuna_installer/views/progress.py
+git add bootc_installer/views/progress.py
 git commit -m "feat: use cumulative_pct for proportional progress bar in GUI"
 ```
 
@@ -865,7 +865,7 @@ Expected: pushes to `tuna-os/fisherman` remote.
 - [ ] **Step 2: Update submodule pointer in parent repo**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add fisherman
 git commit -m "chore: update fisherman submodule (proportional progress tracking)"
 git push

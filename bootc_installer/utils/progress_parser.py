@@ -1,7 +1,7 @@
 """progress_parser.py — Pure fisherman progress-event parser (no GTK).
 
 Provides apply_progress_event() and _new_progress_state() for use by
-VanillaProgress and for unit tests.
+BootcProgress and for unit tests.
 """
 
 import json

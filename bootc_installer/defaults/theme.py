@@ -18,8 +18,8 @@ from gi.repository import Gio, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-theme.ui")
-class VanillaDefaultTheme(Gtk.Box):
-    __gtype_name__ = "VanillaDefaultTheme"
+class BootcDefaultTheme(Gtk.Box):
+    __gtype_name__ = "BootcDefaultTheme"
 
     btn_next = Gtk.Template.Child()
     btn_default = Gtk.Template.Child()

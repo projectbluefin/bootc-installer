@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultHardware: Adw.Bin {
+template $BootcDefaultHardware: Adw.Bin {
   halign: fill;
   valign: fill;
   hexpand: true;
@@ -14,7 +14,7 @@ template $VanillaDefaultHardware: Adw.Bin {
 
     Adw.PreferencesPage {
       Adw.PreferencesGroup {
-        $TunaPageHeader page_header {
+        $BootcPageHeader page_header {
           margin-top: 24;
           title: _("System Check");
           subtitle: _("Verifying hardware compatibility");

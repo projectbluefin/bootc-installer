@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultKeyboard: Adw.Bin {
+template $BootcDefaultKeyboard: Adw.Bin {
   hexpand: true;
   vexpand: true;
 
@@ -39,7 +39,7 @@ template $VanillaDefaultKeyboard: Adw.Bin {
 
         Adw.PreferencesPage {
           Adw.PreferencesGroup {
-            $TunaPageHeader page_header {
+            $BootcPageHeader page_header {
               margin-top: 24;
               icon-name: "input-keyboard-symbolic";
               title: _("Keyboard Layout");

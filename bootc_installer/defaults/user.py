@@ -16,8 +16,8 @@ _DEFAULT_GROUPS = ["wheel"]
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-users.ui")
-class VanillaDefaultUsers(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultUsers"
+class BootcDefaultUsers(Adw.Bin):
+    __gtype_name__ = "BootcDefaultUsers"
 
     btn_next           = Gtk.Template.Child()
     fullname_entry     = Gtk.Template.Child()
@@ -93,7 +93,7 @@ class VanillaDefaultUsers(Adw.Bin):
         current_username = self.username_entry.get_text()
         # Only auto-fill if the user hasn't typed a username yet.
         if current_username == "" or current_username == self.__suggested_username(
-            self.__prev_fullname if hasattr(self, "_VanillaDefaultUsers__prev_fullname") else ""
+            self.__prev_fullname if hasattr(self, "_BootcDefaultUsers__prev_fullname") else ""
         ):
             suggested = self.__suggested_username(fullname)
             self.username_entry.set_text(suggested)

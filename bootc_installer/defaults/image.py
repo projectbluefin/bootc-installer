@@ -262,8 +262,8 @@ def _make_icon(icon_spec: str, size: int = 32) -> "Gtk.Image | None":
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-image.ui")
-class VanillaDefaultImage(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultImage"
+class BootcDefaultImage(Adw.Bin):
+    __gtype_name__ = "BootcDefaultImage"
 
     btn_next        = Gtk.Template.Child()
     search_entry    = Gtk.Template.Child()
@@ -416,7 +416,7 @@ class VanillaDefaultImage(Adw.Bin):
         row.set_activatable_widget(check)
         check.connect("toggled", self.__on_check_toggled, imgref, flatpaks, icon, carousel, needs_user, composefs, image_type, bootloader, image_filesystem, flatpak_var_path, default_hostname, filesystems or [])
 
-        # Leaf icon — only for nodes that explicitly define one (e.g. TunaOS variants).
+        # Leaf icon — only for nodes that explicitly define one (e.g. BootcOS variants).
         if icon:
             img = _make_icon(icon, size=24)
             if img:

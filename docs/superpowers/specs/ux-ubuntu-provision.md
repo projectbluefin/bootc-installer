@@ -98,7 +98,7 @@ ENC_LABELS = {
 ### 10. per-page `should_show()` pattern (TODO / refactor)
 Each page self-reports visibility instead of central Builder logic.
 ```python
-class VanillaDefaultEncryption(Adw.Bin):
+class BootcDefaultEncryption(Adw.Bin):
     def should_show(self, context: dict) -> bool:
         return True  # default; can check context["has_tpm2"] etc.
 ```

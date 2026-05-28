@@ -1,4 +1,4 @@
 [submodule "fisherman"]
 	path = fisherman
-	url = https://github.com/castrojo/fisherman.git
+	url = https://github.com/projectbluefin/fisherman.git
 	branch = dev

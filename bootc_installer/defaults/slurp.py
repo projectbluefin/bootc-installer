@@ -33,8 +33,8 @@ def _fmt_bytes(size: int) -> str:
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-slurp.ui")
-class VanillaDefaultSlurp(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultSlurp"
+class BootcDefaultSlurp(Adw.Bin):
+    __gtype_name__ = "BootcDefaultSlurp"
 
     btn_next = Gtk.Template.Child()
     btn_skip = Gtk.Template.Child()
@@ -176,7 +176,7 @@ class VanillaDefaultSlurp(Adw.Bin):
         ).start()
 
     def __resolve_fisherman_path(self) -> str | None:
-        env_path = os.environ.get("TUNA_FISHERMAN_PATH", "")
+        env_path = os.environ.get("BOOTC_FISHERMAN_PATH", "")
 
         if _IN_FLATPAK:
             if os.path.exists(_FISHERMAN_HOST_PATH):

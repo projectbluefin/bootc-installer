@@ -37,7 +37,7 @@ import pytest  # noqa: E402
 def _find_gresource() -> str | None:
     """Search common build/install paths for the compiled .gresource bundle."""
     candidates = [
-        os.environ.get("TUNA_RESOURCE", ""),
+        os.environ.get("BOOTC_RESOURCE", ""),
         # meson builddir locations
         os.path.join(repo_root, "build", "bootc_installer", "bootc-installer.gresource"),
         os.path.join(repo_root, "_build", "bootc_installer", "bootc-installer.gresource"),
@@ -68,7 +68,7 @@ def pytest_configure(config):
         print(f"\n[conftest] GResource loaded from {path}")
     else:
         print("\n[conftest] WARNING: bootc-installer.gresource not found — "
-              "set TUNA_RESOURCE=<path> or run 'meson setup build && ninja -C build' first.")
+              "set BOOTC_RESOURCE=<path> or run 'meson setup build && ninja -C build' first.")
 
     # Register all Adw widget types so @Gtk.Template classes that reference
     # AdwToolbarView, AdwStatusPage, etc. can be instantiated in tests.

@@ -87,7 +87,7 @@ kde-bootc-installer  # If installed non-Flatpak
 ### Single Codebase, Multiple Variants
 
 ```
-tuna-installer/
+bootc-installer/
 ├── bootc_installer/
 │   ├── core/            # Shared business logic
 │   ├── utils/           # Shared utilities
@@ -189,7 +189,7 @@ org.kdeinstaller.Installer       0.1.0       system,user
 
 ```bash
 # GNOME
-tail -f ~/.cache/tuna-installer/installer-debug.log
+tail -f ~/.cache/bootc-installer/installer-debug.log
 
 # All variants write to same log, but environment shows variant:
 BOOTC_INSTALLER_DEBUG=1 flatpak run org.xfceinstaller.Installer

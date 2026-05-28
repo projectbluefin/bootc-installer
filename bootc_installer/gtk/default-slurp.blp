@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultSlurp: Adw.Bin {
+template $BootcDefaultSlurp: Adw.Bin {
   hexpand: true;
 
   ScrolledWindow {
@@ -13,7 +13,7 @@ template $VanillaDefaultSlurp: Adw.Bin {
       hexpand: true;
 
       Adw.PreferencesGroup {
-        $TunaPageHeader page_header {
+        $BootcPageHeader page_header {
           margin-top: 24;
           icon-name: "document-open-symbolic";
           title: _("Bring Your Files");

@@ -11,7 +11,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib  # noqa: E402
 
-from bootc_installer.windows.main_window import VanillaWindow
+from bootc_installer.windows.main_window import BootcWindow
 
 _RECIPE_PATH = Path(__file__).resolve().parents[2] / "recipe.json"
 
@@ -89,7 +89,7 @@ def _make_window(extra_env):
     )
 
     env = {
-        "VANILLA_CUSTOM_RECIPE": str(_RECIPE_PATH),
+        "BOOTC_CUSTOM_RECIPE": str(_RECIPE_PATH),
         **extra_env,
     }
 
@@ -107,7 +107,7 @@ def _make_window(extra_env):
         patcher.start()
 
     try:
-        window = VanillaWindow(application=app)
+        window = BootcWindow(application=app)
         window.present()
         _pump()
     except Exception:
@@ -119,15 +119,15 @@ def _make_window(extra_env):
 
 
 def _view(window, name):
-    return getattr(window, f"_VanillaWindow__view_{name}")
+    return getattr(window, f"_BootcWindow__view_{name}")
 
 
 class TestDemoEndToEnd:
-    def test_bootc_demo_and_tuna_test_reach_done_screen(self):
-        window, scheduler, patchers = _make_window({"BOOTC_DEMO": "1", "TUNA_TEST": "1"})
+    def test_bootc_demo_and_bootc_test_reach_done_screen(self):
+        window, scheduler, patchers = _make_window({"BOOTC_DEMO": "1", "BOOTC_TEST": "1"})
 
         try:
-            builder = getattr(window, "_VanillaWindow__builder")
+            builder = getattr(window, "_BootcWindow__builder")
             for step in builder.widgets[:4]:
                 step.test_auto_advance()
                 _pump()
@@ -153,7 +153,7 @@ class TestDemoEndToEnd:
         window, scheduler, patchers = _make_window({"BOOTC_PREVIEW_SCREEN": "confirm"})
 
         try:
-            window._VanillaWindow__apply_preview_screen()
+            window._BootcWindow__apply_preview_screen()
             _pump()
             scheduler.drain()
             titles = {

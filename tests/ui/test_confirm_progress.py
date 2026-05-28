@@ -9,9 +9,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import GLib  # noqa: E402
 
-from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
-from bootc_installer.views.confirm import VanillaConfirm
-from bootc_installer.views.progress import VanillaProgress
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
+from bootc_installer.views.confirm import BootcConfirm
+from bootc_installer.views.progress import BootcProgress
 
 
 def _pump():
@@ -41,7 +41,7 @@ class _ImmediateThread:
 
 class TestConfirmScreen:
     def test_update_renders_summary_rows_and_pt_br_quote(self):
-        confirm = VanillaConfirm(object())
+        confirm = BootcConfirm(object())
         finals = [
             {"language": "pt_BR.UTF-8"},
             {"keyboard": [{"layout": "us", "variant": ""}, {"layout": "br", "variant": "abnt2"}]},
@@ -79,7 +79,7 @@ class TestConfirmScreen:
         ) in rows
 
     def test_confirm_button_emits_signal_once_and_defaults_to_zavala(self):
-        confirm = VanillaConfirm(object())
+        confirm = BootcConfirm(object())
         seen = []
 
         with patch("bootc_installer.core.system.Systeminfo.gpu_display_string", return_value=""):
@@ -102,7 +102,7 @@ class TestProgressScreen:
             patch("bootc_installer.views.progress.threading.Thread", _ImmediateThread),
             patch("bootc_installer.views.progress.GLib.timeout_add_seconds", return_value=1),
         ):
-            progress = VanillaProgress(window)
+            progress = BootcProgress(window)
             _pump()
         return progress, window
 
@@ -141,11 +141,11 @@ class TestProgressScreen:
 
     def test_progress_events_update_labels_percentage_eta_and_completion(self):
         progress, _window = self._make_progress()
-        progress._VanillaProgress__start_time = 100.0
+        progress._BootcProgress__start_time = 100.0
 
         with patch("bootc_installer.views.progress.time.monotonic", return_value=220.0):
-            progress._VanillaProgress__update_elapsed_label()
-            progress._VanillaProgress__parse_progress_line(
+            progress._BootcProgress__update_elapsed_label()
+            progress._BootcProgress__parse_progress_line(
                 json.dumps(
                     {
                         "type": "step",
@@ -157,7 +157,7 @@ class TestProgressScreen:
                     }
                 )
             )
-            progress._VanillaProgress__parse_progress_line(
+            progress._BootcProgress__parse_progress_line(
                 json.dumps({"type": "substep", "message": "Pulling image: layer 5/10"})
             )
 
@@ -170,15 +170,15 @@ class TestProgressScreen:
         assert "remaining" in progress.progress_eta.get_label()
         assert progress.progress_substep.get_label() == "Pulling image: layer 5/10"
 
-        progress._VanillaProgress__parse_progress_line(
+        progress._BootcProgress__parse_progress_line(
             json.dumps({"type": "complete", "boot_id": "boot-123", "recovery_key": "rk-1"})
         )
 
         assert progress.progressbar_text.get_label() == "Installation complete!"
         assert progress.progress_percentage.get_label() == "100%"
         assert progress.progress_substep.get_label() == ""
-        assert progress._VanillaProgress__boot_id == "boot-123"
-        assert progress._VanillaProgress__recovery_key == "rk-1"
+        assert progress._BootcProgress__boot_id == "boot-123"
+        assert progress._BootcProgress__recovery_key == "rk-1"
 
     def test_demo_mode_completes_and_reports_success(self):
         progress, window = self._make_progress()
