@@ -15,6 +15,10 @@
         }
     ],
     "welcome_title": "Welcome to Dakota",
+    "store_url": "https://store.projectbluefin.io",
+    "store_qr_resource": "/org/bootcinstaller/Installer/assets/store-qr.svg",
+    "credits_data": "/org/bootcinstaller/Installer/data/credits.json",
+    "soundtrack_data": "/org/bootcinstaller/Installer/data/tracks.json",
     "welcome_subtitle": "A GNOME workstation built on GnomeOS — composefs, atomic updates, no package manager.",
     "tour": {
         "welcome": {
