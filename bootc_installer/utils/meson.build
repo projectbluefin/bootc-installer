@@ -8,6 +8,7 @@ sources = [
   'recipe.py',
   'builder.py',
   'progress_parser.py',
+  'pastry_compat.py',
 ]
 
 install_data(sources, install_dir: utilsdir)
