@@ -349,6 +349,28 @@ sudo ninja -C build install
 bootc-installer
 ```
 
+### Demo / preview loop
+
+For day-to-day UI work, use the repo launcher:
+
+```bash
+./run-dev.sh
+```
+
+It runs the local build with `BOOTC_DEMO=1`, so the full wizard can be walked
+without launching fisherman or touching a disk.
+
+To jump directly to an individual screen during local iteration, set
+`BOOTC_PREVIEW_SCREEN` before launching:
+
+```bash
+BOOTC_PREVIEW_SCREEN=confirm ./run-dev.sh
+BOOTC_PREVIEW_SCREEN=progress ./run-dev.sh
+```
+
+`progress` starts the demo install sequence automatically when `BOOTC_DEMO=1`
+is enabled.
+
 ### Dependencies
 
 - meson, ninja
@@ -357,5 +379,22 @@ bootc-installer
 - libgnome-desktop-4-dev
 - python3-requests
 - Go ≥ 1.22 (for fisherman)
+
+## Testing and release qualification
+
+Software-only validation that is already wired into this repo:
+
+```bash
+./QUALIFY_SOFTWARE.sh
+```
+
+Optional local install/boot smoke coverage also exists in `tests/integration/test_e2e_install.py` for root + QEMU environments:
+
+```bash
+sudo FISHERMAN_BIN=/path/to/fisherman pytest tests/integration/test_e2e_install.py -v -s
+sudo FISHERMAN_BIN=/path/to/fisherman BOOT_VERIFY=1 pytest tests/integration/test_e2e_install.py -v -s
+```
+
+Real release qualification still requires destructive installs on lab hardware for TPM2, physical boot prompts, recovery-key/passphrase fallback, Windows slurp, and offline ISO paths. Use the repo runbook in [`.github/CI_CD_GUIDE.md`](.github/CI_CD_GUIDE.md#release-qualification-runbook) to separate what can be verified now from what remains hardware-only.
 
 # Rebuild trigger: 1778728267

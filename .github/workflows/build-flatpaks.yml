@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-      - main
+      - prod
     tags:
       - 'v*'
   workflow_dispatch:
@@ -76,7 +76,7 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
             TAG="${{ github.ref_name }}"
-          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          elif [[ "${{ github.ref }}" == "refs/heads/prod" ]]; then
             TAG="continuous"
           else
             TAG="continuous-dev"
