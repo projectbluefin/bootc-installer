@@ -69,7 +69,7 @@ class RecipeLoader:
             logger.warning("Demo/preview mode: continuing without a recipe")
             self.__recipe = {
                 "log_file": "/tmp/bootc-installer-demo.log",
-                "distro_name": "Bluefin",
+                "distro_name": os.environ.get("BOOTC_DEMO_DISTRO_NAME", ""),
                 "distro_logo": "",
                 "steps": {},
             }

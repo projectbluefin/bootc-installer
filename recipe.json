@@ -14,7 +14,7 @@
             "flatpak_var_path": "state/os/default/var"
         }
     ],
-    "welcome_title": "Welcome to Bluefin",
+    "welcome_title": "Welcome to Dakota",
     "welcome_subtitle": "A GNOME workstation built on GnomeOS — composefs, atomic updates, no package manager.",
     "tour": {
         "welcome": {

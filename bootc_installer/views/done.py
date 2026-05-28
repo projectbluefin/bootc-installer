@@ -271,13 +271,24 @@ class VanillaDone(Adw.Bin):
         dialog.present()
 
     def __maybe_show_store(self):
-        """Show the merch store QR code for US-locale users only."""
+        """Show the merch store QR code for US-locale users only.
+
+        Requires ``store_url`` in the recipe. The QR image is loaded from
+        ``store_qr_resource`` (a GResource path) if provided, otherwise falls
+        back to the built-in ``assets/store-qr.svg``.  If ``store_url`` is
+        absent the widget stays hidden regardless of locale.
+        """
+        store_url = self.__window.recipe.get("store_url", "")
+        if not store_url:
+            return
         if not self.__is_us_locale():
             return
+        qr_resource = self.__window.recipe.get(
+            "store_qr_resource",
+            "/org/bootcinstaller/Installer/assets/store-qr.svg",
+        )
         try:
-            self.store_qr.set_resource(
-                "/org/bootcinstaller/Installer/assets/store-qr.svg"
-            )
+            self.store_qr.set_resource(qr_resource)
             self.store_group.set_visible(True)
         except Exception as e:
             log.debug("Could not load store QR: %s", e)

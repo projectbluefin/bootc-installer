@@ -218,22 +218,53 @@ class VanillaProgress(Gtk.Box):
         threading.Thread(target=self.__load_tracks, daemon=True).start()
 
     def __load_tracks(self):
+        """Load soundtrack track list.
+
+        Resolution order:
+        1. ``recipe["soundtrack_data"]`` — a GResource path or filesystem path
+           supplied by the branding layer.
+        2. Built-in GResource ``/org/bootcinstaller/Installer/data/tracks.json``.
+        3. Filesystem fallback next to this module (dev mode).
+        """
         tracks = []
-        try:
-            tracks_bytes = Gio.resources_lookup_data(
-                "/org/bootcinstaller/Installer/data/tracks.json",
-                Gio.ResourceLookupFlags.NONE,
-            )
-            tracks = json.loads(tracks_bytes.get_data())
-        except Exception as e:
-            logger.warning("Failed to load soundtrack from GResource: %s", e)
-            # Fallback: try loading from filesystem (dev mode)
-            import pathlib
-            dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "tracks.json"
+
+        # 1. Recipe-supplied override
+        recipe = getattr(self.__window, "recipe", {}) or {}
+        soundtrack_override = recipe.get("soundtrack_data", "")
+        if soundtrack_override:
+            if soundtrack_override.startswith("/org/"):
+                try:
+                    tracks_bytes = Gio.resources_lookup_data(
+                        soundtrack_override, Gio.ResourceLookupFlags.NONE
+                    )
+                    tracks = json.loads(tracks_bytes.get_data())
+                except Exception as e:
+                    logger.warning("Failed to load soundtrack from recipe GResource %s: %s", soundtrack_override, e)
+            else:
+                try:
+                    import pathlib
+                    tracks = json.loads(pathlib.Path(soundtrack_override).read_text())
+                except Exception as e:
+                    logger.warning("Failed to load soundtrack from recipe path %s: %s", soundtrack_override, e)
+
+        # 2. Built-in GResource
+        if not tracks:
             try:
-                tracks = json.loads(dev_path.read_text())
-            except Exception as e2:
-                logger.warning("Failed to load soundtrack from dev path: %s", e2)
+                tracks_bytes = Gio.resources_lookup_data(
+                    "/org/bootcinstaller/Installer/data/tracks.json",
+                    Gio.ResourceLookupFlags.NONE,
+                )
+                tracks = json.loads(tracks_bytes.get_data())
+            except Exception as e:
+                logger.warning("Failed to load soundtrack from GResource: %s", e)
+                # 3. Filesystem fallback (dev mode)
+                import pathlib
+                dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "tracks.json"
+                try:
+                    tracks = json.loads(dev_path.read_text())
+                except Exception as e2:
+                    logger.warning("Failed to load soundtrack from dev path: %s", e2)
+
         GLib.idle_add(self.__populate_carousel, tracks)
 
     def __populate_carousel(self, tracks):
