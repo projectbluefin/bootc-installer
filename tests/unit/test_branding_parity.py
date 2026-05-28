@@ -41,11 +41,24 @@ def _build_gi_stubs():
     adw_mod = types.ModuleType("gi.repository.Adw")
     adw_mod.Bin = _StubBin
     adw_mod.Window = _StubBin
+    adw_mod.ActionRow = _StubBin
+    adw_mod.ExpanderRow = _StubBin
+    adw_mod.PreferencesGroup = _StubBin
 
     gobject_mod = types.ModuleType("gi.repository.GObject")
     gobject_mod.Property = lambda *a, **kw: (lambda f: property(f))
 
-    for lib in ("Gdk", "Gio", "GLib"):
+    class _ResourceLookupFlags:
+        NONE = 0
+
+    gio_mod = types.ModuleType("gi.repository.Gio")
+    gio_mod.ResourceLookupFlags = _ResourceLookupFlags
+    gio_mod.resources_lookup_data = MagicMock()
+    gio_mod.File = MagicMock()
+    repo_mod.Gio = gio_mod
+    sys.modules["gi.repository.Gio"] = gio_mod
+
+    for lib in ("Gdk", "GLib"):
         stub = MagicMock()
         setattr(repo_mod, lib, stub)
         sys.modules[f"gi.repository.{lib}"] = stub
@@ -261,7 +274,10 @@ class TestProgressSoundtrackData(unittest.TestCase):
         mock_bytes = MagicMock()
         mock_bytes.get_data.return_value = json.dumps(tracks).encode()
         prog_mod.Gio.resources_lookup_data = MagicMock(return_value=mock_bytes)
-        prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
+        # Also mock the filesystem fallback path in case GResource mock fails
+        with patch("builtins.open") as mock_open:
+            mock_open.side_effect = FileNotFoundError
+            prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
         obj._BootcProgress__populate_carousel.assert_called_once_with(tracks)
 
     def test_recipe_soundtrack_data_gresource_path(self):
