@@ -33,6 +33,7 @@ _LIVE_ISO = not _IN_FLATPAK and os.path.exists("/run/ostree-booted")
 _RESOURCE_PREFIX = "/org/bootcinstaller/Installer"
 _ASSET_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets"
 _TRACK_QR_DIR = _ASSET_DIR / "qr"
+_TRACK_COVER_DIR = _ASSET_DIR / "covers"
 
 # Where to stage fisherman so the host can see it (shared via --filesystem=host)
 _FISHERMAN_CACHE_DIR = os.path.join(os.environ.get("HOME", "/tmp"), ".cache", "bootc-installer")
@@ -55,6 +56,13 @@ def _track_qr_dev_path(track: dict) -> pathlib.Path | None:
     if not qr_asset:
         return None
     return _TRACK_QR_DIR / qr_asset
+
+
+def _track_cover_dev_path(track: dict) -> pathlib.Path | None:
+    cover_asset = track.get("cover_art")
+    if not cover_asset:
+        return None
+    return _TRACK_COVER_DIR / cover_asset
 
 
 def _media_stream_is_prepared(media_stream) -> bool:
@@ -147,6 +155,8 @@ class VanillaProgress(Gtk.Box):
         self._tracks_loaded = False
         self._video_configured = False
         self._video_fallback_timeout_id = None
+
+        self._video_tmp_path = None
         self._video_spinner = None
         self._media_overlay = None
 
@@ -161,17 +171,58 @@ class VanillaProgress(Gtk.Box):
 
 
     def __configure_install_video(self):
-        """Set up video playback. Deferred until the widget is mapped so that
-        GTK's GstMediaFile backend has time to construct its internal GstPlayer
-        before we attempt to set properties like mute/volume (fixes #33).
+        """Set up video playback.
+
+        GStreamer does not support GLib resource:// URIs, so we extract the
+        webm to a temp file first.  We then call set_file() from whichever
+        event fires last: widget realization or extraction completion.
         """
+        logger.info("__configure_install_video called")
+        self._video_file = None
+        self.install_video.connect("realize", self.__on_video_widget_realized)
         self.install_video.connect("notify::media-stream", self.__on_media_stream_changed)
         self.__hide_video_fallback()
         self.__arm_video_fallback_timeout()
-        video_file = Gio.File.new_for_uri(
-            f"resource://{_RESOURCE_PREFIX}/assets/installer-video.webm"
-        )
-        self.install_video.set_file(video_file)
+        threading.Thread(target=self.__extract_and_play_video, daemon=True).start()
+
+    def __on_video_widget_realized(self, *_):
+        """Fires when the widget gets a real GdkSurface — safe to start GStreamer."""
+        logger.info("install_video realized; file_ready=%s", self._video_file is not None)
+        if self._video_file is not None:
+            self.install_video.set_file(self._video_file)
+
+    def __extract_and_play_video(self):
+        """Extract installer-video.webm from GResource to a temp file, then play."""
+        import tempfile
+        try:
+            data = Gio.resources_lookup_data(
+                f"{_RESOURCE_PREFIX}/assets/installer-video.webm",
+                Gio.ResourceLookupFlags.NONE,
+            )
+            tmp = tempfile.NamedTemporaryFile(
+                suffix=".webm", prefix="bootc-installer-video-", delete=False
+            )
+            tmp.write(data.get_data())
+            tmp.flush()
+            tmp.close()
+            self._video_tmp_path = tmp.name
+            video_file = Gio.File.new_for_path(tmp.name)
+
+            def _done():
+                self._video_file = video_file
+                if self.install_video.get_realized():
+                    # realize signal already fired; set file directly
+                    logger.info("install_video already realized at extraction complete; calling set_file()")
+                    self.install_video.set_file(video_file)
+                else:
+                    logger.info("install_video not yet realized; waiting for realize signal")
+                # else: __on_video_widget_realized will handle it
+                return False
+
+            GLib.idle_add(_done)
+        except Exception as e:
+            logger.warning("Failed to extract installer video: %s", e)
+            GLib.idle_add(self.__show_video_fallback)
 
     def __configure_soundtrack(self):
         self._carousel_timer = None
@@ -218,15 +269,12 @@ class VanillaProgress(Gtk.Box):
         card.set_halign(Gtk.Align.FILL)
         card.add_css_class("card")
 
-        qr_widget = self.__build_bundled_track_qr(track)
-        if qr_widget is None:
-            qr_widget = self.__build_runtime_track_qr(track)
-        if qr_widget is None:
-            qr_widget = self.__build_track_qr_fallback(track)
+        # Album cover art (left)
+        cover = self.__build_cover_art(track)
+        cover.set_size_request(120, 120)
+        card.append(cover)
 
-        qr_widget.set_size_request(160, 160)
-        card.append(qr_widget)
-
+        # Track metadata (center, expands)
         meta = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         meta.set_valign(Gtk.Align.CENTER)
         meta.set_hexpand(True)
@@ -259,7 +307,50 @@ class VanillaProgress(Gtk.Box):
         meta.append(caption)
         card.append(meta)
 
+        # QR code (right, smaller)
+        qr_widget = self.__build_bundled_track_qr(track)
+        if qr_widget is None:
+            qr_widget = self.__build_runtime_track_qr(track)
+        if qr_widget is None:
+            qr_widget = self.__build_track_qr_fallback(track)
+
+        qr_widget.set_size_request(100, 100)
+        card.append(qr_widget)
+
         return card
+
+    def __build_cover_art(self, track):
+        """Build a 120×120 album cover picture widget."""
+        cover_asset = track.get("cover_art")
+        if cover_asset:
+            resource_path = f"{_RESOURCE_PREFIX}/assets/covers/{cover_asset}"
+            try:
+                Gio.resources_lookup_data(resource_path, Gio.ResourceLookupFlags.NONE)
+                picture = Gtk.Picture.new_for_resource(resource_path)
+                picture.set_can_shrink(True)
+                picture.set_content_fit(Gtk.ContentFit.COVER)
+                picture.add_css_class("card")
+                return picture
+            except Exception:
+                pass
+            # Dev-mode filesystem fallback
+            dev_path = _TRACK_COVER_DIR / cover_asset
+            if dev_path.exists():
+                picture = Gtk.Picture.new_for_file(Gio.File.new_for_path(str(dev_path)))
+                picture.set_can_shrink(True)
+                picture.set_content_fit(Gtk.ContentFit.COVER)
+                picture.add_css_class("card")
+                return picture
+
+        # Generic music note placeholder
+        icon = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic")
+        icon.set_pixel_size(64)
+        icon.add_css_class("dim-label")
+        box = Gtk.Box()
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_halign(Gtk.Align.CENTER)
+        box.append(icon)
+        return box
 
     def __build_bundled_track_qr(self, track):
         resource_path = _track_qr_resource_path(track)
@@ -350,6 +441,7 @@ class VanillaProgress(Gtk.Box):
             GLib.idle_add(self.__mute_install_video)
         else:
             media_stream.connect("notify::prepared", self.__on_media_prepared)
+            media_stream.connect("notify::error", self.__on_media_error)
             self.__arm_video_fallback_timeout()
 
     def __on_media_prepared(self, media_stream, *_args):
@@ -357,6 +449,12 @@ class VanillaProgress(Gtk.Box):
             self.__cancel_video_fallback_timeout()
             self.__hide_video_fallback()
             GLib.idle_add(self.__mute_install_video)
+
+    def __on_media_error(self, media_stream, *_args):
+        err = media_stream.get_error()
+        logger.warning("Media stream error: %s", err)
+        self.__cancel_video_fallback_timeout()
+        self.__show_video_fallback()
 
     def __mute_install_video(self):
         media_stream = self.install_video.get_media_stream()
@@ -377,7 +475,7 @@ class VanillaProgress(Gtk.Box):
     def __arm_video_fallback_timeout(self):
         self.__cancel_video_fallback_timeout()
         self.__show_video_spinner()
-        self._video_fallback_timeout_id = GLib.timeout_add_seconds(5, self.__on_video_prepare_timeout)
+        self._video_fallback_timeout_id = GLib.timeout_add_seconds(15, self.__on_video_prepare_timeout)
 
     def __cancel_video_fallback_timeout(self):
         self.__hide_video_spinner()
@@ -493,9 +591,6 @@ class VanillaProgress(Gtk.Box):
     def __build_ui(self):
         self.__install_progress_css()
         self.__build_pastry_spinner()
-        # Defer video setup to when the widget is actually shown — avoids
-        # GStreamer-Player-CRITICAL from muting before GstPlayer is constructed.
-        self.connect("map", self.__on_first_map)
         self.__configure_soundtrack()
         self.__set_media_mode("video")
 
@@ -527,16 +622,6 @@ class VanillaProgress(Gtk.Box):
             css,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
-
-    def __on_first_map(self, *_args):
-        """Configure video only after the widget is mapped (visible in the window).
-        This ensures GTK's GstMediaFile has fully initialized its GstPlayer
-        before we attempt to set mute/volume properties.
-        """
-        if self._video_configured:
-            return
-        self._video_configured = True
-        self.__configure_install_video()
 
     def __set_progress_fraction(self, fraction: float):
         fraction = max(0.0, min(fraction, 1.0))
@@ -685,6 +770,7 @@ class VanillaProgress(Gtk.Box):
         # Securely delete the recipe file — it contains plaintext passphrases
         # and passwords that must not persist on disk after install.
         self.__cleanup_recipe_file()
+        self.__cleanup_video_tmp()
         self.__window.set_installation_result(
             ret == 0, None, self.__boot_id, self.__recovery_key, elapsed_secs
         )
@@ -702,6 +788,15 @@ class VanillaProgress(Gtk.Box):
             pass
         except OSError as e:
             logger.warning("Could not delete recipe file %s: %s", recipe_path, e)
+
+    def __cleanup_video_tmp(self):
+        """Remove the temp video file extracted from GResource."""
+        if self._video_tmp_path:
+            try:
+                os.unlink(self._video_tmp_path)
+            except OSError:
+                pass
+            self._video_tmp_path = None
 
     def __parse_progress_line(self, line: str):
         """Parse a single fisherman log line and apply any resulting UI update."""
@@ -741,12 +836,20 @@ class VanillaProgress(Gtk.Box):
             logger.info("UI update: %s (fraction=%.2f)", update["label"],
                         update["fraction"] if update["fraction"] is not None else -1)
 
+    def configure_video_preview(self):
+        """Configure video playback for the preview/demo mode (BOOTC_PREVIEW_SCREEN=progress).
+        Called by main_window when the progress page is shown without a real install."""
+        if not self._video_configured:
+            self._video_configured = True
+            self.__configure_install_video()
+
     def start_demo(self):
         """Fake install sequence for UI design / demo mode (BOOTC_DEMO=1).
 
         Walks through 9 steps over ~5 seconds, then calls set_installation_result.
         No fisherman is launched. No disk is touched.
         """
+        logger.info("start_demo() called")
         _STEPS = [
             (0.4,  0.11, "Step 1/9: Partitioning disk"),
             (0.8,  0.22, "Step 2/9: Formatting EFI partition"),
@@ -764,6 +867,9 @@ class VanillaProgress(Gtk.Box):
         self.progress_elapsed.set_label(_("0:00 elapsed"))
         self.__hide_video_fallback()
         self.__show_media_view()
+        if not self._video_configured:
+            self._video_configured = True
+            self.__configure_install_video()
 
         def _fire_step(index):
             if index >= len(_STEPS):
@@ -819,6 +925,9 @@ class VanillaProgress(Gtk.Box):
         self.progress_substep.set_label("")
         self.__hide_video_fallback()
         self.__show_media_view()
+        if not self._video_configured:
+            self._video_configured = True
+            self.__configure_install_video()
         GLib.timeout_add(200, self.__pulse_progress)
         logger.info("Launching fisherman: %s", argv)
         self.__start_elapsed_timer()

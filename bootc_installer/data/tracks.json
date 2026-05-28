@@ -4,69 +4,79 @@
     "artist": "The xx",
     "album": "xx",
     "url": "https://song.link/s/4IvRMOyyXMYBVmYmSIaB0g",
-    "qr_asset": "track-01.svg"
+    "qr_asset": "track-01.svg",
+    "cover_art": "track-01.jpg"
   },
   {
     "title": "Air",
     "artist": "Télépopmusik",
     "album": "Genetic World",
     "url": "https://song.link/s/1TKYPzH66GwsejnAM2BVEW",
-    "qr_asset": "track-02.svg"
+    "qr_asset": "track-02.svg",
+    "cover_art": "track-02.jpg"
   },
   {
     "title": "Teardrop",
     "artist": "Massive Attack",
     "album": "Mezzanine",
     "url": "https://song.link/s/2Vz6yJivbxM1B2bxJ3Lg2c",
-    "qr_asset": "track-03.svg"
+    "qr_asset": "track-03.svg",
+    "cover_art": "track-03.jpg"
   },
   {
     "title": "Experience",
     "artist": "Ludovico Einaudi",
     "album": "In a Time Lapse",
     "url": "https://song.link/s/2H1C7dqRzHOUhqjdSSKKVV",
-    "qr_asset": "track-04.svg"
+    "qr_asset": "track-04.svg",
+    "cover_art": "track-04.jpg"
   },
   {
     "title": "Comptine d'un autre été",
     "artist": "Yann Tiersen",
     "album": "Amélie",
     "url": "https://song.link/s/5Nf5XJAVcXvFqJYerEHFqB",
-    "qr_asset": "track-05.svg"
+    "qr_asset": "track-05.svg",
+    "cover_art": "track-05.jpg"
   },
   {
     "title": "Dissolve Me",
     "artist": "alt-J",
     "album": "An Awesome Wave",
     "url": "https://song.link/s/0MBpTmUWJVSRyDNxE1SQLA",
-    "qr_asset": "track-06.svg"
+    "qr_asset": "track-06.svg",
+    "cover_art": "track-06.jpg"
   },
   {
     "title": "Breathe",
     "artist": "Télépopmusik",
     "album": "Genetic World",
     "url": "https://song.link/s/0FkiECAIbYRMl2bZJJMbgD",
-    "qr_asset": "track-07.svg"
+    "qr_asset": "track-07.svg",
+    "cover_art": "track-07.jpg"
   },
   {
     "title": "Night Owl",
     "artist": "Galimatias",
     "album": "Opia",
     "url": "https://song.link/s/6MEqHNvhGNQKKBm5VRV1tz",
-    "qr_asset": "track-08.svg"
+    "qr_asset": "track-08.svg",
+    "cover_art": "track-08.jpg"
   },
   {
     "title": "On + On",
     "artist": "Erykah Badu",
     "album": "Mama's Gun",
     "url": "https://song.link/s/2Q8NpQVrSEGFkGXdnbvxlf",
-    "qr_asset": "track-09.svg"
+    "qr_asset": "track-09.svg",
+    "cover_art": "track-09.jpg"
   },
   {
     "title": "Crystalised",
     "artist": "The xx",
     "album": "xx",
     "url": "https://song.link/s/3wWlxqyOrLqSHhzwI7yt6K",
-    "qr_asset": "track-10.svg"
+    "qr_asset": "track-10.svg",
+    "cover_art": "track-10.jpg"
   }
 ]

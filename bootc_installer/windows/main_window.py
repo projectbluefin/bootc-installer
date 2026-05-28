@@ -393,8 +393,12 @@ class VanillaWindow(Adw.ApplicationWindow):
 
         self.__go_to_page(target, animate=False)
 
-        if target is self.__view_progress and os.environ.get("BOOTC_DEMO"):
-            self.__view_progress.start_demo()
+        if target is self.__view_progress:
+            if os.environ.get("BOOTC_DEMO"):
+                self.__view_progress.start_demo()
+            else:
+                # Even without a demo install, configure the video so it plays
+                self.__view_progress.configure_video_preview()
 
         return False
 
