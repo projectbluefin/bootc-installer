@@ -66,7 +66,7 @@ _SENNA_QUOTES = [
 class VanillaConfirm(Adw.Bin):
     __gtype_name__ = "VanillaConfirm"
     __gsignals__ = {
-        "installation-confirmed": (GObject.SIGNAL_RUN_FIRST, None, ()),
+        "installation-confirmed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     group_changes = Gtk.Template.Child()

@@ -12,7 +12,7 @@ _PLACEHOLDER_KEY = _("Recovery key will be displayed here once the installer rep
 class VanillaRecoveryKey(Adw.Bin):
     __gtype_name__ = "VanillaRecoveryKey"
     __gsignals__ = {
-        "recovery-key-acknowledged": (GObject.SIGNAL_RUN_FIRST, None, ()),
+        "recovery-key-acknowledged": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     key_label = Gtk.Template.Child()

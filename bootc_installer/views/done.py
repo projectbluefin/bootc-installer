@@ -8,6 +8,7 @@ from gettext import gettext as _
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
+from bootc_installer.utils.pastry_compat import wrap_glass
 from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
 from bootc_installer.windows.dialog_output import VanillaDialogOutput
 
@@ -111,12 +112,26 @@ class VanillaDone(Adw.Bin):
         self.btn_close.connect("clicked", self.__on_close_clicked)
         self.btn_log.connect("clicked", self.__on_log_clicked)
         self.btn_retry.connect("clicked", self.__on_retry_clicked)
+        self.__wrap_store_qr()
+
+    def __wrap_store_qr(self):
+        parent = self.store_qr.get_parent()
+        if parent is None:
+            return
+
+        try:
+            parent.remove(self.store_qr)
+        except Exception:
+            return
+
+        parent.prepend(wrap_glass(self.store_qr))
 
     def set_result(self, result, terminal, boot_id="", elapsed_secs=0, image_ref=None):
         self.__terminal = terminal
         self.__boot_id = boot_id
 
         if result:
+            self.page_header.icon_name = "object-select-symbolic"
             pretty_name = getattr(self.__window, "pretty_name", None) \
                 or self.__window.recipe.get("distro_name", "the operating system")
             self.page_header.title = _("{} is installed").format(pretty_name)
@@ -129,7 +144,12 @@ class VanillaDone(Adw.Bin):
             icon_spec = getattr(self.__window, "selected_icon", None)
             if icon_spec:
                 apply_icon(self.page_header, icon_spec)
+            self.btn_reboot.set_visible(True)
+            self.btn_close.set_visible(False)
+            self.btn_retry.set_visible(False)
+            self.btn_log.remove_css_class("suggested-action")
             # Show store widget for US users
+            self.store_group.set_visible(False)
             self.__maybe_show_store()
             # Warm the registry connection in the background after 30 seconds.
             # The target disk is finalized (ro + frozen), so we cannot write to it.
@@ -143,6 +163,7 @@ class VanillaDone(Adw.Bin):
             # Try to extract the last failed step from the log for a helpful message
             hint = self.__extract_failure_hint()
             self.page_header.subtitle = hint
+            self.store_group.set_visible(False)
             self.btn_reboot.set_visible(False)
             self.btn_close.set_visible(True)
             self.btn_retry.set_visible(True)
@@ -285,5 +306,3 @@ class VanillaDone(Adw.Bin):
         except OSError:
             pass
         return False
-
-

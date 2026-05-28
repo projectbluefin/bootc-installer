@@ -118,6 +118,8 @@ class Builder:
                     self.__window, self.distro_info, key, step
                 )
                 logger.info(_("(%s) Widgets initialized") % key)
+                _widget._bootc_step_key = key
+                _widget._bootc_template = step["template"]
                 self.__register_widgets.append(_widget)
                 # Expose step metadata on the window so later steps can query it.
                 if step["template"] == "image":

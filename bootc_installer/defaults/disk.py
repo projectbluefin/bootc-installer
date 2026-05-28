@@ -820,8 +820,12 @@ class VanillaDefaultDisk(Adw.Bin):
         if image_step is None:
             return
         finals = image_step.get_finals()
+        if not isinstance(finals, dict):
+            finals = {}
         supported = finals.get("supported_filesystems") or []
         default_hostname = finals.get("default_hostname") or ""
+        if not isinstance(default_hostname, str):
+            default_hostname = ""
         current = self.hostname_entry.get_text().strip()
         if default_hostname and current in ("", "localhost"):
             self.hostname_entry.set_text(default_hostname)

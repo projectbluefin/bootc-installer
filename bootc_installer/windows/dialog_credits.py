@@ -6,6 +6,8 @@ import os
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
+from bootc_installer.utils.pastry_compat import add_glass_root, wrap_glass
+
 _CREDITS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "credits.json")
 
 logger = logging.getLogger("VanillaInstaller::Credits")
@@ -140,6 +142,7 @@ class TunaCreditsWindow(Adw.Window):
         self._reveal_index = 0
         self._section_revealers = []
         self._current_section = 0
+        add_glass_root(self)
 
         # Apply CSS
         provider = Gtk.CssProvider()
@@ -327,7 +330,7 @@ class TunaCreditsWindow(Adw.Window):
             info_box.append(nick_label)
 
         card.append(info_box)
-        revealer.set_child(card)
+        revealer.set_child(wrap_glass(card))
 
         # Queue for staggered reveal
         self._reveal_queue.append(revealer)
