@@ -171,25 +171,15 @@ class VanillaProgress(Gtk.Box):
 
 
     def __configure_install_video(self):
-        """Set up video playback.
-
-        GStreamer does not support GLib resource:// URIs, so we extract the
-        webm to a temp file first.  We then call set_file() from whichever
-        event fires last: widget realization or extraction completion.
-        """
-        logger.info("__configure_install_video called")
+        """Set up video playback."""
         self._video_file = None
-        self.install_video.connect("realize", self.__on_video_widget_realized)
         self.install_video.connect("notify::media-stream", self.__on_media_stream_changed)
         self.__hide_video_fallback()
         self.__arm_video_fallback_timeout()
         threading.Thread(target=self.__extract_and_play_video, daemon=True).start()
 
     def __on_video_widget_realized(self, *_):
-        """Fires when the widget gets a real GdkSurface — safe to start GStreamer."""
-        logger.info("install_video realized; file_ready=%s", self._video_file is not None)
-        if self._video_file is not None:
-            self.install_video.set_file(self._video_file)
+        pass  # unused — kept for safety if connected externally
 
     def __extract_and_play_video(self):
         """Extract installer-video.webm from GResource to a temp file, then play."""
@@ -210,13 +200,10 @@ class VanillaProgress(Gtk.Box):
 
             def _done():
                 self._video_file = video_file
-                if self.install_video.get_realized():
-                    # realize signal already fired; set file directly
-                    logger.info("install_video already realized at extraction complete; calling set_file()")
-                    self.install_video.set_file(video_file)
-                else:
-                    logger.info("install_video not yet realized; waiting for realize signal")
-                # else: __on_video_widget_realized will handle it
+                # GTK4 gtk_video_set_file() handles both cases:
+                #   realized   → starts GStreamer immediately
+                #   unrealized → stores file; gtk_video_realize() starts it later
+                self.install_video.set_file(video_file)
                 return False
 
             GLib.idle_add(_done)

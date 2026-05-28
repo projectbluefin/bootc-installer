@@ -65,6 +65,15 @@ class RecipeLoader:
                 logger.warning(f"Recipe at {path} failed validation, trying next...")
 
         logger.error(f"No valid recipe found. Tried: {paths}")
+        if os.environ.get("BOOTC_DEMO") or os.environ.get("BOOTC_PREVIEW_SCREEN"):
+            logger.warning("Demo/preview mode: continuing without a recipe")
+            self.__recipe = {
+                "log_file": "/tmp/bootc-installer-demo.log",
+                "distro_name": "Bluefin",
+                "distro_logo": "",
+                "steps": {},
+            }
+            return
         sys.exit(1)
 
     def __enrich(self):
