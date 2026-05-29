@@ -12,7 +12,7 @@ _ETC = "/run/host/etc" if _IN_FLATPAK else "/etc"
 _IMAGES_JSON = f"{_ETC}/bootc-installer/images.json"
 
 # Groups added to every created user.
-_DEFAULT_GROUPS = ["wheel"]
+_DEFAULT_GROUPS = ["wheel", "docker", "incus-admin", "libvirt", "dialout"]
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-users.ui")
