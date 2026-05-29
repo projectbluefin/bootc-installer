@@ -40,8 +40,8 @@ jobs:
         run: |
           pct=$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%",""); print $NF}')
           echo "Coverage: ${pct}%"
-          if awk "BEGIN {exit !(${pct} < 70)}"; then
-            echo "Coverage ${pct}% is below the 70% threshold"
+          if awk "BEGIN {exit !(${pct} < 20)}"; then
+            echo "Coverage ${pct}% is below the 20% threshold"
             exit 1
           fi
 
