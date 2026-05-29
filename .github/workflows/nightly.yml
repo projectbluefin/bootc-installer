@@ -108,3 +108,29 @@ jobs:
           GTK_A11Y: none
           NO_AT_BRIDGE: "1"
         run: xvfb-run -a python3 -m pytest tests/ui/ -v --tb=short -p no:cacheprovider
+
+  python-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [prod, dev]
+    name: "Python Integration Tests (${{ matrix.branch }})"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest and dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run integration tests
+        run: pytest tests/integration/ -v --tb=short
+        timeout-minutes: 30
