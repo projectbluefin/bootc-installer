@@ -29,6 +29,7 @@ def _build_gi_stubs():
 
     adw_mod = types.ModuleType("gi.repository.Adw")
     adw_mod.Bin = _StubBin
+    adw_mod.Window = _StubBin
 
     gobject_mod = types.ModuleType("gi.repository.GObject")
 
@@ -37,14 +38,27 @@ def _build_gi_stubs():
 
     gobject_mod.Property = _property
 
+    class _ResourceLookupFlags:
+        NONE = 0
+
+    gio_mod = types.ModuleType("gi.repository.Gio")
+    gio_mod.bus_get_sync = MagicMock()
+    gio_mod.BusType = types.SimpleNamespace(SYSTEM=0)
+    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=0)
+    gio_mod.ResourceLookupFlags = _ResourceLookupFlags
+    gio_mod.resources_lookup_data = MagicMock()
+    gio_mod.File = MagicMock()
+
     sys.modules["gi.repository.Gtk"] = gtk_mod
     sys.modules["gi.repository.Adw"] = adw_mod
     sys.modules["gi.repository.GObject"] = gobject_mod
+    sys.modules["gi.repository.Gio"] = gio_mod
     repo_mod.Gtk = gtk_mod
     repo_mod.Adw = adw_mod
     repo_mod.GObject = gobject_mod
+    repo_mod.Gio = gio_mod
 
-    for lib in ("Gdk", "Gio", "GLib"):
+    for lib in ("Gdk", "GLib"):
         stub = MagicMock()
         setattr(repo_mod, lib, stub)
         sys.modules[f"gi.repository.{lib}"] = stub
