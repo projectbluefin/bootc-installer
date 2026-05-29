@@ -49,14 +49,6 @@ def _build_gi_stubs():
     gio_mod.resources_lookup_data = MagicMock()
     gio_mod.File = MagicMock()
 
-    gio_mod = types.ModuleType("gi.repository.Gio")
-    gio_mod.bus_get_sync = MagicMock()
-    gio_mod.BusType = types.SimpleNamespace(SYSTEM=0)
-    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=0)
-    gio_mod.ResourceLookupFlags = _ResourceLookupFlags
-    gio_mod.resources_lookup_data = MagicMock()
-    gio_mod.File = MagicMock()
-
     sys.modules["gi.repository.Gtk"] = gtk_mod
     sys.modules["gi.repository.Adw"] = adw_mod
     sys.modules["gi.repository.GObject"] = gobject_mod
