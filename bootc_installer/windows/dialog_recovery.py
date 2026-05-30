@@ -34,8 +34,8 @@ def _host_binary_exists(name):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-recovery.ui")
-class VanillaRecoveryDialog(Adw.Window):
-    __gtype_name__ = "VanillaRecoveryDialog"
+class BootcRecoveryDialog(Adw.Window):
+    __gtype_name__ = "BootcRecoveryDialog"
 
     row_console = Gtk.Template.Child()
     row_documentation = Gtk.Template.Child()

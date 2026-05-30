@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultUsers: Adw.Bin {
+template $BootcDefaultUsers: Adw.Bin {
   halign: fill;
   valign: fill;
   hexpand: true;
@@ -33,7 +33,7 @@ template $VanillaDefaultUsers: Adw.Bin {
 
       Adw.PreferencesPage {
         Adw.PreferencesGroup {
-          $TunaPageHeader page_header {
+          $BootcPageHeader page_header {
             margin-top: 24;
             title: _("Create User");
             subtitle: _("Provide details for your user account");

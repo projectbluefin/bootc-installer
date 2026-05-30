@@ -16,7 +16,7 @@ Usage
 -----
 Build fisherman first, then run:
 
-    cd /path/to/tuna-installer
+    cd /path/to/bootc-installer
     go build -o /tmp/fisherman-test ./fisherman/fisherman/cmd/fisherman/
     sudo FISHERMAN_BIN=/tmp/fisherman-test pytest tests/integration/test_e2e_install.py -v -s
 

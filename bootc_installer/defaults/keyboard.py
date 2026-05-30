@@ -58,8 +58,8 @@ class KeyboardRow(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-keyboard.ui")
-class VanillaDefaultKeyboard(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultKeyboard"
+class BootcDefaultKeyboard(Adw.Bin):
+    __gtype_name__ = "BootcDefaultKeyboard"
 
     btn_next = Gtk.Template.Child()
     entry_test = Gtk.Template.Child()

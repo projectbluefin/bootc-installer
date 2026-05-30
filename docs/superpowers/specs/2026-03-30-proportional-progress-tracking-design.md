@@ -1,7 +1,7 @@
 # Proportional Progress Tracking Design
 
 **Date:** 2026-03-30
-**Scope:** fisherman (Go) + tuna-installer Python GUI
+**Scope:** fisherman (Go) + bootc-installer Python GUI
 **Empirical basis:** Loop-device install of `ghcr.io/tuna-os/yellowfin:gnome-hwe` (264.7s total)
 
 ## Background
@@ -141,7 +141,7 @@ case strings.Contains(lower, "layers needed:"):
 
 This gives users context for the 75-second ostree deploy window that currently shows no progress.
 
-### 7. Python GUI (`tuna_installer/views/progress.py`)
+### 7. Python GUI (`bootc_installer/views/progress.py`)
 
 One change in `__on_vte_contents_changed` under the `"step"` branch:
 
@@ -165,7 +165,7 @@ The `weight_pct` field is stored on `self` for potential future use (smooth inte
 | `fisherman/fisherman/internal/progress/progress.go` | Add `weight_pct`, `cumulative_pct` to `stepEvent`; update `Step()` signature |
 | `fisherman/fisherman/internal/install/bootc.go` | Add `CheckImage()`; replace `getLayerCount()`; fix blob counting; add `classifyLine` pattern; skip pull when cached |
 | `fisherman/fisherman/cmd/fisherman/main.go` | Call `CheckImage` pre-flight; define weight profiles; pass weights to `progress.Step()`; fix `totalSteps` and missing `step++` |
-| `tuna_installer/views/progress.py` | Use `cumulative_pct / 100` for bar fraction |
+| `bootc_installer/views/progress.py` | Use `cumulative_pct / 100` for bar fraction |
 
 ## Out of scope
 

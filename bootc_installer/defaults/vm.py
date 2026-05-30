@@ -19,8 +19,8 @@ from gi.repository import Adw, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-vm.ui")
-class VanillaDefaultVm(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultVm"
+class BootcDefaultVm(Adw.Bin):
+    __gtype_name__ = "BootcDefaultVm"
 
     btn_no = Gtk.Template.Child()
     btn_yes = Gtk.Template.Child()

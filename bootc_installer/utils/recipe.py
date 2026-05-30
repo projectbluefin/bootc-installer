@@ -36,7 +36,7 @@ class RecipeLoader:
     def recipe_paths(self):
         return [
             f"{self._etc}/bootc-installer/recipe.json",
-            f"{self._etc}/tunaos-installer/recipe.json",
+            f"{self._etc}/bootcos-installer/recipe.json",
             f"{self._etc}/vanilla-installer/recipe.json",
             "/app/share/bootc-installer/recipe.json",
         ]
@@ -49,8 +49,8 @@ class RecipeLoader:
 
     def __load(self):
         paths = (
-            [os.environ["VANILLA_CUSTOM_RECIPE"]]
-            if "VANILLA_CUSTOM_RECIPE" in os.environ
+            [os.environ["BOOTC_CUSTOM_RECIPE"]]
+            if "BOOTC_CUSTOM_RECIPE" in os.environ
             else self.recipe_paths
         )
 
@@ -65,6 +65,15 @@ class RecipeLoader:
                 logger.warning(f"Recipe at {path} failed validation, trying next...")
 
         logger.error(f"No valid recipe found. Tried: {paths}")
+        if os.environ.get("BOOTC_DEMO") or os.environ.get("BOOTC_PREVIEW_SCREEN"):
+            logger.warning("Demo/preview mode: continuing without a recipe")
+            self.__recipe = {
+                "log_file": "/tmp/bootc-installer-demo.log",
+                "distro_name": os.environ.get("BOOTC_DEMO_DISTRO_NAME", ""),
+                "distro_logo": "",
+                "steps": {},
+            }
+            return
         sys.exit(1)
 
     def __enrich(self):

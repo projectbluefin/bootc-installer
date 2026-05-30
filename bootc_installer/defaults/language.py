@@ -44,8 +44,8 @@ class LanguageRow(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-language.ui")
-class VanillaDefaultLanguage(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultLanguage"
+class BootcDefaultLanguage(Adw.Bin):
+    __gtype_name__ = "BootcDefaultLanguage"
 
     btn_next = Gtk.Template.Child()
     entry_search_language = Gtk.Template.Child()

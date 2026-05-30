@@ -20,28 +20,28 @@ import subprocess
 import sys
 from gettext import gettext as _
 
-from bootc_installer.defaults.conn_check import VanillaDefaultConnCheck
-from bootc_installer.defaults.disk import VanillaDefaultDisk
-from bootc_installer.defaults.encryption import VanillaDefaultEncryption
-from bootc_installer.defaults.image import VanillaDefaultImage
-from bootc_installer.defaults.slurp import VanillaDefaultSlurp
-from bootc_installer.defaults.user import VanillaDefaultUsers
-from bootc_installer.defaults.welcome import VanillaDefaultWelcome
-from bootc_installer.layouts.yes_no import VanillaLayoutYesNo
+from bootc_installer.defaults.conn_check import BootcDefaultConnCheck
+from bootc_installer.defaults.disk import BootcDefaultDisk
+from bootc_installer.defaults.encryption import BootcDefaultEncryption
+from bootc_installer.defaults.image import BootcDefaultImage
+from bootc_installer.defaults.slurp import BootcDefaultSlurp
+from bootc_installer.defaults.user import BootcDefaultUsers
+from bootc_installer.defaults.welcome import BootcDefaultWelcome
+from bootc_installer.layouts.yes_no import BootcLayoutYesNo
 from bootc_installer.utils.recipe import RecipeLoader
 
 logger = logging.getLogger("Installer::Builder")
 
 
 templates = {
-    "conn-check": VanillaDefaultConnCheck,
-    "welcome": VanillaDefaultWelcome,
-    "disk": VanillaDefaultDisk,
-    "slurp": VanillaDefaultSlurp,
-    "encryption": VanillaDefaultEncryption,
-    "image": VanillaDefaultImage,
-    "user": VanillaDefaultUsers,
-    "yes-no": VanillaLayoutYesNo,
+    "conn-check": BootcDefaultConnCheck,
+    "welcome": BootcDefaultWelcome,
+    "disk": BootcDefaultDisk,
+    "slurp": BootcDefaultSlurp,
+    "encryption": BootcDefaultEncryption,
+    "image": BootcDefaultImage,
+    "user": BootcDefaultUsers,
+    "yes-no": BootcLayoutYesNo,
 }
 
 
@@ -118,6 +118,8 @@ class Builder:
                     self.__window, self.distro_info, key, step
                 )
                 logger.info(_("(%s) Widgets initialized") % key)
+                _widget._bootc_step_key = key
+                _widget._bootc_template = step["template"]
                 self.__register_widgets.append(_widget)
                 # Expose step metadata on the window so later steps can query it.
                 if step["template"] == "image":

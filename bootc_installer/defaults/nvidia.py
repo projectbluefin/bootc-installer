@@ -17,8 +17,8 @@
 from gi.repository import Adw, Gtk
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-nvidia.ui")
-class VanillaDefaultNvidia(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultNvidia"
+class BootcDefaultNvidia(Adw.Bin):
+    __gtype_name__ = "BootcDefaultNvidia"
 
     btn_no = Gtk.Template.Child()
     btn_yes = Gtk.Template.Child()

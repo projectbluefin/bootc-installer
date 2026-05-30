@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaWindow: Adw.ApplicationWindow {
+template $BootcWindow: Adw.ApplicationWindow {
   default-width: 900;
   default-height: 680;
   title: _("bootc Installer");
@@ -44,6 +44,16 @@ template $VanillaWindow: Adw.ApplicationWindow {
         Button btn_about {
           icon-name: "help-about-symbolic";
           tooltip-text: _("About");
+
+          styles [
+            "flat",
+          ]
+        }
+
+        [end]
+        Button btn_credits {
+          icon-name: "system-users-symbolic";
+          tooltip-text: _("Credits");
 
           styles [
             "flat",

@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultNetwork: Adw.Bin {
+template $BootcDefaultNetwork: Adw.Bin {
   hexpand: true;
   vexpand: true;
 
@@ -32,7 +32,7 @@ template $VanillaDefaultNetwork: Adw.Bin {
 
       Adw.PreferencesPage {
         Adw.PreferencesGroup {
-          $TunaPageHeader page_header {
+          $BootcPageHeader page_header {
             margin-top: 24;
             icon-name: "network-wireless-symbolic";
             title: _("Internet");

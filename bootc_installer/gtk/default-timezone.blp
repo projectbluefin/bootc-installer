@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $VanillaDefaultTimezone: Adw.Bin {
+template $BootcDefaultTimezone: Adw.Bin {
   hexpand: true;
 
   Box {
@@ -34,7 +34,7 @@ template $VanillaDefaultTimezone: Adw.Bin {
 
         Adw.PreferencesPage {
           Adw.PreferencesGroup {
-            $TunaPageHeader page_header {
+            $BootcPageHeader page_header {
               margin-top: 24;
               icon-name: "preferences-system-time-symbolic";
               title: _("Date & Time");

@@ -21,8 +21,8 @@ from bootc_installer.utils.recipe import RecipeLoader
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/window-unsupported.ui")
-class VanillaUnsupportedWindow(Adw.Window):
-    __gtype_name__ = "VanillaUnsupportedWindow"
+class BootcUnsupportedWindow(Adw.Window):
+    __gtype_name__ = "BootcUnsupportedWindow"
 
     btn_poweroff = Gtk.Template.Child()
     description_label = Gtk.Template.Child()

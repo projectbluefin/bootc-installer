@@ -9,10 +9,10 @@ _PLACEHOLDER_KEY = _("Recovery key will be displayed here once the installer rep
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/recovery-key.ui")
-class VanillaRecoveryKey(Adw.Bin):
-    __gtype_name__ = "VanillaRecoveryKey"
+class BootcRecoveryKey(Adw.Bin):
+    __gtype_name__ = "BootcRecoveryKey"
     __gsignals__ = {
-        "recovery-key-acknowledged": (GObject.SIGNAL_RUN_FIRST, None, ()),
+        "recovery-key-acknowledged": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     key_label = Gtk.Template.Child()

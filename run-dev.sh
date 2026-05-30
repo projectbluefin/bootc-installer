@@ -47,6 +47,9 @@ echo "  recipe   : $RECIPE"
 echo "  fisherman: $FISHERMAN"
 echo "  run log  : $RUN_LOG"
 echo "  debug log: $DEBUG_LOG"
+if [[ -n "${BOOTC_PREVIEW_SCREEN:-}" ]]; then
+    echo "  preview  : $BOOTC_PREVIEW_SCREEN"
+fi
 echo ""
 echo "  To follow logs: ./run-dev.sh --logs"
 echo ""
@@ -59,6 +62,9 @@ export GSETTINGS_SCHEMA_DIR=$PREFIX/share/glib-2.0/schemas:/usr/share/glib-2.0/s
 export XDG_DATA_DIRS=$PREFIX/share:/usr/share
 export VANILLA_CUSTOM_RECIPE=$RECIPE
 export BOOTC_DEMO=1
+if [[ -n "${BOOTC_PREVIEW_SCREEN:-}" ]]; then
+export BOOTC_PREVIEW_SCREEN=$BOOTC_PREVIEW_SCREEN
+fi
 python3 $PREFIX/bin/bootc-installer >> $RUN_LOG 2>&1
 EOF
 disown

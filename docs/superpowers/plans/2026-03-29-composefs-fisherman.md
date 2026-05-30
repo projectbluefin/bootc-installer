@@ -89,7 +89,7 @@ In `fisherman/fisherman/internal/recipe/recipe_test.go`, add these cases to the 
 - [ ] **Step 3: Run tests**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 go test -v -count=1 ./internal/recipe/...
 ```
 
@@ -98,7 +98,7 @@ Expected: all tests pass including the 3 new cases.
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 git add internal/recipe/recipe.go internal/recipe/recipe_test.go
 git commit -m "feat: add ComposeFsBackend field to recipe"
 ```
@@ -213,7 +213,7 @@ func assertAbsent(t *testing.T, slice []string, s string) {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 go test -v -count=1 ./internal/install/...
 ```
 
@@ -309,7 +309,7 @@ args := BuildBootcArgs(opts, opts.TargetImgref, opts.Target)
 - [ ] **Step 6: Run tests to verify they pass**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 go test -v -count=1 ./internal/install/...
 ```
 
@@ -367,7 +367,7 @@ if err := install.BootcInstall(install.Options{
 - [ ] **Step 2: Build to verify compilation**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 go build ./cmd/fisherman/
 ```
 
@@ -441,7 +441,7 @@ func TestWriteHostname_ComposeFsNative(t *testing.T) {
 func TestWriteHostname_ComposeFsNative_CreatesEtcDir(t *testing.T) {
 	target := t.TempDir()
 	// No ostree dir, no etc dir — both should be created.
-	if err := post.WriteHostname(target, "tunaos"); err != nil {
+	if err := post.WriteHostname(target, "bootcos"); err != nil {
 		t.Fatalf("WriteHostname: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(target, "etc", "hostname")); err != nil {
@@ -476,7 +476,7 @@ func TestWriteHostname_OstreeBackend(t *testing.T) {
 	rec := setupRecorder(t)
 	_ = rec // no exec calls expected in this path
 
-	if err := post.WriteHostname(target, "tunahost"); err != nil {
+	if err := post.WriteHostname(target, "bootchost"); err != nil {
 		t.Fatalf("WriteHostname: %v", err)
 	}
 
@@ -486,8 +486,8 @@ func TestWriteHostname_OstreeBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading hostname from deploy dir: %v", err)
 	}
-	if string(data) != "tunahost\n" {
-		t.Errorf("hostname = %q, want %q", string(data), "tunahost\n")
+	if string(data) != "bootchost\n" {
+		t.Errorf("hostname = %q, want %q", string(data), "bootchost\n")
 	}
 
 	// The direct target/etc/hostname must NOT exist.
@@ -500,7 +500,7 @@ func TestWriteHostname_OstreeBackend(t *testing.T) {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 go test -v -count=1 ./internal/post/...
 ```
 
@@ -571,7 +571,7 @@ func WriteHostname(target, hostname string) error {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 go test -v -count=1 ./internal/post/...
 ```
 
@@ -603,14 +603,14 @@ git commit -m "feat: add composefs-native WriteHostname path + DeploymentDirFn"
 - [ ] **Step 1: Push fisherman changes**
 
 ```bash
-cd /var/home/james/dev/tuna-installer/fisherman/fisherman
+cd /var/home/james/dev/bootc-installer/fisherman/fisherman
 git push
 ```
 
 - [ ] **Step 2: Update submodule pointer in parent repo**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add fisherman
 git commit -m "chore: update fisherman submodule (composefs-native backend support)"
 ```
@@ -669,7 +669,7 @@ images:
 - [ ] **Step 2: Create fake podman**
 
 ```bash
-mkdir -p /var/home/james/dev/tuna-installer/tests/fake-bins
+mkdir -p /var/home/james/dev/bootc-installer/tests/fake-bins
 ```
 
 Create `tests/fake-bins/podman`:
@@ -757,14 +757,14 @@ exit 1
 - [ ] **Step 4: Make the fake bins executable**
 
 ```bash
-chmod +x /var/home/james/dev/tuna-installer/tests/fake-bins/podman
-chmod +x /var/home/james/dev/tuna-installer/tests/fake-bins/ostree
+chmod +x /var/home/james/dev/bootc-installer/tests/fake-bins/podman
+chmod +x /var/home/james/dev/bootc-installer/tests/fake-bins/ostree
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add tests/bootcrew-matrix.yaml tests/fake-bins/
 git commit -m "test: add bootcrew image matrix and fake podman/ostree bins"
 ```
@@ -892,7 +892,7 @@ jobs:
 - [ ] **Step 2: Commit**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add .github/workflows/bootcrew-fast.yml
 git commit -m "ci: add bootcrew-fast PR disk-ops gate"
 ```
@@ -1054,7 +1054,7 @@ jobs:
 - [ ] **Step 2: Commit**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add .github/workflows/bootcrew-nightly.yml
 git commit -m "ci: add bootcrew-nightly weekly full install workflow"
 ```

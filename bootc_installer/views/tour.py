@@ -23,8 +23,8 @@ from gi.repository import Adw, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/tour.ui")
-class VanillaTour(Adw.Bin):
-    __gtype_name__ = "VanillaTour"
+class BootcTour(Adw.Bin):
+    __gtype_name__ = "BootcTour"
 
     page_header = Gtk.Template.Child()
     assets_svg = Gtk.Template.Child()
@@ -50,5 +50,5 @@ class VanillaTour(Adw.Bin):
         elif asset.startswith("/") and os.path.exists(asset):
             self.assets_svg.set_filename(asset)
         elif asset:
-            # Plain GResource path ("/org/tunaos/...") — used by recipe.json tour.
+            # Plain GResource path ("/org/bootcos/...") — used by recipe.json tour.
             self.assets_svg.set_resource(asset)

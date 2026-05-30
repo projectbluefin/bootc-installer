@@ -18,19 +18,14 @@ import os
 import re
 from gettext import gettext as _
 
-_ENC_LABELS = {
-    "none": "None",
-    "luks-passphrase": "Encrypted with passphrase",
-    "tpm2-luks": "Hardware-backed encryption",
-    "tpm2-luks-passphrase": "Hardware-backed + passphrase fallback",
-}
+from bootc_installer.views.confirm_data import _ENC_LABELS, _SENNA_QUOTES
 
 from gi.repository import Adw, GLib, GObject, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-choice.ui")
-class VanillaChoiceEntry(Adw.ActionRow):
-    __gtype_name__ = "VanillaChoiceEntry"
+class BootcChoiceEntry(Adw.ActionRow):
+    __gtype_name__ = "BootcChoiceEntry"
 
     img_choice = Gtk.Template.Child()
 
@@ -42,8 +37,8 @@ class VanillaChoiceEntry(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-choice-expander.ui")
-class VanillaChoiceExpanderEntry(Adw.ExpanderRow):
-    __gtype_name__ = "VanillaChoiceExpanderEntry"
+class BootcChoiceExpanderEntry(Adw.ExpanderRow):
+    __gtype_name__ = "BootcChoiceExpanderEntry"
 
     img_choice = Gtk.Template.Child()
 
@@ -54,23 +49,21 @@ class VanillaChoiceExpanderEntry(Adw.ExpanderRow):
         self.img_choice.set_from_icon_name(icon_name)
 
 
+# _SENNA_QUOTES imported from bootc_installer.views.confirm_data
+
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/confirm.ui")
-class VanillaConfirm(Adw.Bin):
-    __gtype_name__ = "VanillaConfirm"
+class BootcConfirm(Adw.Bin):
+    __gtype_name__ = "BootcConfirm"
     __gsignals__ = {
-        "installation-confirmed": (GObject.SIGNAL_RUN_FIRST, None, ()),
+        "installation-confirmed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     group_changes = Gtk.Template.Child()
     btn_confirm = Gtk.Template.Child()
     page_header = Gtk.Template.Child()
 
-    _SENNA_QUOTES = [
-        _('"If you have God on your side, everything becomes clear." — Ayrton Senna'),
-        _('"I am not designed to come second or third. I am designed to win." — Ayrton Senna'),
-        _('"Being second is to be the first of the ones who lose." — Ayrton Senna'),
-        _('"On a given day, a given circumstance, you think you have a limit — and you go beyond it." — Ayrton Senna'),
-    ]
+    _SENNA_QUOTES = _SENNA_QUOTES
 
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
@@ -92,7 +85,7 @@ class VanillaConfirm(Adw.Bin):
                 if key == "language":
                     selected_language = value
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Language"), value, "preferences-desktop-locale-symbolic"
                         )
                     )
@@ -100,7 +93,7 @@ class VanillaConfirm(Adw.Bin):
                     self.process_keyboards(value)
                 elif key == "timezone":
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Timezone"),
                             f"{value['region']} {value['zone']}",
                             "preferences-system-time-symbolic",
@@ -108,7 +101,7 @@ class VanillaConfirm(Adw.Bin):
                     )
                 elif key == "users":
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Users"),
                             f"{value['username']} ({value['fullname']})",
                             "system-users-symbolic",
@@ -117,7 +110,7 @@ class VanillaConfirm(Adw.Bin):
                 elif key == "disk":
                     if "auto" in value:
                         self.active_widgets.append(
-                            VanillaChoiceEntry(
+                            BootcChoiceEntry(
                                 _("Disk"),
                                 f"{value['auto']['disk']} ({value['auto']['pretty_size']})",
                                 "drive-harddisk-system-symbolic",
@@ -139,7 +132,7 @@ class VanillaConfirm(Adw.Bin):
                                 re.MULTILINE,
                             )[0]
                             if part_disk not in disks:
-                                disks[part_disk] = VanillaChoiceExpanderEntry(
+                                disks[part_disk] = BootcChoiceExpanderEntry(
                                     _("Disk"),
                                     part_disk,
                                     "drive-harddisk-system-symbolic",
@@ -147,7 +140,7 @@ class VanillaConfirm(Adw.Bin):
                                 self.active_widgets.append(disks[part_disk])
 
                             disks[part_disk].add_row(
-                                VanillaChoiceEntry(
+                                BootcChoiceEntry(
                                     part,
                                     f"{info['fs']} {info['mp']} ({info['pretty_size']})",
                                     "drive-harddisk-system-symbolic",
@@ -157,7 +150,7 @@ class VanillaConfirm(Adw.Bin):
                     enc_type = value.get("type", "none") if isinstance(value, dict) else str(value)
                     label = _ENC_LABELS.get(enc_type, enc_type)
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Encryption"),
                             label,
                             "channel-secure-symbolic",
@@ -165,7 +158,7 @@ class VanillaConfirm(Adw.Bin):
                     )
                 elif key == "hostname":
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Hostname"),
                             value,
                             "network-server-symbolic",
@@ -175,7 +168,7 @@ class VanillaConfirm(Adw.Bin):
                     pn = final.get("pretty_name") or value
                     pretty_name = pn
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Image"),
                             pn,
                             "application-x-appliance-symbolic",
@@ -185,7 +178,7 @@ class VanillaConfirm(Adw.Bin):
                     pn = final.get("pretty_name") or value
                     pretty_name = pn
                     self.active_widgets.append(
-                        VanillaChoiceEntry(
+                        BootcChoiceEntry(
                             _("Image"),
                             value,
                             "image-missing-symbolic"
@@ -198,7 +191,7 @@ class VanillaConfirm(Adw.Bin):
         if gpu_label:
             gpu_icon = Systeminfo.gpu_icon_name()
             self.active_widgets.append(
-                VanillaChoiceEntry(
+                BootcChoiceEntry(
                     _("Graphics"),
                     gpu_label,
                     gpu_icon,
@@ -239,7 +232,7 @@ class VanillaConfirm(Adw.Bin):
             if len(selected_keyboards) > 1:
                 keyboard_index += 1
             self.active_widgets.append(
-                VanillaChoiceEntry(
+                BootcChoiceEntry(
                     _(f"Keyboard {keyboard_index}"), value,"input-keyboard-symbolic"
                 )
             )

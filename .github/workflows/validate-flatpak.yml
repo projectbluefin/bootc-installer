@@ -11,7 +11,7 @@ on:
   push:
     branches:
       - dev
-      - main
+      - prod
 
 jobs:
   validate:

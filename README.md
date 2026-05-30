@@ -1,7 +1,7 @@
 <div align="center">
-    <img src="data/icons/hicolor/scalable/apps/org.tunaos.Installer.svg" height="64">
-    <h1>TunaOS Installer</h1>
-    <p>A GTK 4 / Libadwaita Flatpak installer for <a href="https://github.com/tuna-os">TunaOS</a> and other <a href="https://universal-blue.org">Universal Blue</a> bootc images.</p>
+    <img src="data/icons/hicolor/scalable/apps/org.bootcos.Installer.svg" height="64">
+    <h1>BootcOS Installer</h1>
+    <p>A GTK 4 / Libadwaita Flatpak installer for <a href="https://github.com/tuna-os">BootcOS</a> and other <a href="https://universal-blue.org">Universal Blue</a> bootc images.</p>
     <hr />
 </div>
 
@@ -11,15 +11,15 @@
 
 ```bash
 curl -Lo installer.flatpak \
-  https://github.com/tuna-os/tuna-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
-  && sudo flatpak uninstall -y org.bootcinstaller.Installer org.tunaos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
+  https://github.com/tuna-os/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
+  && sudo flatpak uninstall -y org.bootcinstaller.Installer org.bootcos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
 ### Devel (latest `dev` branch build)
 
 ```bash
 curl -Lo installer-devel.flatpak \
-  https://github.com/tuna-os/tuna-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
+  https://github.com/tuna-os/bootc-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer.Devel 2>/dev/null; sudo flatpak install --bundle -y installer-devel.flatpak
 ```
 
@@ -29,7 +29,7 @@ curl -Lo installer-devel.flatpak \
 
 The installer drives the `fisherman` backend with a JSON recipe file. The wizard generates one automatically, but you can write one by hand for automation or liveISO customisation.
 
-### Minimal recipe (TunaOS GNOME 50, XFS, no encryption)
+### Minimal recipe (BootcOS GNOME 50, XFS, no encryption)
 
 ```json
 {
@@ -43,7 +43,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": [],
   "user": {
     "username": "james",
@@ -68,7 +68,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": ["org.mozilla.firefox", "org.gnome.Console"],
   "user": {
     "username": "james",
@@ -96,7 +96,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": [],
   "user": { "username": "", "fullname": "", "password": "", "groups": [] }
 }
@@ -116,7 +116,7 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": true,
   "bootloader": "systemd",
-  "hostname": "tunaos",
+  "hostname": "bootcos",
   "flatpaks": [],
   "user": { "username": "", "fullname": "", "password": "", "groups": [] }
 }
@@ -160,19 +160,19 @@ This is the primary mechanism for liveISO pre-configuration (see below).
 
 ## Image / Distro Customisation
 
-Any image or distro shipping this installer — whether on a **liveISO**, as part of a **bootc image** (Bluefin, Bazzite, etc.), or as a **custom appliance** — can pre-configure both the image catalog and the default recipe by dropping files into `/etc/tuna-installer/` in their OS tree. The installer reads these at runtime from the host filesystem.
+Any image or distro shipping this installer — whether on a **liveISO**, as part of a **bootc image** (Bluefin, Bazzite, etc.), or as a **custom appliance** — can pre-configure both the image catalog and the default recipe by dropping files into `/etc/bootc-installer/` in their OS tree. The installer reads these at runtime from the host filesystem.
 
 | Override path | Scope |
 |---|---|
-| `/etc/tuna-installer/images.json` | Image catalog — replaces the bundled catalog entirely |
-| `/etc/tuna-installer/recipe.json` | Sys-recipe — sets default values merged with the wizard output |
-| `$XDG_CONFIG_HOME/tuna-installer/images.json` | Per-user catalog override (dev/testing) |
+| `/etc/bootc-installer/images.json` | Image catalog — replaces the bundled catalog entirely |
+| `/etc/bootc-installer/recipe.json` | Sys-recipe — sets default values merged with the wizard output |
+| `$XDG_CONFIG_HOME/bootc-installer/images.json` | Per-user catalog override (dev/testing) |
 
 ### Customising the image catalog
 
 Override `images.json` to show only your own images and hide the default catalog:
 
-**`/etc/tuna-installer/images.json`**
+**`/etc/bootc-installer/images.json`**
 ```json
 {
   "default_image": "ghcr.io/my-org/my-image:stable",
@@ -236,9 +236,9 @@ Override `images.json` to show only your own images and hide the default catalog
 
 ### Setting recipe defaults (sys-recipe)
 
-Drop a **partial** recipe at `/etc/tuna-installer/recipe.json`. It is merged with the wizard output — the user can still change anything, but these values are used as defaults for fields they don't touch:
+Drop a **partial** recipe at `/etc/bootc-installer/recipe.json`. It is merged with the wizard output — the user can still change anything, but these values are used as defaults for fields they don't touch:
 
-**`/etc/tuna-installer/recipe.json`**
+**`/etc/bootc-installer/recipe.json`**
 ```json
 {
   "hostname": "bluefin",
@@ -268,19 +268,19 @@ Drop a **partial** recipe at `/etc/tuna-installer/recipe.json`. It is merged wit
 For a fully hands-free install (e.g. a liveISO that installs automatically), pass `--autoinstall` with a complete recipe — the wizard is skipped entirely:
 
 ```bash
-flatpak run org.bootcinstaller.Installer --autoinstall /etc/tuna-installer/autoinstall.json
+flatpak run org.bootcinstaller.Installer --autoinstall /etc/bootc-installer/autoinstall.json
 ```
 
 Example systemd unit to trigger this on boot:
 
-**`/usr/lib/systemd/system/tuna-installer-auto.service`**
+**`/usr/lib/systemd/system/bootc-installer-auto.service`**
 ```ini
 [Unit]
 Description=Unattended bootc install
 After=graphical.target
 
 [Service]
-ExecStart=flatpak run org.bootcinstaller.Installer --autoinstall /etc/tuna-installer/autoinstall.json
+ExecStart=flatpak run org.bootcinstaller.Installer --autoinstall /etc/bootc-installer/autoinstall.json
 ```
 
 ---
@@ -325,7 +325,7 @@ The installer's image catalog is defined in [`fisherman/data/images.json`](fishe
 | `bootloader` | `"grub2"` or `"systemd"` |
 | `filesystem` | `"xfs"` or `"btrfs"` |
 
-Drop your SVG/PNG into `fisherman/data/images/` and add it to `tuna_installer/tuna-installer.gresource.xml`.
+Drop your SVG/PNG into `fisherman/data/images/` and add it to `bootc_installer/bootc-installer.gresource.xml`.
 
 PRs to add new images, icons, or flatpak lists are very welcome!
 
@@ -349,6 +349,28 @@ sudo ninja -C build install
 bootc-installer
 ```
 
+### Demo / preview loop
+
+For day-to-day UI work, use the repo launcher:
+
+```bash
+./run-dev.sh
+```
+
+It runs the local build with `BOOTC_DEMO=1`, so the full wizard can be walked
+without launching fisherman or touching a disk.
+
+To jump directly to an individual screen during local iteration, set
+`BOOTC_PREVIEW_SCREEN` before launching:
+
+```bash
+BOOTC_PREVIEW_SCREEN=confirm ./run-dev.sh
+BOOTC_PREVIEW_SCREEN=progress ./run-dev.sh
+```
+
+`progress` starts the demo install sequence automatically when `BOOTC_DEMO=1`
+is enabled.
+
 ### Dependencies
 
 - meson, ninja
@@ -357,5 +379,22 @@ bootc-installer
 - libgnome-desktop-4-dev
 - python3-requests
 - Go ≥ 1.22 (for fisherman)
+
+## Testing and release qualification
+
+Software-only validation that is already wired into this repo:
+
+```bash
+./QUALIFY_SOFTWARE.sh
+```
+
+Optional local install/boot smoke coverage also exists in `tests/integration/test_e2e_install.py` for root + QEMU environments:
+
+```bash
+sudo FISHERMAN_BIN=/path/to/fisherman pytest tests/integration/test_e2e_install.py -v -s
+sudo FISHERMAN_BIN=/path/to/fisherman BOOT_VERIFY=1 pytest tests/integration/test_e2e_install.py -v -s
+```
+
+Real release qualification still requires destructive installs on lab hardware for TPM2, physical boot prompts, recovery-key/passphrase fallback, Windows slurp, and offline ISO paths. Use the repo runbook in [`.github/CI_CD_GUIDE.md`](.github/CI_CD_GUIDE.md#release-qualification-runbook) to separate what can be verified now from what remains hardware-only.
 
 # Rebuild trigger: 1778728267

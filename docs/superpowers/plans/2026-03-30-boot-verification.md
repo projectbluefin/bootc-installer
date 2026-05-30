@@ -91,7 +91,7 @@ Read `.github/workflows/bootcrew-nightly.yml` and confirm:
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /var/home/james/dev/tuna-installer
+cd /var/home/james/dev/bootc-installer
 git add .github/workflows/bootcrew-nightly.yml
 git commit -m "ci: add QEMU+OVMF boot verification to bootcrew-nightly"
 ```

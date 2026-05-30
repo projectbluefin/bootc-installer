@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 import time
 import subprocess
@@ -27,7 +29,7 @@ from gi.repository import NM, NMA4, Adw, GLib, Gtk
 
 from bootc_installer.utils.run_async import RunAsync
 
-logger = logging.getLogger("VanillaInstaller::Network")
+logger = logging.getLogger("BootcInstaller::Network")
 
 # Dictionary mapping security types to a tuple containing
 # their pretty name and whether it is a secure protocol.
@@ -246,8 +248,8 @@ class WirelessRow(Adw.ActionRow):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-network.ui")
-class VanillaDefaultNetwork(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultNetwork"
+class BootcDefaultNetwork(Adw.Bin):
+    __gtype_name__ = "BootcDefaultNetwork"
 
     wired_group = Gtk.Template.Child()
     wireless_group = Gtk.Template.Child()
@@ -285,7 +287,8 @@ class VanillaDefaultNetwork(Adw.Bin):
         self.__get_network_devices()
         self.__start_auto_refresh()
 
-        # TODO: Remove once implemented
+        # "Connect to Hidden Network" and "Proxy Settings" rows have no
+        # handler implementation yet. Keep the group hidden until they are built.
         self.advanced_group.set_visible(False)
 
         self.__nm_client.connect("device-added", self.__add_new_device)

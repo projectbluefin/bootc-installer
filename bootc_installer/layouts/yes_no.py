@@ -16,12 +16,12 @@
 
 from gi.repository import Adw, Gtk
 
-from bootc_installer.windows.dialog import VanillaDialog
+from bootc_installer.windows.dialog import BootcDialog
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/layout-yes-no.ui")
-class VanillaLayoutYesNo(Adw.Bin):
-    __gtype_name__ = "VanillaLayoutYesNo"
+class BootcLayoutYesNo(Adw.Bin):
+    __gtype_name__ = "BootcLayoutYesNo"
 
     page_header = Gtk.Template.Child()
     btn_no = Gtk.Template.Child()
@@ -64,7 +64,7 @@ class VanillaLayoutYesNo(Adw.Bin):
         if "info" not in self.__step["buttons"]:
             return
 
-        dialog = VanillaDialog(
+        dialog = BootcDialog(
             self.__window,
             self.__step["buttons"]["info"]["title"],
             self.__step["buttons"]["info"]["text"],

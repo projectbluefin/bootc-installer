@@ -13,6 +13,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Class overview (all are GTK widget subclasses — kept in one file due to
+# tight coupling; extract only if they grow independent):
+#
+#   BootcDefaultDiskEntry      — single disk item row (auto-select list)
+#   PartitionRow                 — single partition row in the manual selector
+#   PartitionSelector            — full manual partition selector page
+#   BootcDefaultDiskPartModal  — modal window wrapping PartitionSelector
+#   BootcDefaultDiskConfirmModal — confirmation modal before manual install
+#   BootcDefaultDisk           — main disk wizard step (auto + manual tabs)
 
 import pathlib
 import subprocess
@@ -29,9 +39,11 @@ from bootc_installer.core.system import Systeminfo
 logger = logging.getLogger("Installer::Disk")
 
 
+# ── Disk list row ──────────────────────────────────────────────────────────────
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-disk.ui")
-class VanillaDefaultDiskEntry(Adw.ActionRow):
-    __gtype_name__ = "VanillaDefaultDiskEntry"
+class BootcDefaultDiskEntry(Adw.ActionRow):
+    __gtype_name__ = "BootcDefaultDiskEntry"
 
     chk_button = Gtk.Template.Child()
 
@@ -62,6 +74,8 @@ class VanillaDefaultDiskEntry(Adw.ActionRow):
     def disk_block(self):
         return self.__partition.disk_block
 
+
+# ── Manual partition row ───────────────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-partition-row.ui")
 class PartitionRow(Adw.ActionRow):
@@ -146,6 +160,8 @@ class PartitionRow(Adw.ActionRow):
         ] = fs_type
         self.__parent.set_subtitle(f"{size} ({fs_type})")
 
+
+# ── Manual partition selector page ────────────────────────────────────────────
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-partition.ui")
 class PartitionSelector(Adw.PreferencesPage):
@@ -487,9 +503,11 @@ class PartitionSelector(Adw.PreferencesPage):
         return self.__selected_partitions
 
 
+# ── Partition selection modal window ──────────────────────────────────────────
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-disk.ui")
-class VanillaDefaultDiskPartModal(Adw.Window):
-    __gtype_name__ = "VanillaDefaultDiskPartModal"
+class BootcDefaultDiskPartModal(Adw.Window):
+    __gtype_name__ = "BootcDefaultDiskPartModal"
     __gsignals__ = {
         "partitioning-set": (GObject.SignalFlags.RUN_FIRST, None, (str,)),
     }
@@ -583,9 +601,11 @@ class VanillaDefaultDiskPartModal(Adw.Window):
         return recipe
 
 
+# ── Manual install confirmation modal ─────────────────────────────────────────
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-disk-confirm.ui")
-class VanillaDefaultDiskConfirmModal(Adw.Window):
-    __gtype_name__ = "VanillaDefaultDiskConfirmModal"
+class BootcDefaultDiskConfirmModal(Adw.Window):
+    __gtype_name__ = "BootcDefaultDiskConfirmModal"
 
     btn_cancel = Gtk.Template.Child()
     btn_apply = Gtk.Template.Child()
@@ -665,9 +685,11 @@ class VanillaDefaultDiskConfirmModal(Adw.Window):
         self.destroy()
 
 
+# ── Main disk wizard step ──────────────────────────────────────────────────────
+
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-disk.ui")
-class VanillaDefaultDisk(Adw.Bin):
-    __gtype_name__ = "VanillaDefaultDisk"
+class BootcDefaultDisk(Adw.Bin):
+    __gtype_name__ = "BootcDefaultDisk"
 
     btn_next = Gtk.Template.Child()
     btn_auto = Gtk.Template.Child()
@@ -685,7 +707,7 @@ class VanillaDefaultDisk(Adw.Bin):
     var_disk_keep_row = Gtk.Template.Child()
     var_disk_keep_switch = Gtk.Template.Child()
 
-    _VIRTUAL_DISK_IMG = "/var/home/james/tuna-virtual-disk.img"
+    _VIRTUAL_DISK_IMG = "/var/home/james/bootc-virtual-disk.img"
     _VIRTUAL_DISK_SIZE = "50G"
 
     def __init__(self, window, distro_info, key, step, **kwargs):
@@ -703,7 +725,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__use_virtual_disk = False
         self.__fs_tool_ok = True  # optimistic default; updated by __check_fs_tool
         self.__var_disk_selected = None  # Disk object for the optional /var disk
-        self.__var_registry_disks = []   # VanillaDefaultDiskEntry rows for var picker
+        self.__var_registry_disks = []   # BootcDefaultDiskEntry rows for var picker
 
         self.min_disk_size = self.__window.recipe.get("min_disk_size", 51200)
         self.disk_space_err_label.set_label(
@@ -713,7 +735,7 @@ class VanillaDefaultDisk(Adw.Bin):
 
         # Append real disk rows
         for disk in self.__disks.all_disks(include_removable=False):
-            entry = VanillaDefaultDiskEntry(self, disk)
+            entry = BootcDefaultDiskEntry(self, disk)
             self.group_disks.add(entry)
             self.__registry_disks.append(entry)
 
@@ -721,7 +743,7 @@ class VanillaDefaultDisk(Adw.Bin):
         if not self.__registry_disks:
             for disk in self.__disks.all_disks(include_removable=True):
                 if disk.is_removable:
-                    entry = VanillaDefaultDiskEntry(self, disk)
+                    entry = BootcDefaultDiskEntry(self, disk)
                     self.group_disks.add(entry)
                     self.__registry_disks.append(entry)
 
@@ -729,14 +751,24 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__virtual_row = self.__build_virtual_disk_row()
         self.group_disks.add(self.__virtual_row)
 
-        self.__all_disks_button = Adw.ButtonRow()
+        if hasattr(Adw, 'ButtonRow'):
+            self.__all_disks_button = Adw.ButtonRow()
+        else:
+            # Fallback for libadwaita < 1.6 (e.g. Ubuntu 24.04)
+            self.__all_disks_button = Adw.ActionRow()
+            self.__all_disks_button.set_activatable(True)
         self.__all_disks_button.set_title(_("Show removable disks"))
         self.group_disks.add(self.__all_disks_button)
         # Hide the button if removable disks are already shown
         if not self.__disks.all_disks(include_removable=False):
             self.__all_disks_button.set_visible(False)
 
-        self.__all_disks_button.connect("activated", self.__on_btn_all_disks)
+        try:
+            self.__all_disks_button.connect("activated", self.__on_btn_all_disks)
+        except TypeError:
+            # ActionRow fallback doesn't have 'activated' signal;
+            # users can still access removable disks when no fixed disks exist
+            pass
         self.btn_next.connect("clicked", self.__on_btn_next_clicked)
         self.btn_auto.connect("clicked", self.__on_auto_clicked)
         self.btn_exit.connect("clicked", self.__on_btn_exit_clicked)
@@ -798,8 +830,12 @@ class VanillaDefaultDisk(Adw.Bin):
         if image_step is None:
             return
         finals = image_step.get_finals()
+        if not isinstance(finals, dict):
+            finals = {}
         supported = finals.get("supported_filesystems") or []
         default_hostname = finals.get("default_hostname") or ""
+        if not isinstance(default_hostname, str):
+            default_hostname = ""
         current = self.hostname_entry.get_text().strip()
         if default_hostname and current in ("", "localhost"):
             self.hostname_entry.set_text(default_hostname)
@@ -979,7 +1015,7 @@ class VanillaDefaultDisk(Adw.Bin):
         import subprocess
 
         # If a loop device was pre-created outside the sandbox, use it directly.
-        pre_created = os.environ.get("TUNA_VIRTUAL_DISK", "")
+        pre_created = os.environ.get("BOOTC_VIRTUAL_DISK", "")
         if pre_created:
             logger.info(f"Using pre-created virtual disk: {pre_created}")
             return pre_created
@@ -1023,7 +1059,7 @@ class VanillaDefaultDisk(Adw.Bin):
         }
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG
-            result["virtual_disk_loop"] = getattr(self, "_VanillaDefaultDisk__loop_device", None)
+            result["virtual_disk_loop"] = getattr(self, "_BootcDefaultDisk__loop_device", None)
         if self.var_disk_switch.get_active() and self.__var_disk_selected:
             result["var_disk"] = {
                 "disk": self.__var_disk_selected.disk,
@@ -1036,7 +1072,7 @@ class VanillaDefaultDisk(Adw.Bin):
         self.__all_disks_button.set_visible(False)
         for disk in self.__disks.all_disks(include_removable=True):
             if disk.is_removable:
-                entry = VanillaDefaultDiskEntry(self, disk)
+                entry = BootcDefaultDiskEntry(self, disk)
                 self.group_disks.add(entry)
                 self.__registry_disks.append(entry)
 
@@ -1059,7 +1095,7 @@ class VanillaDefaultDisk(Adw.Bin):
         else:
             self._set_auto_partition_recipe(self.__selected_disks[0])
         # In test mode skip the confirm modal and advance directly
-        if os.environ.get("TUNA_TEST"):
+        if os.environ.get("BOOTC_TEST"):
             self.__window.next()
             return
         self.confirm_partition_changes()
@@ -1112,12 +1148,12 @@ class VanillaDefaultDisk(Adw.Bin):
         for d in self.__disks.all_disks(include_removable=False):
             if system_disk and d.disk == system_disk:
                 continue
-            entry = VanillaDefaultDiskEntry(self, d, role="var")
+            entry = BootcDefaultDiskEntry(self, d, role="var")
             self.group_var_disks.add(entry)
             self.__var_registry_disks.append(entry)
 
     def on_var_disk_entry_toggled(self, widget, disk):
-        """Called by VanillaDefaultDiskEntry when role='var' and user toggles it."""
+        """Called by BootcDefaultDiskEntry when role='var' and user toggles it."""
         if widget.get_active():
             self.__var_disk_selected = disk
             self.__check_var_disk_existing(disk)
@@ -1151,5 +1187,5 @@ class VanillaDefaultDisk(Adw.Bin):
         self.confirm_partition_changes()
 
     def confirm_partition_changes(self):
-        modal = VanillaDefaultDiskConfirmModal(self.__window, self.__partition_recipe)
+        modal = BootcDefaultDiskConfirmModal(self.__window, self.__partition_recipe)
         modal.present()

@@ -2,13 +2,15 @@ import locale
 import logging
 import os
 import subprocess
+import threading
 import time
 from gettext import gettext as _
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from bootc_installer.widgets.page_header import TunaPageHeader  # noqa: F401
-from bootc_installer.windows.dialog_output import VanillaDialogOutput
+from bootc_installer.utils.pastry_compat import wrap_glass
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
+from bootc_installer.windows.dialog_output import BootcDialogOutput
 
 log = logging.getLogger("Installer::Done")
 
@@ -23,6 +25,32 @@ def apply_icon(page_header, icon_spec):
             page_header.icon_name = icon_spec
     except Exception as e:
         log.warning("Could not apply icon %r: %s", icon_spec, e)
+
+
+def warmup_registry(image_ref: str):
+    """Fire a skopeo inspect to warm DNS, TLS, and CDN routing for the registry.
+
+    Called in a daemon thread 30 seconds after install success. Does not write
+    to the target disk (which is finalized/frozen after install).
+    """
+    try:
+        result = subprocess.run(
+            ["skopeo", "inspect", f"docker://{image_ref}"],
+            capture_output=True,
+            timeout=60,
+        )
+        if result.returncode == 0:
+            log.info("Registry warmup succeeded for %s", image_ref)
+        else:
+            log.debug("Registry warmup exited %d for %s: %s",
+                      result.returncode, image_ref,
+                      result.stderr.decode(errors="replace").strip()[:200])
+    except FileNotFoundError:
+        log.debug("skopeo not available — registry warmup skipped")
+    except subprocess.TimeoutExpired:
+        log.debug("Registry warmup timed out for %s", image_ref)
+    except Exception as e:
+        log.debug("Registry warmup failed for %s: %s", image_ref, e)
 
 
 def do_reboot(in_flatpak):
@@ -62,8 +90,8 @@ def do_reboot(in_flatpak):
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/done.ui")
-class VanillaDone(Adw.Bin):
-    __gtype_name__ = "VanillaDone"
+class BootcDone(Adw.Bin):
+    __gtype_name__ = "BootcDone"
 
     page_header = Gtk.Template.Child()
     btn_reboot = Gtk.Template.Child()
@@ -84,12 +112,26 @@ class VanillaDone(Adw.Bin):
         self.btn_close.connect("clicked", self.__on_close_clicked)
         self.btn_log.connect("clicked", self.__on_log_clicked)
         self.btn_retry.connect("clicked", self.__on_retry_clicked)
+        self.__wrap_store_qr()
 
-    def set_result(self, result, terminal, boot_id="", elapsed_secs=0):
+    def __wrap_store_qr(self):
+        parent = self.store_qr.get_parent()
+        if parent is None:
+            return
+
+        try:
+            parent.remove(self.store_qr)
+        except Exception:
+            return
+
+        parent.prepend(wrap_glass(self.store_qr))
+
+    def set_result(self, result, terminal, boot_id="", elapsed_secs=0, image_ref=None):
         self.__terminal = terminal
         self.__boot_id = boot_id
 
         if result:
+            self.page_header.icon_name = "object-select-symbolic"
             pretty_name = getattr(self.__window, "pretty_name", None) \
                 or self.__window.recipe.get("distro_name", "the operating system")
             self.page_header.title = _("{} is installed").format(pretty_name)
@@ -102,19 +144,48 @@ class VanillaDone(Adw.Bin):
             icon_spec = getattr(self.__window, "selected_icon", None)
             if icon_spec:
                 apply_icon(self.page_header, icon_spec)
+            self.btn_reboot.set_visible(True)
+            self.btn_close.set_visible(False)
+            self.btn_retry.set_visible(False)
+            self.btn_log.remove_css_class("suggested-action")
             # Show store widget for US users
+            self.store_group.set_visible(False)
             self.__maybe_show_store()
+            # Warm the registry connection in the background after 30 seconds.
+            # The target disk is finalized (ro + frozen), so we cannot write to it.
+            # This fires a skopeo inspect to warm DNS, TLS, and CDN routing so
+            # the first `bootc upgrade` after reboot finds a hot connection.
+            if image_ref:
+                GLib.timeout_add_seconds(30, self.__schedule_registry_warmup, image_ref)
         else:
             self.page_header.icon_name = "dialog-error-symbolic"
             self.page_header.title = _("Installation failed")
             # Try to extract the last failed step from the log for a helpful message
             hint = self.__extract_failure_hint()
             self.page_header.subtitle = hint
+            self.store_group.set_visible(False)
             self.btn_reboot.set_visible(False)
             self.btn_close.set_visible(True)
             self.btn_retry.set_visible(True)
             # Show the log button prominently on failure
             self.btn_log.add_css_class("suggested-action")
+
+    def __schedule_registry_warmup(self, image_ref: str) -> bool:
+        """Fire off a background thread to warm the registry connection.
+        Runs 30 seconds after install success. Does not write to the target disk.
+        """
+        log.info("Scheduling registry warmup for %s", image_ref)
+        t = threading.Thread(
+            target=warmup_registry,
+            args=(image_ref,),
+            daemon=True,
+        )
+        t.start()
+        return False  # don't repeat the GLib timer
+
+    def __registry_warmup_worker(self, image_ref: str):
+        """Alias kept for back-compat — delegates to module-level warmup_registry."""
+        warmup_registry(image_ref)
 
     def __extract_failure_hint(self) -> str:
         """Read the fisherman log to determine what failed and suggest a fix."""
@@ -196,17 +267,28 @@ class VanillaDone(Adw.Bin):
         self.__window.on_installation_confirmed()
 
     def __on_log_clicked(self, button):
-        dialog = VanillaDialogOutput(self.__window)
+        dialog = BootcDialogOutput(self.__window)
         dialog.present()
 
     def __maybe_show_store(self):
-        """Show the merch store QR code for US-locale users only."""
+        """Show the merch store QR code for US-locale users only.
+
+        Requires ``store_url`` in the recipe. The QR image is loaded from
+        ``store_qr_resource`` (a GResource path) if provided, otherwise falls
+        back to the built-in ``assets/store-qr.svg``.  If ``store_url`` is
+        absent the widget stays hidden regardless of locale.
+        """
+        store_url = self.__window.recipe.get("store_url", "")
+        if not store_url:
+            return
         if not self.__is_us_locale():
             return
+        qr_resource = self.__window.recipe.get(
+            "store_qr_resource",
+            "/org/bootcinstaller/Installer/assets/store-qr.svg",
+        )
         try:
-            self.store_qr.set_resource(
-                "/org/bootcinstaller/Installer/assets/store-qr.svg"
-            )
+            self.store_qr.set_resource(qr_resource)
             self.store_group.set_visible(True)
         except Exception as e:
             log.debug("Could not load store QR: %s", e)
@@ -224,8 +306,8 @@ class VanillaDone(Adw.Bin):
             us_zones = {"EST", "EDT", "CST", "CDT", "MST", "MDT", "PST", "PDT", "AKST", "AKDT", "HST"}
             if tz in us_zones:
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Could not read timezone name: %s", e)
         # Check /etc/timezone or timedatectl output
         try:
             with open("/etc/timezone") as f:
@@ -235,5 +317,3 @@ class VanillaDone(Adw.Bin):
         except OSError:
             pass
         return False
-
-

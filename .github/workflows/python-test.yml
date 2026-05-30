@@ -23,11 +23,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install pytest
+      - name: Install pytest and coverage
         run: pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=0
+        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=0
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: coverage.xml
+          retention-days: 30
 
   # ── Job 2: GTK integration tests (offscreen backend + compiled resources) ──
   ui:
@@ -57,6 +64,7 @@ jobs:
             appstream \
             gettext \
             xvfb
+          pip3 install pytest-cov 2>/dev/null || true
 
       - name: Build GResources (blueprints → .gresource)
         run: |
@@ -74,4 +82,12 @@ jobs:
           NO_AT_BRIDGE: "1"
         run: |
           xvfb-run -a python3 -m pytest tests/ui/ -v --tb=short \
-            -p no:cacheprovider --cov=. --cov-report=term-missing --cov-fail-under=0
+            -p no:cacheprovider \
+            --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=0
+
+      - name: Upload UI coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-ui
+          path: coverage.xml
+          retention-days: 30

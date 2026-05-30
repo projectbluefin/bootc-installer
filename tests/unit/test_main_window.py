@@ -4,7 +4,7 @@ Covers the carousel navigation helpers (next/back) to ensure they
 handle pages that lack a ``delta`` attribute gracefully.
 
 Regression test for:
-  AttributeError: 'VanillaProgress' object has no attribute 'delta'
+  AttributeError: 'BootcProgress' object has no attribute 'delta'
   which prevented start() from ever being called, causing blank logs.
 """
 import ast
@@ -23,7 +23,7 @@ _MAIN_WINDOW_PATH = os.path.join(
 class TestDeltaAccessSafety(unittest.TestCase):
     """Verify that next() and back() use getattr for page.delta access.
 
-    Direct attribute access (page.delta) crashes on pages like VanillaProgress
+    Direct attribute access (page.delta) crashes on pages like BootcProgress
     that don't define a delta attribute. The fix is getattr(page, 'delta', False).
     """
 
@@ -48,7 +48,7 @@ class TestDeltaAccessSafety(unittest.TestCase):
             bare_accesses, [],
             f"Found bare page.delta access at lines {bare_accesses}. "
             f"Use getattr(page, 'delta', False) instead to avoid AttributeError "
-            f"on pages like VanillaProgress that don't define delta."
+            f"on pages like BootcProgress that don't define delta."
         )
 
     def test_getattr_pattern_works_without_delta(self):

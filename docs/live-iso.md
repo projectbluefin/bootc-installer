@@ -1,17 +1,17 @@
-# Building a bootc Live ISO with tuna-installer
+# Building a bootc Live ISO with bootc-installer
 
 This document explains how to build a bootable live ISO that auto-launches
-tuna-installer for offline installation of a bootc image. It documents the
+bootc-installer for offline installation of a bootc image. It documents the
 configuration conventions the installer expects, and the OS-image-side setup
 needed to make everything work end-to-end.
 
-The reference implementation is [tuna-os/dakota-iso](https://github.com/tuna-os/dakota-iso).
+The reference implementation is [projectbluefin/dakota-iso](https://github.com/projectbluefin/dakota-iso).
 
 ---
 
 ## Overview
 
-A live ISO built for tuna-installer must:
+A live ISO built for bootc-installer must:
 
 1. Embed the target OCI image in the squashfs (as VFS containers-storage).
 2. Auto-start the installer Flatpak as the live user.
@@ -84,14 +84,88 @@ sent to fisherman.
 
 ```json
 {
+  "log_file": "/var/log/bootc-installer.log",
   "distro_name": "My OS",
-  "distro_version": "latest",
-  "tour_slides": [],
-  "steps": []
+  "distro_logo": "resource:///org/bootcinstaller/Installer/images/my-os.png",
+  "imgref": "ghcr.io/my-org/my-os:latest",
+  "welcome_title": "Welcome to My OS",
+  "welcome_subtitle": "A short tagline shown under the welcome title.",
+
+  "images": [
+    {
+      "name": "My OS",
+      "imgref": "ghcr.io/my-org/my-os:latest",
+      "bootloader": "systemd",
+      "filesystem": "btrfs",
+      "composefs": true,
+      "needs_user_creation": false,
+      "flatpak_var_path": "state/os/default/var",
+      "nvidia_imgref": "ghcr.io/my-org/my-os-nvidia:latest"
+    }
+  ],
+
+  "tour": {
+    "welcome": {
+      "resource": "/org/bootcinstaller/Installer/assets/welcome.png",
+      "title": "Installing My OS",
+      "description": "This will take a few minutes."
+    },
+    "completed": {
+      "resource": "/org/bootcinstaller/Installer/assets/complete.svg",
+      "title": "Installation Complete",
+      "description": "Your system is ready to use."
+    }
+  },
+
+  "steps": {
+    "welcome":    { "template": "welcome",    "protected": true },
+    "disk":       { "template": "disk" },
+    "slurp":      { "template": "slurp" },
+    "encryption": { "template": "encryption" },
+    "user":       { "template": "user" }
+  },
+
+  "store_url": "https://store.my-os.io",
+  "store_qr_resource": "/org/bootcinstaller/Installer/assets/store-qr.svg",
+  "credits_data": "/org/bootcinstaller/Installer/data/credits.json",
+  "soundtrack_data": "/org/bootcinstaller/Installer/data/tracks.json"
 }
 ```
 
-Refer to the tuna-installer source for the full schema.
+#### Field reference
+
+| Field | Required | Description |
+|---|---|---|
+| `log_file` | ✅ | Path where the installer writes its log |
+| `distro_name` | ✅ | Display name shown throughout the UI |
+| `distro_logo` | ✅ | GResource path or icon name for the distro logo |
+| `steps` | ✅ | Ordered wizard steps (see templates below) |
+| `imgref` | — | Default image reference (used in live ISO mode) |
+| `welcome_title` | — | Heading on the welcome screen; defaults to `"bootc Installer"` |
+| `welcome_subtitle` | — | Subtitle shown under the welcome heading |
+| `images` | — | Image catalog for the image-selection step |
+| `tour` | — | Progress screen tour slides (`welcome` and `completed`) |
+| `store_url` | — | If set, shows a merch store QR code for US-locale users on the done screen |
+| `store_qr_resource` | — | GResource path for the store QR SVG; defaults to the built-in `assets/store-qr.svg` |
+| `credits_data` | — | GResource path **or** filesystem path to a `credits.json` file; defaults to the built-in `data/credits.json` |
+| `soundtrack_data` | — | GResource path **or** filesystem path to a `tracks.json` file; defaults to the built-in `data/tracks.json` |
+
+#### Step templates
+
+| Template | Description |
+|---|---|
+| `welcome` | Welcome / launch screen |
+| `image` | Image selection (omit on live ISOs — removed automatically) |
+| `disk` | Disk selection |
+| `slurp` | Windows data migration wizard |
+| `encryption` | Encryption setup |
+| `user` | User account creation |
+
+#### Demo / preview mode
+
+Set `BOOTC_DEMO=1` or `BOOTC_PREVIEW_SCREEN=<step>` to run without a recipe.
+Set `BOOTC_DEMO_DISTRO_NAME` to override the distro name shown in demo mode
+(defaults to empty string).
 
 ---
 
@@ -103,13 +177,13 @@ Place a `.desktop` file in `/etc/xdg/autostart/`:
 ```ini
 [Desktop Entry]
 Name=My OS Installer
-Exec=flatpak run --env=VANILLA_CUSTOM_RECIPE=/run/host/etc/bootc-installer/recipe.json org.bootcinstaller.Installer
+Exec=flatpak run --env=BOOTC_CUSTOM_RECIPE=/run/host/etc/bootc-installer/recipe.json org.bootcinstaller.Installer
 Icon=/usr/share/pixmaps/my-os.png
 Type=Application
 X-GNOME-Autostart-enabled=true
 ```
 
-**Important:** pass `VANILLA_CUSTOM_RECIPE` at the `/run/host/etc/...` path.
+**Important:** pass `BOOTC_CUSTOM_RECIPE` at the `/run/host/etc/...` path.
 Inside the Flatpak sandbox, the host `/etc` is bind-mounted at `/run/host/etc`;
 the installer's recipe loader uses this prefix automatically when the
 `live-iso-mode` flag is present.
@@ -126,12 +200,12 @@ liveuser must be allowed to trigger this without a password.
 
 ### The exec action ID issue
 
-tuna-installer copies the fisherman binary from the Flatpak bundle to a
+bootc-installer copies the fisherman binary from the Flatpak bundle to a
 **temporary path** (e.g. `/var/home/liveuser/.cache/bootc-installer/fisherman`)
 and calls `pkexec` on that path. Because the path does not match any
 `org.freedesktop.policykit.exec.path` annotation, polkit fires the generic
 **`org.freedesktop.policykit.exec`** action instead of
-`org.tunaos.Installer.install`.
+`org.bootcos.Installer.install`.
 
 The custom polkit action definition (with `exec.path=/usr/local/bin/fisherman`)
 therefore **never fires** in practice. The JS rules approach below is what
@@ -149,7 +223,7 @@ installed at build time:
   "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
   "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <action id="org.tunaos.Installer.install">
+  <action id="org.bootcos.Installer.install">
     <description>Install an operating system to disk</description>
     <message>Authentication is required to install an operating system</message>
     <icon_name>drive-harddisk</icon_name>
@@ -166,14 +240,14 @@ installed at build time:
 
 ### 2. JS rules — the effective grant
 
-A JS rule is required to cover both `org.tunaos.Installer.install` **and**
+A JS rule is required to cover both `org.bootcos.Installer.install` **and**
 `org.freedesktop.policykit.exec` (the action actually fired when pkexec is
 called on the temp fisherman path):
 
 ```javascript
 // /etc/polkit-1/rules.d/99-live-installer.rules
 polkit.addRule(function(action, subject) {
-    if ((action.id === "org.tunaos.Installer.install" ||
+    if ((action.id === "org.bootcos.Installer.install" ||
          action.id === "org.freedesktop.policykit.exec") &&
             subject.user === "liveuser" && subject.local) {
         return polkit.Result.YES;
@@ -376,9 +450,9 @@ AutomaticLogin=liveuser
 - [ ] `/etc/bootc-installer/live-iso-mode` (empty flag file)
 - [ ] `/etc/bootc-installer/images.json` with `needs_user_creation: false` and correct `bootloader`/`filesystem`/`composefs`/`flatpak_var_path`
 - [ ] `/etc/bootc-installer/recipe.json` with distro branding
-- [ ] `/etc/xdg/autostart/tuna-installer.desktop` with `VANILLA_CUSTOM_RECIPE=/run/host/etc/...`
+- [ ] `/etc/xdg/autostart/bootc-installer.desktop` with `BOOTC_CUSTOM_RECIPE=/run/host/etc/...`
 - [ ] `/usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy`
-- [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS rule covering **both** `org.tunaos.Installer.install` and `org.freedesktop.policykit.exec`
+- [ ] `/etc/polkit-1/rules.d/99-live-installer.rules` JS rule covering **both** `org.bootcos.Installer.install` and `org.freedesktop.policykit.exec`
 - [ ] `/usr/local/bin/fisherman` symlink into Flatpak bundle
 - [ ] `/etc/containers/storage.conf` with `driver = "vfs"`
 - [ ] `/usr/bin/skopeo` wrapper redirecting scratch to target `@scratch` btrfs subvolume
