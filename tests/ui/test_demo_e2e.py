@@ -128,7 +128,7 @@ class TestDemoEndToEnd:
 
         try:
             builder = getattr(window, "_BootcWindow__builder")
-            for step in builder.widgets[:4]:
+            for step in builder.widgets:
                 step.test_auto_advance()
                 _pump()
                 scheduler.drain()

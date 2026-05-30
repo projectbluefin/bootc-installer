@@ -109,6 +109,11 @@ class BootcDefaultQrCompanion(Adw.Bin):
         else:
             self.__stop_companion()
 
+    def test_auto_advance(self):
+        """Simulate programmatic advance for UI integration tests."""
+        self.__stop_companion()
+        self.__window.next()
+
     def __start_companion(self):
         if self.__server is not None:
             return
