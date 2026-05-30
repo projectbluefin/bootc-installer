@@ -32,7 +32,7 @@ Refs: #44|Closes
 - **Verify:** No hang, clear error if passphrase rejected
 
 ### 6. fisherman binary missing/corrupt
-- **Trigger:** Delete/corrupt `~/.cache/tuna-installer/fisherman` after staging
+- **Trigger:** Delete/corrupt `~/.cache/bootc-installer/fisherman` after staging
 - **Expected:** GUI shows "failed to launch" error
 - **Verify:** No hang, clear error message
 

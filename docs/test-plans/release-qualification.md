@@ -50,7 +50,7 @@ ssh <target> "sudo wipefs -a /dev/nvme0n1"  # DESTRUCTIVE
 ### Phase 4: Run Install
 ```bash
 ssh <target> "flatpak run org.bootcinstaller.Installer"
-ssh <target> "tail -f ~/.cache/tuna-installer/fisherman-output.log"
+ssh <target> "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 ```
 
 ### Phase 5: Post-Install Verification (after reboot)

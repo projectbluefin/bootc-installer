@@ -35,13 +35,13 @@ Document in `README.md` or `docs/DEV_SETUP.md`:
 
 ## Files to Change
 
-- [ ] `tests/ui/test_demo_e2e.py` (new)
-- [ ] `bootc_installer/windows/main_window.py` (`BOOTC_PREVIEW_SCREEN` support)
-- [ ] `run-dev.sh` (document better, add `--screen` flag)
-- [ ] `README.md` or `docs/DEV_SETUP.md` (dev setup guide)
+- [x] `tests/ui/test_demo_e2e.py` (new)
+- [x] `bootc_installer/windows/main_window.py` (`BOOTC_PREVIEW_SCREEN` support)
+- [x] `run-dev.sh` (document better, add `--screen` flag)
+- [x] `README.md` or `docs/DEV_SETUP.md` (dev setup guide)
 
 ## Acceptance
 
-- [ ] `xvfb-run -a pytest tests/ui/test_demo_e2e.py -v` passes
-- [ ] `BOOTC_PREVIEW_SCREEN=progress` opens directly to progress in demo
-- [ ] Dev setup documented enough that a new contributor can run the app in < 10 min
+- [x] `xvfb-run -a pytest tests/ui/test_demo_e2e.py -v` passes
+- [x] `BOOTC_PREVIEW_SCREEN=progress` opens directly to progress in demo
+- [x] Dev setup documented enough that a new contributor can run the app in < 10 min
