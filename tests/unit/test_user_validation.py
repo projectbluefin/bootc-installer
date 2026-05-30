@@ -9,14 +9,56 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-# Mock gi.repository before importing the module
-sys.modules['gi'] = MagicMock()
-sys.modules['gi.repository'] = MagicMock()
-sys.modules['gi.repository.Gtk'] = MagicMock()
-sys.modules['gi.repository.Gdk'] = MagicMock()
-sys.modules['gi.repository.GObject'] = MagicMock()
-sys.modules['gi.repository.Adw'] = MagicMock()
-sys.modules['gi.repository.GLib'] = MagicMock()
+# Mock gi.repository robustly before importing the module
+def _build_gi_stubs():
+    import types
+    gi_mod = types.ModuleType("gi")
+    repo_mod = types.ModuleType("gi.repository")
+
+    class _Template:
+        def __call__(self, *args, **kwargs):
+            return lambda cls: cls
+
+        def Child(self, *args, **kwargs):
+            return None
+
+    class _StubBin:
+        pass
+
+    stubs = {}
+    for lib in ("Gtk", "Adw", "GLib", "Gio", "Gdk", "NM", "GObject"):
+        stub = types.ModuleType(f"gi.repository.{lib}")
+        stub.Template = _Template()
+        stub.Template.Child = lambda *a, **kw: None
+        setattr(repo_mod, lib, stub)
+        sys.modules[f"gi.repository.{lib}"] = stub
+        stubs[lib] = stub
+
+    # Adw needs Window for dialog_credits.BootcCreditsWindow(Adw.Window)
+    stubs["Adw"].Window = _StubBin
+    stubs["Adw"].PreferencesGroup = _StubBin
+    stubs["Adw"].ActionRow = _StubBin
+    stubs["Adw"].ExpanderRow = _StubBin
+
+    # Gio needs ResourceLookupFlags for progress.py GResource lookups
+    class _ResourceLookupFlags:
+        NONE = 0
+    stubs["Gio"].ResourceLookupFlags = _ResourceLookupFlags
+    stubs["Gio"].resources_lookup_data = MagicMock()
+    stubs["Gio"].bus_get_sync = MagicMock()
+    stubs["Gio"].BusType = types.SimpleNamespace(SYSTEM=0)
+    stubs["Gio"].DBusCallFlags = types.SimpleNamespace(NONE=0)
+    stubs["Gio"].File = MagicMock()
+
+    # GObject needs Property
+    stubs["GObject"].Property = lambda *a, **kw: (lambda f: property(f))
+
+    gi_mod.repository = repo_mod
+    gi_mod.require_version = lambda *a, **kw: None
+    sys.modules["gi"] = gi_mod
+    sys.modules["gi.repository"] = repo_mod
+
+_build_gi_stubs()
 
 
 class TestSuggestedUsername(unittest.TestCase):
