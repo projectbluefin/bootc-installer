@@ -211,9 +211,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 ## CI / releases
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
-  the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub.
-  Pushes to `prod` publish the `continuous` pre-release.
-- **`.github/workflows/python-test.yml`** runs on every push: 274+ unit tests
+  the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
+- **`.github/workflows/python-test.yml`** runs on every push: 210+ unit tests
   (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
@@ -424,23 +423,11 @@ feature/xyz  ──►  dev  ──►  prod
 - Never open PRs directly against `prod`. Features land on `dev` first.
 - The merge queue is enabled for `dev`. Use `gh pr merge --squash <number>` or enqueue via the GitHub UI.
 
-### Current features in flight (targeting `dev`)
+### Querying features in flight (targeting `dev`)
 
-| PR | Title | Status |
-|----|-------|--------|
-| #74 | fix(user): add DX groups to default user creation | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
-| #73 | feat: pre-generate soundtrack QR codes | Draft — no review yet |
-| #72 | feat: GStreamer VP9/AV1 codec validation | Draft — no review yet |
-| #71 | feat: libpastry integration | Draft — no review yet |
-| #70 | feat: QR Phone Companion MVP | Draft — no review yet |
-| #69 | docs: add test plan documentation | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
-| #68 | fix(ci): add Python coverage threshold gates | CHANGES_REQUESTED |
-| #67 | fix(test): resolve gi stub contamination | CHANGES_REQUESTED (all checks pass) — awaiting castrojo re-review |
-| #66 | test(unit): keymaps + main entry-point tests | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
-| #60 | test(unit): Locale, Diskutils, RecipeLoader tests | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
-| #59 | fix(ci): Go coverage + 70% threshold | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
-
-> **Note:** The "Unit Tests (no display)" failures on #74/#69/#66/#60/#59 are caused by the gi stub contamination bug fixed in #67. Once #67 merges into `dev`, re-run CI on those PRs and they should go green.
+To view active pull requests and their current check status:
+1. Run `gh pr list --base dev` in your terminal to see open pull requests targeting the `dev` branch.
+2. View the open pull requests directly on the GitHub UI at [GitHub Pull Requests](https://github.com/projectbluefin/bootc-installer/pulls).
 
 ---
 
