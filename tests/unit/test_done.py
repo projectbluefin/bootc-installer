@@ -92,8 +92,13 @@ from bootc_installer.views.done import (  # noqa: E402
 class TestDoReboot(unittest.TestCase):
 
     def setUp(self):
-        # Rebuild gi stubs and reimport done.py to ensure patch targets are consistent
-        # across test files that also modify sys.modules (test_branding_parity, test_slurp_helpers).
+        # test_branding_parity._import_done() reimports done.py during test
+        # execution, rebinding done.Gio to whichever stubs are current in
+        # sys.modules.  test_slurp_helpers / test_network_helpers also
+        # overwrite sys.modules["gi.repository.GLib"] with a bare ModuleType
+        # that lacks Variant, breaking done.py's D-Bus call path.
+        # Rebuilding our own stubs first and then reimporting ensures that
+        # do_reboot and the patch("...Gio.bus_get_sync") target the same object.
         _build_gi_stubs()
         sys.modules.pop("bootc_installer.views.done", None)
         import bootc_installer.views.done  # noqa: F401 — re-populates sys.modules
@@ -111,7 +116,7 @@ class TestDoReboot(unittest.TestCase):
         with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
-            result = do_reboot(in_flatpak=False)
+            result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
         first_argv = mock_run.call_args_list[0][0][0]
         self.assertIn("systemctl", first_argv)
@@ -121,7 +126,7 @@ class TestDoReboot(unittest.TestCase):
         with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
-            result = do_reboot(in_flatpak=True)
+            result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
         first_argv = mock_run.call_args_list[0][0][0]
         self.assertEqual(first_argv[:2], ["flatpak-spawn", "--host"])
@@ -134,7 +139,7 @@ class TestDoReboot(unittest.TestCase):
                 MagicMock(returncode=1, stderr=b"failed"),  # systemctl reboot → fail
                 MagicMock(returncode=0),                    # reboot → success
             ]
-            result = do_reboot(in_flatpak=False)
+            result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
         self.assertEqual(mock_run.call_count, 2)
 
@@ -143,7 +148,7 @@ class TestDoReboot(unittest.TestCase):
         with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stderr=b"permission denied")
-            result = do_reboot(in_flatpak=False)
+            result = done_mod.do_reboot(in_flatpak=False)
         self.assertFalse(result)
 
 
