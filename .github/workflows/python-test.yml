@@ -24,10 +24,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install pytest
-        run: pip install pytest
+        run: pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --tb=short
+        run: pytest tests/unit/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=0
 
   # ── Job 2: GTK integration tests (offscreen backend + compiled resources) ──
   ui:
@@ -74,4 +74,4 @@ jobs:
           NO_AT_BRIDGE: "1"
         run: |
           xvfb-run -a python3 -m pytest tests/ui/ -v --tb=short \
-            -p no:cacheprovider
+            -p no:cacheprovider --cov=. --cov-report=term-missing --cov-fail-under=0
