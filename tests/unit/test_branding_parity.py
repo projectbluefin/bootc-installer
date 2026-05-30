@@ -52,6 +52,9 @@ def _build_gi_stubs():
         NONE = 0
 
     gio_mod = types.ModuleType("gi.repository.Gio")
+    gio_mod.bus_get_sync = MagicMock()
+    gio_mod.BusType = types.SimpleNamespace(SYSTEM=0)
+    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=0)
     gio_mod.ResourceLookupFlags = _ResourceLookupFlags
     gio_mod.resources_lookup_data = MagicMock()
     gio_mod.File = MagicMock()
