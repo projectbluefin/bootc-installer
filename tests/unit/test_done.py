@@ -166,7 +166,8 @@ class TestApplyIcon(unittest.TestCase):
         status_page.set_from_resource.side_effect = Exception("bad resource")
         import bootc_installer.views.done as done_mod
         with _patch.object(done_mod, "log") as mock_log:
-            apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/missing.svg")
+            # Use done_mod.apply_icon so the patched `log` is in the same module namespace.
+            done_mod.apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/missing.svg")
         mock_log.warning.assert_called_once()
 
 
