@@ -17,6 +17,7 @@ sources = [
   'network.py',
   'theme.py',
   'user.py',
+  'qr_companion.py',
 ]
 
 install_data(sources, install_dir: defaultsdir)
