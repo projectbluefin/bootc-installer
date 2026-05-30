@@ -413,6 +413,37 @@ sudo umount /tmp/ir
 
 ---
 
+## Branch strategy
+
+```
+feature/xyz  ──►  dev  ──►  prod
+```
+
+- **`dev`** is the integration branch. All feature PRs target `dev`.
+- **`prod`** is the release branch. It is promoted wholesale from `dev` when `dev` is in a shippable state — no cherry-picks, no partial merges.
+- Never open PRs directly against `prod`. Features land on `dev` first.
+- The merge queue is enabled for `dev`. Use `gh pr merge --squash <number>` or enqueue via the GitHub UI.
+
+### Current features in flight (targeting `dev`)
+
+| PR | Title | Status |
+|----|-------|--------|
+| #74 | fix(user): add DX groups to default user creation | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
+| #73 | feat: pre-generate soundtrack QR codes | Draft — no review yet |
+| #72 | feat: GStreamer VP9/AV1 codec validation | Draft — no review yet |
+| #71 | feat: libpastry integration | Draft — no review yet |
+| #70 | feat: QR Phone Companion MVP | Draft — no review yet |
+| #69 | docs: add test plan documentation | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
+| #68 | fix(ci): add Python coverage threshold gates | CHANGES_REQUESTED |
+| #67 | fix(test): resolve gi stub contamination | CHANGES_REQUESTED (all checks pass) — awaiting castrojo re-review |
+| #66 | test(unit): keymaps + main entry-point tests | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
+| #60 | test(unit): Locale, Diskutils, RecipeLoader tests | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
+| #59 | fix(ci): Go coverage + 70% threshold | APPROVED — failing Unit Tests (no display); re-run after #67 lands |
+
+> **Note:** The "Unit Tests (no display)" failures on #74/#69/#66/#60/#59 are caused by the gi stub contamination bug fixed in #67. Once #67 merges into `dev`, re-run CI on those PRs and they should go green.
+
+---
+
 ## GitHub org context
 
 - **`projectbluefin/bootc-installer`** — this repo (work directly here, no fork)
