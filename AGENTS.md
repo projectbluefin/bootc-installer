@@ -8,13 +8,13 @@ to work on this project as an AI agent. Read it before making changes.
 ## Repository layout
 
 ```
-bootc-installer/               ← this repo (tuna-os/bootc-installer)
+bootc-installer/               ← this repo (projectbluefin/bootc-installer)
 ├── bootc_installer/          ← Python GTK4/Adwaita GUI (the Flatpak app)
 │   └── views/
 │       ├── progress.py       ← fisherman launcher, log-file watcher, progress JSON parser
 │       ├── done.py           ← final screen (reboot / log viewer)
 │       └── confirm.py        ← confirmation screen before install
-├── fisherman/                ← git submodule → tuna-os/fisherman (Go backend)
+├── fisherman/                ← git submodule → projectbluefin/fisherman (Go backend)
 │   └── fisherman/
 │       ├── cmd/fisherman/main.go          ← install pipeline (steps 1-9)
 │       └── internal/
@@ -117,10 +117,21 @@ Encryption types: `"none"`, `"luks-passphrase"`, `"tpm2-luks"`, `"tpm2-luks-pass
 
 ## Development workflow
 
+Work directly on `projectbluefin/bootc-installer` — there is no fork.
+The single remote is `origin → git@github.com:projectbluefin/bootc-installer.git`.
+
+```bash
+# Standard branch-and-PR workflow
+git checkout -b my-feature origin/dev
+# ... make changes ...
+git push origin my-feature
+gh pr create --base dev
+```
+
 ### Making changes to fisherman
 
 fisherman lives at `fisherman/` and is a **git submodule** pointing to
-`github.com/tuna-os/fisherman`. You must commit and push changes there
+`github.com/projectbluefin/fisherman`. You must commit and push changes there
 **separately** before updating the parent repo's submodule pointer.
 
 ```bash
@@ -135,7 +146,7 @@ git add -A && git commit -m "fix: describe the change"
 git push
 
 # 3. Update the submodule pointer in the parent repo
-cd /var/home/james/dev/bootc-installer
+cd /path/to/bootc-installer
 git add fisherman
 git commit -m "chore: update fisherman submodule (describe the change)"
 git push
@@ -144,7 +155,7 @@ git push
 ### Making changes to the Python GUI
 
 ```bash
-cd /var/home/james/dev/bootc-installer
+cd /path/to/bootc-installer
 # edit bootc_installer/views/*.py or other files
 git add -A && git commit -m "fix: describe the change"
 git push
@@ -153,24 +164,24 @@ git push
 ### Building and deploying the Flatpak locally
 
 ```bash
-cd /var/home/james/dev/bootc-installer
+cd /path/to/bootc-installer
 
 # Build and install locally (takes ~10 min first time; cached after)
 flatpak run org.flatpak.Builder \
   --force-clean --user --install \
-  _build flatpak/org.bootcos.Installer.json
+  _build flatpak/org.bootcinstaller.Installer.json
 
 # Bundle for deployment to a remote machine
 flatpak build-bundle \
   ~/.local/share/flatpak/repo \
-  org.bootcos.Installer.flatpak \
-  org.bootcos.Installer
+  org.bootcinstaller.Installer.flatpak \
+  org.bootcinstaller.Installer
 
-# Deploy to a remote machine (e.g. 192.168.0.119)
-scp org.bootcos.Installer.flatpak james@192.168.0.119:~
-ssh james@192.168.0.119 \
-  "flatpak uninstall --user -y org.bootcos.Installer; \
-   flatpak install --user --bundle -y ~/org.bootcos.Installer.flatpak"
+# Deploy to a remote machine
+scp org.bootcinstaller.Installer.flatpak user@<machine>:~
+ssh user@<machine> \
+  "flatpak uninstall --user -y org.bootcinstaller.Installer; \
+   flatpak install --user --bundle -y ~/org.bootcinstaller.Installer.flatpak"
 ```
 
 ### Running the installer (on a live machine)
@@ -201,7 +212,7 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 - **Every push to `main`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous` pre-release on GitHub.
-- **`.github/workflows/python-test.yml`** runs on every push: 210+ unit tests
+- **`.github/workflows/python-test.yml`** runs on every push: 274+ unit tests
   (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
@@ -220,7 +231,12 @@ tests/
 ├── unit/
 │   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
 │   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
-│   └── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
+│   ├── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
+│   ├── test_defaults_misc.py   ← tests for conn_check, vm, nvidia, theme, network defaults
+│   ├── test_done.py            ← tests for views/done.py: D-Bus reboot contract, apply_icon, warmup_registry
+│   ├── test_recipe_loader.py   ← tests for utils/recipe loader logic incl. Flatpak live-ISO path
+│   ├── test_run_async.py       ← tests for utils/run_async helpers
+│   └── test_recovery_key.py    ← tests for views/recovery_key pure logic
 └── ui/
     ├── conftest.py          ← GResource loader + Adw.init() for headless GTK
     └── test_wizard.py       ← 14 GTK integration tests (real widgets via Xvfb)
@@ -242,6 +258,11 @@ xvfb-run -a pytest tests/ui/ -v
 - Update `tests/unit/test_processor.py` to cover new fields or changed logic.
 - Every new recipe field emitted by `processor.py` should have at least one
   parametrized test asserting the correct JSON value in the output recipe.
+
+**When you change `bootc_installer/utils/finals.py`:**
+- Update `tests/unit/test_done.py::TestMainWindowIconExtraction` — it imports
+  `_extract_icon_and_name` directly and tests all edge cases (non-dict entries,
+  fields split across dicts, first-occurrence wins, empty list).
 
 **When you change a wizard step's `get_finals()` output (e.g. `defaults/image.py`,
 `defaults/disk.py`, `defaults/encryption.py`, `defaults/user.py`):**
@@ -284,14 +305,16 @@ xvfb-run -a pytest tests/ui/ -v
 | `bootc_installer/views/recovery_key.py` | Recovery key screen (post-encrypted-install) |
 | `bootc_installer/views/done.py` | Final screen, reboot button, log viewer, `warmup_registry()` (post-install skopeo warmup) |
 | `bootc_installer/defaults/conn_check.py` | Connection check — skipped when offline_install=True |
-| `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder |
+| `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder, `update_finals()` |
 | `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |
+| `bootc_installer/utils/finals.py` | `_extract_icon_and_name()` — pure helper used by `main_window.update_finals()` |
 | `bootc_installer/defaults/slurp.py` | Windows data slurp wizard step: async fisherman scan, category checkboxes, budget warning |
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
 | `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
 | `tests/unit/test_slurp_helpers.py` | 23 unit tests for slurp.py pure logic (no display) |
+| `tests/unit/test_done.py` | D-Bus reboot contract, apply_icon, warmup_registry, icon extraction |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
 | `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
@@ -310,6 +333,22 @@ xvfb-run -a pytest tests/ui/ -v
 - **Flatpak builder bare repo issue**: git sources in Flatpak manifests fail due to
   `safe.bareRepository=explicit` in the sandbox. Workaround: use `archive` sources
   with SHA256 instead of `git` sources.
+- **gi stub contamination in unit tests (fixed)**: When multiple test modules install
+  `sys.modules` stubs for `gi.repository.*`, earlier stubs can bleed into later test files
+  run in the same process. **Definitive three-part pattern**:
+  1. Each `_import_X_fresh()` helper calls `_build_gi_stubs()` before popping and
+     reimporting, so the correct stubs are always active at reimport time.
+  2. Clear the parent package attribute — pop `sys.modules["bootc_installer.views.done"]`
+     **and** `delattr(views_pkg, "done")` (Python can return a stale cached attr even after
+     `sys.modules` is cleaned). Use `importlib.import_module()` rather than a plain import.
+  3. For `gi` C-extension attrs that can bypass stubs (e.g. `done_mod.Gio`), use a
+     structured stub: `gio_stub = MagicMock(); gio_stub.BusType = types.SimpleNamespace(SYSTEM=sentinel)`.
+     Assign `done_mod.Gio = gio_stub` in `setUp()` so `patch.object` always targets a
+     controllable object and typos like `Gio.BusTyp` surface as failures.
+  Fixed in #67 and hardened across `test_done.py` / `test_branding_parity.py`.
+- **`CompanionServer.start()` global reset (fixed in #70)**: `GLOBAL_CONFIG = None`
+  inside a method creates a local variable, not a module-level reset. Always add
+  `global GLOBAL_CONFIG` before the assignment when resetting module-level state.
 
 ---
 
@@ -365,13 +404,16 @@ sudo umount /tmp/ir
 - **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/bootc-installer/install-video.webm`.
 - **Windows Data Slurp (Done — #22)**: Backend (`fisherman scan`, `ExtractData`, `InjectData`) and GUI wizard step (`bootc_installer/defaults/slurp.py`) are fully implemented. The step runs an async scan, presents per-user category checkboxes with size estimates, and enforces a RAM budget warning. Wallpaper extraction also runs as an always-on easter egg.
 - **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
+- **GStreamer VP9/AV1 codec validation (landing — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
+- **libpastry integration (landing — #71)**: Integrates libpastry for install-time configuration generation.
+- **QR soundtrack codes (landing — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
+- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
+- **DX groups on first install (landing — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 
 ---
 
 ## GitHub org context
 
-- **`castrojo/dakota-installer`** — this repo (pending rename from `castrojo/bootc-installer`; see issue #2)
-- **`tuna-os/bootc-installer`** — upstream source repo (read-only)
-- **`tuna-os/fisherman`** — Go backend (submodule at `fisherman/`)
-- **`tuna-os/github-copr`** — COPR definitions for c10s-gnome COPRs used in the image
-- Images are published to `ghcr.io/tuna-os/` (e.g. `yellowfin:gnome50`, `yellowfin:gnome-hwe`)
+- **`projectbluefin/bootc-installer`** — this repo (work directly here, no fork)
+- **`projectbluefin/fisherman`** — Go backend (submodule at `fisherman/`)
+- Images are published to `ghcr.io/projectbluefin/`
