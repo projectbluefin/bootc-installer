@@ -24,6 +24,7 @@ from gettext import gettext as _
 from gi.repository import Adw, GLib, Gtk
 
 from bootc_installer.utils.builder import Builder
+from bootc_installer.utils.finals import _extract_icon_and_name
 from bootc_installer.utils.pastry_compat import wrap_focus
 from bootc_installer.utils.processor import Processor
 from bootc_installer.views.confirm import BootcConfirm
@@ -473,17 +474,7 @@ class BootcWindow(Adw.ApplicationWindow):
         else:
             self.finals = json.loads(os.environ["VANILLA_FORCE_TOUR"])
 
-        # extract the pretty name and icon from whichever image finals key is present
-        self.pretty_name = None
-        self.selected_icon = None
-        for f in self.finals:
-            if isinstance(f, dict):
-                if self.pretty_name is None and "pretty_name" in f:
-                    self.pretty_name = f["pretty_name"]
-                if self.selected_icon is None and "icon" in f:
-                    self.selected_icon = f["icon"]
-            if self.pretty_name and self.selected_icon:
-                break
+        self.pretty_name, self.selected_icon = _extract_icon_and_name(self.finals)
 
         self.__view_confirm.update(self.finals)
 
