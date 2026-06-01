@@ -316,6 +316,7 @@ class CompanionServer:
         self.is_https = False
 
     def start(self):
+        global GLOBAL_CONFIG
         GLOBAL_CONFIG = None
         CONFIG_RECEIVED_EVENT.clear()
         
