@@ -21,7 +21,14 @@ from unittest.mock import MagicMock, patch
 def _build_gi_stubs():
     """Install gi.repository stubs (mirrors pattern from test_done.py)."""
     for mod_name in list(sys.modules.keys()):
-        if mod_name.startswith("gi") or "bootc_installer" in mod_name:
+        if mod_name.startswith("gi") or mod_name in {
+            "bootc_installer.main",
+            "bootc_installer.widgets.page_header",
+            "bootc_installer.windows.main_window",
+            "bootc_installer.windows.window_unsupported",
+            "bootc_installer.windows.window_ram",
+            "bootc_installer.windows.window_cpu",
+        }:
             sys.modules.pop(mod_name, None)
 
     gi = types.ModuleType("gi")
@@ -96,9 +103,7 @@ def _build_gi_stubs():
 def _stub_window_submodules():
     """Stub out GTK-dependent submodules that main.py imports at module level."""
     stubs = {
-        "bootc_installer.widgets": types.ModuleType("bootc_installer.widgets"),
         "bootc_installer.widgets.page_header": types.ModuleType("bootc_installer.widgets.page_header"),
-        "bootc_installer.windows": types.ModuleType("bootc_installer.windows"),
         "bootc_installer.windows.main_window": types.ModuleType("bootc_installer.windows.main_window"),
         "bootc_installer.windows.window_unsupported": types.ModuleType("bootc_installer.windows.window_unsupported"),
         "bootc_installer.windows.window_ram": types.ModuleType("bootc_installer.windows.window_ram"),
@@ -128,6 +133,15 @@ class TestMainEnvGuard(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         sys.path[:] = cls._original_sys_path
+        for mod_name in (
+            "bootc_installer.main",
+            "bootc_installer.widgets.page_header",
+            "bootc_installer.windows.main_window",
+            "bootc_installer.windows.window_unsupported",
+            "bootc_installer.windows.window_ram",
+            "bootc_installer.windows.window_cpu",
+        ):
+            sys.modules.pop(mod_name, None)
 
     def setUp(self):
         self._saved_env = {}
