@@ -3,6 +3,7 @@ Unit tests for done.py — reboot logic and icon application.
 No display required; GTK widgets are not instantiated.
 """
 
+import importlib
 import subprocess
 import sys
 import types
@@ -37,14 +38,26 @@ def _build_gi_stubs():
 
     gobject_mod.Property = _property
 
+    gio_mod = types.ModuleType("gi.repository.Gio")
+    gio_mod.BusType = type("BusType", (), {"SYSTEM": 0})
+    gio_mod.DBusCallFlags = type("DBusCallFlags", (), {"NONE": 0})
+    gio_mod.bus_get_sync = MagicMock()
+
+    glib_mod = types.ModuleType("gi.repository.GLib")
+    glib_mod.Variant = lambda *_args, **_kwargs: None
+
     sys.modules["gi.repository.Gtk"] = gtk_mod
     sys.modules["gi.repository.Adw"] = adw_mod
     sys.modules["gi.repository.GObject"] = gobject_mod
+    sys.modules["gi.repository.Gio"] = gio_mod
+    sys.modules["gi.repository.GLib"] = glib_mod
     repo_mod.Gtk = gtk_mod
     repo_mod.Adw = adw_mod
     repo_mod.GObject = gobject_mod
+    repo_mod.Gio = gio_mod
+    repo_mod.GLib = glib_mod
 
-    for lib in ("Gdk", "Gio", "GLib"):
+    for lib in ("Gdk",):
         stub = MagicMock()
         setattr(repo_mod, lib, stub)
         sys.modules[f"gi.repository.{lib}"] = stub
@@ -55,16 +68,14 @@ def _build_gi_stubs():
     sys.modules["gi.repository"] = repo_mod
 
 
-_build_gi_stubs()
 if "bootc_installer.windows.dialog_output" not in sys.modules:
     sys.modules["bootc_installer.windows.dialog_output"] = MagicMock()
 
-from bootc_installer.views.done import (  # noqa: E402
-    BootcDone,
-    apply_icon,
-    do_reboot,
-    warmup_registry,
-)
+
+def _import_done():
+    _build_gi_stubs()
+    sys.modules.pop("bootc_installer.views.done", None)
+    return importlib.import_module("bootc_installer.views.done")
 
 
 class TestDoReboot(unittest.TestCase):
@@ -95,7 +106,7 @@ class TestDoReboot(unittest.TestCase):
     def test_reboot_falls_back_to_subprocess_when_dbus_fails(self):
         done_mod = self._fresh_done()
         with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch("subprocess.run") as mock_run:
+             patch.object(done_mod.subprocess, "run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
@@ -105,7 +116,7 @@ class TestDoReboot(unittest.TestCase):
     def test_reboot_flatpak_fallback_uses_flatpak_spawn(self):
         done_mod = self._fresh_done()
         with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch("subprocess.run") as mock_run:
+             patch.object(done_mod.subprocess, "run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
@@ -115,10 +126,10 @@ class TestDoReboot(unittest.TestCase):
     def test_reboot_tries_reboot_binary_when_systemctl_fails(self):
         done_mod = self._fresh_done()
         with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch("subprocess.run") as mock_run:
+             patch.object(done_mod.subprocess, "run") as mock_run:
             mock_run.side_effect = [
-                MagicMock(returncode=1, stderr=b"failed"),  # systemctl reboot → fail
-                MagicMock(returncode=0),                    # reboot → success
+                MagicMock(returncode=1, stderr=b"failed"),
+                MagicMock(returncode=0),
             ]
             result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
@@ -127,7 +138,7 @@ class TestDoReboot(unittest.TestCase):
     def test_reboot_returns_false_when_all_methods_fail(self):
         done_mod = self._fresh_done()
         with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch("subprocess.run") as mock_run:
+             patch.object(done_mod.subprocess, "run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stderr=b"permission denied")
             result = done_mod.do_reboot(in_flatpak=False)
         self.assertFalse(result)
@@ -136,25 +147,26 @@ class TestDoReboot(unittest.TestCase):
 class TestApplyIcon(unittest.TestCase):
 
     def test_resource_uri_calls_set_from_resource(self):
+        done_mod = _import_done()
         page_header = MagicMock()
-        apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/bootcos.svg")
+        done_mod.apply_icon(page_header, "resource:///org/bootcinstaller/Installer/images/bootcos.svg")
         page_header.set_from_resource.assert_called_once_with(
             "/org/bootcinstaller/Installer/images/bootcos.svg"
         )
 
     def test_icon_theme_name_calls_set_icon_name(self):
+        done_mod = _import_done()
         page_header = MagicMock()
-        apply_icon(page_header, "object-select-symbolic")
+        done_mod.apply_icon(page_header, "object-select-symbolic")
         assert page_header.icon_name == "object-select-symbolic"
         page_header.set_from_resource.assert_not_called()
 
     def test_apply_icon_logs_errors(self):
         """apply_icon must log failures rather than silently swallow them."""
-        from unittest.mock import patch as _patch
+        done_mod = _import_done()
         status_page = MagicMock()
         status_page.set_from_resource.side_effect = Exception("bad resource")
-        import bootc_installer.views.done as done_mod
-        with _patch.object(done_mod, "log") as mock_log:
+        with patch.object(done_mod, "log") as mock_log:
             done_mod.apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/missing.svg")
         mock_log.warning.assert_called_once()
 
@@ -194,10 +206,10 @@ class TestRegistryWarmup(unittest.TestCase):
     """warmup_registry — verify skopeo is called correctly."""
 
     def test_warmup_calls_skopeo_with_docker_prefix(self):
-        import bootc_installer.views.done as done_mod
+        done_mod = _import_done()
         with patch.object(done_mod.subprocess, "run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
-            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+            done_mod.warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
         mock_run.assert_called_once()
         argv = mock_run.call_args[0][0]
         self.assertEqual(argv[0], "skopeo")
@@ -205,25 +217,25 @@ class TestRegistryWarmup(unittest.TestCase):
         self.assertIn("docker://ghcr.io/tuna-os/yellowfin:gnome50", argv[2])
 
     def test_warmup_handles_skopeo_not_found(self):
-        import bootc_installer.views.done as done_mod
+        done_mod = _import_done()
         with patch.object(done_mod.subprocess, "run", side_effect=FileNotFoundError("no skopeo")):
-            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+            done_mod.warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
 
     def test_warmup_handles_timeout(self):
         import subprocess as _sp
-        import bootc_installer.views.done as done_mod
+        done_mod = _import_done()
         with patch.object(done_mod.subprocess, "run",
                           side_effect=_sp.TimeoutExpired(cmd="skopeo", timeout=60)):
-            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+            done_mod.warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
 
     def test_warmup_handles_nonzero_exit(self):
-        import bootc_installer.views.done as done_mod
+        done_mod = _import_done()
         with patch.object(done_mod.subprocess, "run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=1,
                 stderr=b"unauthorized: access denied",
             )
-            warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
+            done_mod.warmup_registry("ghcr.io/tuna-os/yellowfin:gnome50")
 
 
 class TestFailureHintExtraction(unittest.TestCase):
@@ -232,7 +244,8 @@ class TestFailureHintExtraction(unittest.TestCase):
         import bootc_installer.views.done as done_mod
 
         progress_mod = types.SimpleNamespace(_FISHERMAN_LOG_PATH="/unused/fisherman.log")
-        done_page = BootcDone.__new__(BootcDone)
+        done_mod = _import_done()
+        done_page = done_mod.BootcDone.__new__(done_mod.BootcDone)
 
         with patch.dict(sys.modules, {"bootc_installer.views.progress": progress_mod}):
             with patch("builtins.open", create=True) as mock_open:
