@@ -69,47 +69,67 @@ from bootc_installer.views.done import (  # noqa: E402
 
 class TestDoReboot(unittest.TestCase):
 
+    def _fresh_done(self):
+        """Re-import done.py and ensure Gio/GLib stubs have the attrs we need to patch."""
+        for mod_name in list(sys.modules):
+            if mod_name == "bootc_installer.views.done":
+                del sys.modules[mod_name]
+        import bootc_installer.views.done as done_mod
+        gio = done_mod.Gio
+        glib = done_mod.GLib
+        for attr in ("bus_get_sync", "BusType", "DBusCallFlags"):
+            if not hasattr(gio, attr):
+                setattr(gio, attr, MagicMock())
+        if not hasattr(glib, "Variant"):
+            glib.Variant = MagicMock()
+        return done_mod
+
     def test_reboot_via_dbus_success(self):
+        done_mod = self._fresh_done()
         conn = MagicMock()
-        with patch("bootc_installer.views.done.Gio.bus_get_sync", return_value=conn):
-            result = do_reboot(in_flatpak=True)
+        with patch.object(done_mod.Gio, "bus_get_sync", return_value=conn):
+            result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
         conn.call_sync.assert_called_once()
 
     def test_reboot_falls_back_to_subprocess_when_dbus_fails(self):
-        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+        done_mod = self._fresh_done()
+        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
-            result = do_reboot(in_flatpak=False)
+            result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
         first_argv = mock_run.call_args_list[0][0][0]
         self.assertIn("systemctl", first_argv)
 
     def test_reboot_flatpak_fallback_uses_flatpak_spawn(self):
-        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+        done_mod = self._fresh_done()
+        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
-            result = do_reboot(in_flatpak=True)
+            result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
         first_argv = mock_run.call_args_list[0][0][0]
         self.assertEqual(first_argv[:2], ["flatpak-spawn", "--host"])
 
     def test_reboot_tries_reboot_binary_when_systemctl_fails(self):
-        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+        done_mod = self._fresh_done()
+        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
                 MagicMock(returncode=1, stderr=b"failed"),  # systemctl reboot → fail
                 MagicMock(returncode=0),                    # reboot → success
             ]
-            result = do_reboot(in_flatpak=False)
+            result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
         self.assertEqual(mock_run.call_count, 2)
 
     def test_reboot_returns_false_when_all_methods_fail(self):
-        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+        done_mod = self._fresh_done()
+        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stderr=b"permission denied")
-            result = do_reboot(in_flatpak=False)
+            result = done_mod.do_reboot(in_flatpak=False)
         self.assertFalse(result)
 
 
@@ -135,7 +155,7 @@ class TestApplyIcon(unittest.TestCase):
         status_page.set_from_resource.side_effect = Exception("bad resource")
         import bootc_installer.views.done as done_mod
         with _patch.object(done_mod, "log") as mock_log:
-            apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/missing.svg")
+            done_mod.apply_icon(status_page, "resource:///org/bootcinstaller/Installer/images/missing.svg")
         mock_log.warning.assert_called_once()
 
 

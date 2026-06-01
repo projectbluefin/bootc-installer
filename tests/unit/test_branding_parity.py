@@ -234,6 +234,16 @@ def _import_progress():
     for mod_name in list(sys.modules):
         if mod_name == "bootc_installer.views.progress":
             del sys.modules[mod_name]
+    # Other test files may have clobbered Gio with a minimal stub that lacks
+    # ResourceLookupFlags.  Restore the attribute before re-importing so that
+    # progress.py's __load_tracks can call Gio.ResourceLookupFlags.NONE.
+    gio = sys.modules.get("gi.repository.Gio")
+    if gio is not None and not hasattr(gio, "ResourceLookupFlags"):
+        class _ResourceLookupFlags:
+            NONE = 0
+        gio.ResourceLookupFlags = _ResourceLookupFlags
+    if gio is not None and not hasattr(gio, "resources_lookup_data"):
+        gio.resources_lookup_data = MagicMock()
     from bootc_installer.views import progress as prog_mod
     return prog_mod
 
@@ -303,6 +313,18 @@ def _import_credits():
     for mod_name in list(sys.modules):
         if mod_name == "bootc_installer.windows.dialog_credits":
             del sys.modules[mod_name]
+    # Other test files may have clobbered Adw with a minimal stub that lacks
+    # Window.  Restore it before re-importing so dialog_credits.py can declare
+    # class BootcCreditsWindow(Adw.Window).
+    adw = sys.modules.get("gi.repository.Adw")
+    if adw is not None and not hasattr(adw, "Window"):
+        class _Stub:
+            pass
+        adw.Window = _Stub
+    # Ensure Gio.File exists (needed for resource:// URI loading in _load_credits).
+    gio = sys.modules.get("gi.repository.Gio")
+    if gio is not None and not hasattr(gio, "File"):
+        gio.File = MagicMock()
     from bootc_installer.windows import dialog_credits as dc_mod
     return dc_mod
 
