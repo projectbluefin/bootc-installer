@@ -3,21 +3,73 @@
 These tests cover the non-GUI logic in the recovery key UI component.
 """
 
-import sys
+import importlib
 import os
+import sys
+import types
 import unittest
-from unittest.mock import MagicMock, patch, PropertyMock
-
-# Mock gi.repository before importing the module
-sys.modules['gi'] = MagicMock()
-sys.modules['gi.repository'] = MagicMock()
-sys.modules['gi.repository.Gtk'] = MagicMock()
-sys.modules['gi.repository.Gdk'] = MagicMock()
-sys.modules['gi.repository.GObject'] = MagicMock()
-sys.modules['gi.repository.Adw'] = MagicMock()
-sys.modules['gi.repository.GLib'] = MagicMock()
+from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+
+def _build_gi_stubs():
+    gi_mod = types.ModuleType("gi")
+    repo_mod = types.ModuleType("gi.repository")
+
+    class _Template:
+        def __call__(self, *args, **kwargs):
+            return lambda cls: cls
+
+        def Child(self, *args, **kwargs):
+            return None
+
+    class _StubBin:
+        pass
+
+    gtk_mod = types.ModuleType("gi.repository.Gtk")
+    gtk_mod.Template = _Template()
+    gtk_mod.Box = _StubBin
+
+    adw_mod = types.ModuleType("gi.repository.Adw")
+    adw_mod.Bin = _StubBin
+
+    gdk_mod = types.ModuleType("gi.repository.Gdk")
+    gdk_mod.Display = type("Display", (), {"get_default": staticmethod(lambda: None)})
+
+    gobject_mod = types.ModuleType("gi.repository.GObject")
+    gobject_mod.SignalFlags = types.SimpleNamespace(RUN_FIRST=0)
+
+    glib_mod = types.ModuleType("gi.repository.GLib")
+    glib_mod.SOURCE_REMOVE = False
+    glib_mod.timeout_add = MagicMock()
+
+    sys.modules["gi.repository.Gtk"] = gtk_mod
+    sys.modules["gi.repository.Adw"] = adw_mod
+    sys.modules["gi.repository.Gdk"] = gdk_mod
+    sys.modules["gi.repository.GObject"] = gobject_mod
+    sys.modules["gi.repository.GLib"] = glib_mod
+    repo_mod.Gtk = gtk_mod
+    repo_mod.Adw = adw_mod
+    repo_mod.Gdk = gdk_mod
+    repo_mod.GObject = gobject_mod
+    repo_mod.GLib = glib_mod
+
+    gi_mod.repository = repo_mod
+    gi_mod.require_version = lambda *a, **kw: None
+    sys.modules["gi"] = gi_mod
+    sys.modules["gi.repository"] = repo_mod
+
+
+def _import_recovery_key():
+    _build_gi_stubs()
+    sys.modules.pop("bootc_installer.views.recovery_key", None)
+    try:
+        import bootc_installer.views as views_pkg
+        views_pkg.__dict__.pop("recovery_key", None)
+    except Exception:
+        pass
+    return importlib.import_module("bootc_installer.views.recovery_key")
 
 
 class TestPlaceholderKey(unittest.TestCase):
@@ -25,14 +77,14 @@ class TestPlaceholderKey(unittest.TestCase):
 
     def test_placeholder_is_non_empty_string(self):
         """_PLACEHOLDER_KEY should be a non-empty string."""
-        from bootc_installer.views.recovery_key import _PLACEHOLDER_KEY
-        self.assertIsInstance(_PLACEHOLDER_KEY, str)
-        self.assertTrue(len(_PLACEHOLDER_KEY) > 0)
+        recovery_key_mod = _import_recovery_key()
+        self.assertIsInstance(recovery_key_mod._PLACEHOLDER_KEY, str)
+        self.assertTrue(len(recovery_key_mod._PLACEHOLDER_KEY) > 0)
 
     def test_placeholder_is_meaningful(self):
         """_PLACEHOLDER_KEY should be a longer descriptive string."""
-        from bootc_installer.views.recovery_key import _PLACEHOLDER_KEY
-        self.assertGreater(len(_PLACEHOLDER_KEY), 20)
+        recovery_key_mod = _import_recovery_key()
+        self.assertGreater(len(recovery_key_mod._PLACEHOLDER_KEY), 20)
 
 
 class TestSetRecoveryKey(unittest.TestCase):
@@ -66,14 +118,14 @@ class TestRecoveryKeyIntegration(unittest.TestCase):
 
     def test_class_imports_cleanly(self):
         """The module should be importable with gi mocked."""
-        from bootc_installer.views.recovery_key import BootcRecoveryKey
-        self.assertIsNotNone(BootcRecoveryKey)
+        recovery_key_mod = _import_recovery_key()
+        self.assertIsNotNone(recovery_key_mod.BootcRecoveryKey)
 
     def test_module_exports(self):
         """The module should export BootcRecoveryKey and _PLACEHOLDER_KEY."""
-        from bootc_installer.views import recovery_key
-        self.assertTrue(hasattr(recovery_key, 'BootcRecoveryKey'))
-        self.assertTrue(hasattr(recovery_key, '_PLACEHOLDER_KEY'))
+        recovery_key_mod = _import_recovery_key()
+        self.assertTrue(hasattr(recovery_key_mod, 'BootcRecoveryKey'))
+        self.assertTrue(hasattr(recovery_key_mod, '_PLACEHOLDER_KEY'))
 
 
 if __name__ == "__main__":
