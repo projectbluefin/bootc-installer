@@ -390,13 +390,13 @@ class BootcDefaultNetwork(Adw.Bin):
                 connected = True
             case NM.DeviceState.NEED_AUTH:
                 status = _("Authentication required")
-            case [
-                NM.DeviceState.PREPARE,
-                NM.DeviceState.CONFIG,
-                NM.DeviceState.IP_CONFIG,
-                NM.DeviceState.IP_CHECK,
-                NM.DeviceState.SECONDARIES,
-            ]:
+            case (
+                NM.DeviceState.PREPARE
+                | NM.DeviceState.CONFIG
+                | NM.DeviceState.IP_CONFIG
+                | NM.DeviceState.IP_CHECK
+                | NM.DeviceState.SECONDARIES
+            ):
                 status = _("Connecting")
             case NM.DeviceState.DISCONNECTED:
                 status = _("Disconnected")
