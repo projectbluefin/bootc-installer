@@ -5,6 +5,7 @@ on:
     branches: [prod, dev]
   pull_request:
     branches: [prod, dev]
+  merge_group:
   workflow_dispatch:
 
 jobs:
