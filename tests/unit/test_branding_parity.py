@@ -6,6 +6,7 @@ These tests run without a display (no GTK widgets are instantiated).
 """
 
 import ast
+import importlib
 import inspect
 import json
 import os
@@ -55,6 +56,9 @@ def _build_gi_stubs():
     gio_mod.ResourceLookupFlags = _ResourceLookupFlags
     gio_mod.resources_lookup_data = MagicMock()
     gio_mod.File = MagicMock()
+    gio_mod.BusType = type("BusType", (), {"SYSTEM": 0})
+    gio_mod.DBusCallFlags = type("DBusCallFlags", (), {"NONE": 0})
+    gio_mod.bus_get_sync = MagicMock()
     repo_mod.Gio = gio_mod
     sys.modules["gi.repository.Gio"] = gio_mod
 
@@ -170,11 +174,14 @@ class TestRecipeDemoFallback(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 def _import_done():
-    for mod_name in list(sys.modules):
-        if mod_name in ("bootc_installer.views.done",):
-            del sys.modules[mod_name]
-    from bootc_installer.views import done as done_mod
-    return done_mod
+    _build_gi_stubs()
+    sys.modules.pop("bootc_installer.views.done", None)
+    try:
+        import bootc_installer.views as views_pkg
+        views_pkg.__dict__.pop("done", None)
+    except Exception:
+        pass
+    return importlib.import_module("bootc_installer.views.done")
 
 
 def _make_done_obj(recipe):
@@ -231,12 +238,13 @@ class TestDoneStoreQR(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 def _import_progress():
-    for mod_name in list(sys.modules):
-        if mod_name == "bootc_installer.views.progress":
-            del sys.modules[mod_name]
-    # Other test files may have clobbered Gio with a minimal stub that lacks
-    # ResourceLookupFlags.  Restore the attribute before re-importing so that
-    # progress.py's __load_tracks can call Gio.ResourceLookupFlags.NONE.
+    _build_gi_stubs()
+    sys.modules.pop("bootc_installer.views.progress", None)
+    try:
+        import bootc_installer.views as views_pkg
+        views_pkg.__dict__.pop("progress", None)
+    except Exception:
+        pass
     gio = sys.modules.get("gi.repository.Gio")
     if gio is not None and not hasattr(gio, "ResourceLookupFlags"):
         class _ResourceLookupFlags:
@@ -244,8 +252,7 @@ def _import_progress():
         gio.ResourceLookupFlags = _ResourceLookupFlags
     if gio is not None and not hasattr(gio, "resources_lookup_data"):
         gio.resources_lookup_data = MagicMock()
-    from bootc_installer.views import progress as prog_mod
-    return prog_mod
+    return importlib.import_module("bootc_installer.views.progress")
 
 
 def _make_progress_obj(recipe):
@@ -310,23 +317,22 @@ class TestProgressSoundtrackData(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 def _import_credits():
-    for mod_name in list(sys.modules):
-        if mod_name == "bootc_installer.windows.dialog_credits":
-            del sys.modules[mod_name]
-    # Other test files may have clobbered Adw with a minimal stub that lacks
-    # Window.  Restore it before re-importing so dialog_credits.py can declare
-    # class BootcCreditsWindow(Adw.Window).
+    _build_gi_stubs()
+    sys.modules.pop("bootc_installer.windows.dialog_credits", None)
+    try:
+        import bootc_installer.windows as windows_pkg
+        windows_pkg.__dict__.pop("dialog_credits", None)
+    except Exception:
+        pass
     adw = sys.modules.get("gi.repository.Adw")
     if adw is not None and not hasattr(adw, "Window"):
         class _Stub:
             pass
         adw.Window = _Stub
-    # Ensure Gio.File exists (needed for resource:// URI loading in _load_credits).
     gio = sys.modules.get("gi.repository.Gio")
     if gio is not None and not hasattr(gio, "File"):
         gio.File = MagicMock()
-    from bootc_installer.windows import dialog_credits as dc_mod
-    return dc_mod
+    return importlib.import_module("bootc_installer.windows.dialog_credits")
 
 
 def _make_credits_obj(recipe):
