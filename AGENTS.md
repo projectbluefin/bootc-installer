@@ -211,9 +211,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 ## CI / releases
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
-  the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub.
-  Pushes to `prod` publish the `continuous` pre-release.
-- **`.github/workflows/python-test.yml`** runs on every push: 274+ unit tests
+  the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
+- **`.github/workflows/python-test.yml`** runs on every push: 210+ unit tests
   (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
@@ -410,6 +409,25 @@ sudo umount /tmp/ir
 - **QR soundtrack codes (landing — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
 - **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
 - **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
+
+---
+
+## Branch strategy
+
+```
+feature/xyz  ──►  dev  ──►  prod
+```
+
+- **`dev`** is the integration branch. All feature PRs target `dev`.
+- **`prod`** is the release branch. It is promoted wholesale from `dev` when `dev` is in a shippable state — no cherry-picks, no partial merges.
+- Never open PRs directly against `prod`. Features land on `dev` first.
+- The merge queue is enabled for `dev`. Use `gh pr merge --squash <number>` or enqueue via the GitHub UI.
+
+### Querying features in flight (targeting `dev`)
+
+To view active pull requests and their current check status:
+1. Run `gh pr list --base dev` in your terminal to see open pull requests targeting the `dev` branch.
+2. View the open pull requests directly on the GitHub UI at [GitHub Pull Requests](https://github.com/projectbluefin/bootc-installer/pulls).
 
 ---
 
