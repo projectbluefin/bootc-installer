@@ -232,25 +232,48 @@ tests/
 │   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
 │   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
 │   ├── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
-│   ├── test_defaults_misc.py   ← tests for conn_check, vm, nvidia, theme, network defaults
+│   ├── test_defaults_misc.py   ← tests for vm, nvidia, theme, network defaults
+│   ├── test_conn_check.py      ← 7 tests for conn_check.py: should_show() offline/online, async check, env bypass
 │   ├── test_done.py            ← tests for views/done.py: D-Bus reboot contract, apply_icon, warmup_registry
 │   ├── test_recipe_loader.py   ← tests for utils/recipe loader logic incl. Flatpak live-ISO path
 │   ├── test_run_async.py       ← tests for utils/run_async helpers
-│   └── test_recovery_key.py    ← tests for views/recovery_key pure logic
+│   ├── test_recovery_key.py    ← tests for views/recovery_key pure logic
+│   ├── test_user_validation.py ← 17 tests for user.py: username derivation, password strength, get_finals()
+│   ├── test_locale.py          ← tests for defaults/locale.py keyboard/locale enumeration
+│   ├── test_diskutils.py       ← tests for utils/diskutils.py disk enumeration helpers
+│   ├── test_keymaps.py         ← tests for keymaps module layout
+│   ├── test_main_args.py       ← tests for __main__.py CLI argument parsing
+│   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
 └── ui/
-    ├── conftest.py          ← GResource loader + Adw.init() for headless GTK
-    └── test_wizard.py       ← 14 GTK integration tests (real widgets via Xvfb)
+    ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
+    ├── test_wizard.py          ← 14 GTK integration tests (real widgets via Xvfb)
+    ├── test_should_show.py     ← tests for should_show() step visibility pattern
+    ├── test_done_credits.py    ← tests for done screen and credits dialog
+    └── test_demo_e2e.py        ← end-to-end demo flow tests
 ```
 
 Run unit tests:
 ```bash
-pytest tests/unit/ -v
+pytest tests/unit/ -q
 ```
 
 Run UI tests (requires a display — use Xvfb in CI or a live X session locally):
 ```bash
-xvfb-run -a pytest tests/ui/ -v
+xvfb-run -a pytest tests/ui/ -q
 ```
+
+### Coverage baseline
+
+Current measured coverage (as of 2026-06-02, on dev post-PR-#60 merge):
+- **Unit tests**: ~24% of `bootc_installer/` (319 tests)
+- **UI tests**: ~42% of `bootc_installer/` (measured in CI)
+
+The CI coverage gate (`--cov-fail-under`) is a ratchet — it should only go up. To measure before raising the gate:
+```bash
+pytest tests/unit/ -q --cov=bootc_installer --cov-report=term-missing 2>&1 | tail -5
+xvfb-run -a pytest tests/ui/ -q --cov=bootc_installer --cov-report=term-missing 2>&1 | tail -5
+```
+Never raise the gate above the *measured* value — use the actual number as the new floor, not an aspirational target.
 
 ### Rules for keeping tests in sync with UI changes
 
@@ -277,6 +300,12 @@ xvfb-run -a pytest tests/ui/ -v
   If in doubt, leave the step out of the test recipe and test via unit tests only.
 - Add unit test coverage in `test_processor.py` for any new recipe fields the
   step produces.
+- Add the step's module to `test_branding_parity.py` — that test guards that all
+  wizard step modules are importable without a display.
+
+**When you add a new defaults/ module with `should_show()` logic:**
+- Add a test in `test_conn_check.py` (or a peer file) covering both the True
+  and False branches, including any offline/env-flag bypass paths.
 
 **When you change `fisherman/fisherman/internal/recipe/recipe.go`:**
 - Update `fisherman/fisherman/internal/recipe/recipe_test.go` — add valid and
@@ -346,9 +375,23 @@ xvfb-run -a pytest tests/ui/ -v
      Assign `done_mod.Gio = gio_stub` in `setUp()` so `patch.object` always targets a
      controllable object and typos like `Gio.BusTyp` surface as failures.
   Fixed in #67 and hardened across `test_done.py` / `test_branding_parity.py`.
-- **`CompanionServer.start()` global reset (fixed in #70)**: `GLOBAL_CONFIG = None`
+- **`CompanionServer.start()` global reset (fixed in #106)**: `GLOBAL_CONFIG = None`
   inside a method creates a local variable, not a module-level reset. Always add
   `global GLOBAL_CONFIG` before the assignment when resetting module-level state.
+- **PR #70 (QR Phone Companion) — deeper review notes**: Beyond the `__gtype_name__`
+  GObject registration fix, two additional risks were identified:
+  1. `__on_page_changed()` uses `self.__step_num - 1` while other steps compare
+     directly to `self.__step_num`. Verify this is not an off-by-one before merging.
+  2. `get_finals()` only returns `hostname`. The companion collects `fullname`,
+     `username`, `password`, `sshkey` into `window.companion_config` but these are
+     not forwarded to the recipe. If intentional (future work), document it with a
+     comment; if accidental, wire the fields in before merging.
+- **Rebase + force-push for overlapping test PRs**: When merging multiple PRs that
+  all add to the same test files (`test_branding_parity.py`, `test_done.py`,
+  `test_network_helpers.py`, `test_slurp_helpers.py`), always rebase onto the latest
+  `dev` and **run `pytest tests/unit/ -q` after resolving any conflict** before
+  pushing. "Keeping both sides" of an additive conflict looks safe but can
+  introduce subtle import/indentation errors that only surface at runtime.
 
 ---
 
@@ -404,10 +447,10 @@ sudo umount /tmp/ir
 - **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/bootc-installer/install-video.webm`.
 - **Windows Data Slurp (Done — #22)**: Backend (`fisherman scan`, `ExtractData`, `InjectData`) and GUI wizard step (`bootc_installer/defaults/slurp.py`) are fully implemented. The step runs an async scan, presents per-user category checkboxes with size estimates, and enforces a RAM budget warning. Wallpaper extraction also runs as an always-on easter egg.
 - **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
-- **GStreamer VP9/AV1 codec validation (landing — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
-- **libpastry integration (landing — #71)**: Integrates libpastry for install-time configuration generation.
-- **QR soundtrack codes (landing — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
-- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
+- **GStreamer VP9/AV1 codec validation (Done — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
+- **libpastry integration (Done — #71)**: Integrates libpastry for install-time configuration generation.
+- **QR soundtrack codes (Done — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
+- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`. **Pending deeper review** — see Known Issues for `__gtype_name__`, off-by-one, and `get_finals()` field-wiring risks.
 - **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 
 ---
