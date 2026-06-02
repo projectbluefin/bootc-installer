@@ -13,6 +13,11 @@ on:
       - dev
       - prod
 
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
