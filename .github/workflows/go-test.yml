@@ -31,8 +31,19 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: Run tests
-        run: go test -v -count=1 -timeout=60s ./...
+      - name: Run tests with coverage
+        run: |
+          go test -v -count=1 -timeout=60s -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Check coverage threshold
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%",""); print $NF}')
+          echo "Coverage: ${pct}%"
+          if awk "BEGIN {exit !(${pct} < 20)}"; then
+            echo "Coverage ${pct}% is below the 20% threshold"
+            exit 1
+          fi
 
       - name: Run tests with race detector
         run: go test -race -count=1 -timeout=60s ./...
