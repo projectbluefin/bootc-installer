@@ -103,8 +103,8 @@ and tails its JSON log output (via a `GLib.timeout_add` polling loop in
     "type": "tpm2-luks-passphrase",
     "passphrase": "hunter2"
   },
-  "image": "ghcr.io/tuna-os/yellowfin:gnome50",
-  "targetImgref": "ghcr.io/tuna-os/yellowfin:gnome50",
+  "image": "ghcr.io/projectbluefin/bootcos:latest",
+  "targetImgref": "ghcr.io/projectbluefin/bootcos:latest",
   "selinuxDisabled": true,
   "hostname": "bootcos",
   "flatpaks": ["org.mozilla.firefox", "..."]
@@ -210,8 +210,9 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 ## CI / releases
 
-- **Every push to `main`** triggers `.github/workflows/flatpak.yml` which builds
-  the Flatpak and publishes it as the `continuous` pre-release on GitHub.
+- **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
+  the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub.
+  Pushes to `prod` publish the `continuous` pre-release.
 - **`.github/workflows/python-test.yml`** runs on every push: 274+ unit tests
   (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
@@ -408,7 +409,7 @@ sudo umount /tmp/ir
 - **libpastry integration (landing — #71)**: Integrates libpastry for install-time configuration generation.
 - **QR soundtrack codes (landing — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
 - **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
-- **DX groups on first install (landing — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
+- **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 
 ---
 
