@@ -213,7 +213,7 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
 - **`.github/workflows/python-test.yml`** runs on every push: 400+ unit tests
-  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 26% unit.
+  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 28% unit.
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -245,7 +245,8 @@ tests/
 │   ├── test_keymaps.py         ← tests for keymaps module layout
 │   ├── test_main_args.py       ← tests for __main__.py CLI argument parsing
 │   ├── test_pastry_compat.py   ← tests for libpastry integration compat layer
-│   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
+│   ├── test_qr_companion.py    ← tests for qr_companion.py / phone_companion.py (CompanionServer, get_local_ip, QR step logic)
+   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
 └── ui/
     ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
     ├── test_wizard.py          ← GTK integration tests (real widgets via Xvfb)
@@ -266,8 +267,8 @@ xvfb-run -a pytest tests/ui/ -q
 
 ### Coverage baseline
 
-Current measured coverage (as of 2026-06-02, on dev post-PRs #71/#72/#73 merge):
-- **Unit tests**: ~26.77% of `bootc_installer/` (402 tests, 5593 stmts) — CI gate: 26%
+Current measured coverage (as of 2026-06-02, on dev post-PR #70 merge):
+- **Unit tests**: ~28% of `bootc_installer/` (405 tests, 5811 stmts) — CI gate: 28%
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 The CI coverage gate (`--cov-fail-under`) is a ratchet — it should only go up. To measure before raising the gate:
@@ -343,6 +344,8 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |
 | `bootc_installer/utils/finals.py` | `_extract_icon_and_name()` — pure helper used by `main_window.update_finals()` |
 | `bootc_installer/utils/codec_check.py` | GStreamer VP9/AV1 codec probe — called by progress.py before video playback |
+| `bootc_installer/defaults/qr_companion.py` | QR Phone Companion wizard step (`BootcDefaultQrCompanion`): starts CompanionServer, shows QR code, polls for phone config |
+| `bootc_installer/utils/phone_companion.py` | `CompanionServer` (HTTPS/8443), `get_local_ip()`, `CONFIG_RECEIVED_EVENT` — must be mocked in tests |
 | `bootc_installer/defaults/slurp.py` | Windows data slurp wizard step: async fisherman scan, category checkboxes, budget warning |
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
@@ -352,6 +355,7 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `tests/unit/test_codec_check.py` | unit tests for GStreamer codec probe (no display) |
 | `tests/unit/test_conn_check.py` | unit tests for conn_check.py should_show() + offline bypass |
 | `tests/unit/test_done.py` | D-Bus reboot contract, apply_icon, warmup_registry, icon extraction |
+| `tests/unit/test_qr_companion.py` | CompanionServer unit tests, `get_local_ip`, QR step logic (all mocked — no network) |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
 | `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
@@ -392,6 +396,16 @@ Never raise the gate above the *measured* value — use the actual number as the
   `dev` and **run `pytest tests/unit/ -q` after resolving any conflict** before
   pushing. "Keeping both sides" of an additive conflict looks safe but can
   introduce subtle import/indentation errors that only surface at runtime.
+- **GitHub Actions won't trigger `pull_request` events on conflicting branches**: If
+  a PR branch has merge conflicts with the target branch, GitHub silently skips the
+  `pull_request` event — no check runs appear. Always rebase onto `dev` before
+  investigating why CI isn't triggering.
+- **`CompanionServer` / `get_local_ip` must be mocked in UI tests**: Any test that
+  navigates past the QR Companion wizard step (via `window.next()` or `carousel.page-changed`)
+  will call `__start_companion()` which runs `openssl` subprocess + UDP socket to `8.8.8.8`.
+  Both block in CI. Always add to the patcher list:
+  `patch("bootc_installer.defaults.qr_companion.CompanionServer")` and
+  `patch("bootc_installer.defaults.qr_companion.get_local_ip", return_value="127.0.0.1")`.
 
 ---
 
@@ -450,7 +464,7 @@ sudo umount /tmp/ir
 - **GStreamer VP9/AV1 codec validation (Done — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
 - **libpastry integration (Done — #71)**: Integrates libpastry for install-time configuration generation.
 - **QR soundtrack codes (Done — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
-- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
+- **QR Phone Companion MVP (Done — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`. `BootcDefaultQrCompanion` wizard step in `bootc_installer/defaults/qr_companion.py`.
 - **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 
 ---
