@@ -37,6 +37,9 @@
             "template": "welcome",
             "protected": true
         },
+        "qr_companion": {
+            "template": "qr_companion"
+        },
         "disk": {
             "template": "disk"
         },

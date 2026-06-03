@@ -40,6 +40,18 @@ class BootcDefaultUsers(Adw.Bin):
         self.password_confirmation.connect("changed", self.__on_field_changed)
         self.btn_next.connect("clicked", self.__window.next)
 
+        # Pre-populate from QR Phone Companion if available
+        companion_config = getattr(self.__window, "companion_config", None)
+        if companion_config:
+            logger.info("Pre-populating user credentials from Phone Companion.")
+            if "fullname" in companion_config:
+                self.fullname_entry.set_text(companion_config["fullname"])
+            if "username" in companion_config:
+                self.username_entry.set_text(companion_config["username"])
+            if "password" in companion_config:
+                self.password_entry.set_text(companion_config["password"])
+                self.password_confirmation.set_text(companion_config["password"])
+
         self.__update_btn_next()
 
     def should_show(self, context: dict) -> bool:

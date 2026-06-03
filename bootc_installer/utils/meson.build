@@ -11,6 +11,7 @@ sources = [
   'progress_parser.py',
   'pastry_compat.py',
   'codec_check.py',
+  'phone_companion.py',
 ]
 
 install_data(sources, install_dir: utilsdir)

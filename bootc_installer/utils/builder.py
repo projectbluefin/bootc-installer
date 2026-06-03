@@ -27,6 +27,7 @@ from bootc_installer.defaults.image import BootcDefaultImage
 from bootc_installer.defaults.slurp import BootcDefaultSlurp
 from bootc_installer.defaults.user import BootcDefaultUsers
 from bootc_installer.defaults.welcome import BootcDefaultWelcome
+from bootc_installer.defaults.qr_companion import BootcDefaultQrCompanion
 from bootc_installer.layouts.yes_no import BootcLayoutYesNo
 from bootc_installer.utils.recipe import RecipeLoader
 
@@ -41,6 +42,7 @@ templates = {
     "encryption": BootcDefaultEncryption,
     "image": BootcDefaultImage,
     "user": BootcDefaultUsers,
+    "qr_companion": BootcDefaultQrCompanion,
     "yes-no": BootcLayoutYesNo,
 }
 

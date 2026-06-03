@@ -233,18 +233,18 @@ class BootcWindow(Adw.ApplicationWindow):
                         try:
                             self.carousel.remove(widget)
                         except Exception as e:
-                            logger.debug("(%s) carousel.remove skipped (not present): %s", widget.__gtype_name__, e)
+                            logger.debug("(%s) carousel.remove skipped (not present): %s", getattr(widget, "__gtype_name__", type(widget).__name__), e)
                 if "custom_image" in property_list[i] and mode == 0:
                     continue
                 if "default_image" in property_list[i] and mode == 1:
                     continue
                 if getattr(widget, "skip_screen", False):
-                    logger.info("(%s) Skipping screen (skip_screen=True)", widget.__gtype_name__)
+                    logger.info("(%s) Skipping screen (skip_screen=True)", getattr(widget, "__gtype_name__", type(widget).__name__))
                     continue
                 if hasattr(widget, "should_show") and not widget.should_show(context):
-                    logger.info("(%s) Skipping screen (should_show=False)", widget.__gtype_name__)
+                    logger.info("(%s) Skipping screen (should_show=False)", getattr(widget, "__gtype_name__", type(widget).__name__))
                     continue
-                logger.info("(%s) Adding widget to carousel", widget.__gtype_name__)
+                logger.info("(%s) Adding widget to carousel", getattr(widget, "__gtype_name__", type(widget).__name__))
                 self.carousel.append(widget)
                 self.__last_step_widget = widget
         else:
@@ -259,7 +259,7 @@ class BootcWindow(Adw.ApplicationWindow):
         cur_index = self.carousel.get_position()
         page = self.carousel.get_nth_page(cur_index)
 
-        logger.info("(%s) Page is changing...", page.__gtype_name__)
+        logger.info("(%s) Page is changing...", getattr(page, "__gtype_name__", type(page).__name__))
 
         # Disconnect sensitivity tracking from previous page
         if self.__next_page_widget is not None:
@@ -275,14 +275,14 @@ class BootcWindow(Adw.ApplicationWindow):
         is_confirm = page == self.__view_confirm
 
         if is_final or is_confirm:
-            logger.info("(%s) It is a final page", page.__gtype_name__)
+            logger.info("(%s) It is a final page", getattr(page, "__gtype_name__", type(page).__name__))
             self.btn_back.set_visible(False)
             self.btn_back.set_sensitive(False)
             self.carousel_indicator_dots.set_visible(False)
             self.btn_next.set_visible(False)
             return
 
-        logger.info("(%s) It is not a final page", page.__gtype_name__)
+        logger.info("(%s) It is not a final page", getattr(page, "__gtype_name__", type(page).__name__))
         self.btn_back.set_visible(cur_index != 0.0)
         self.btn_back.set_sensitive(cur_index != 0.0)
         self.carousel_indicator_dots.set_visible(cur_index != 0.0)
@@ -291,7 +291,7 @@ class BootcWindow(Adw.ApplicationWindow):
             try:
                 page.on_shown(self.__step_context(page))
             except Exception as exc:
-                logger.warning("(%s) on_shown failed: %s", page.__gtype_name__, exc)
+                logger.warning("(%s) on_shown failed: %s", getattr(page, "__gtype_name__", type(page).__name__), exc)
 
         # Sync header btn_next with the current page's btn_next sensitivity only.
         # Visibility of the per-page btn_next is always false (hidden in favour of

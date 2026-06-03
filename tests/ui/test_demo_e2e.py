@@ -101,6 +101,10 @@ def _make_window(extra_env):
         patch("bootc_installer.windows.main_window.GLib.timeout_add", side_effect=scheduler.add),
         patch("bootc_installer.views.progress.GLib.timeout_add", side_effect=scheduler.add),
         patch.object(GLib, "timeout_add_seconds", side_effect=scheduler.add_seconds),
+        # Prevent CompanionServer from starting a real HTTPS server (openssl subprocess + port bind)
+        patch("bootc_installer.defaults.qr_companion.CompanionServer"),
+        # Prevent get_local_ip() from making a real network socket call
+        patch("bootc_installer.defaults.qr_companion.get_local_ip", return_value="127.0.0.1"),
     ]
 
     for patcher in patchers:
@@ -128,7 +132,7 @@ class TestDemoEndToEnd:
 
         try:
             builder = getattr(window, "_BootcWindow__builder")
-            for step in builder.widgets[:4]:
+            for step in builder.widgets:
                 step.test_auto_advance()
                 _pump()
                 scheduler.drain()
