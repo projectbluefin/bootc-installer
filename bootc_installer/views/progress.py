@@ -42,6 +42,7 @@ _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
 from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state
 from bootc_installer.utils.pastry_compat import new_grid_spinner
+from bootc_installer.utils.codec_check import check_codecs_present
 
 
 def _track_qr_resource_path(track: dict) -> str | None:
@@ -175,6 +176,16 @@ class BootcProgress(Gtk.Box):
         self._video_file = None
         self.install_video.connect("notify::media-stream", self.__on_media_stream_changed)
         self.__hide_video_fallback()
+
+        # Check if GStreamer VP9/AV1 decoders are available
+        codecs = check_codecs_present()
+        if not (codecs["vp9"] or codecs["av1"]):
+            logger.warning("GStreamer VP9 or AV1 decoders not available. Automatically falling back to soundtrack mode.")
+            self.btn_video_mode.set_sensitive(False)
+            GLib.idle_add(self.__show_video_fallback)
+            GLib.idle_add(lambda: self.__set_media_mode("soundtrack"))
+            return
+
         self.__arm_video_fallback_timeout()
         threading.Thread(target=self.__extract_and_play_video, daemon=True).start()
 
