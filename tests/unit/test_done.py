@@ -30,6 +30,7 @@ def _build_gi_stubs():
 
     adw_mod = types.ModuleType("gi.repository.Adw")
     adw_mod.Bin = _StubBin
+    adw_mod.Window = _StubBin
 
     gobject_mod = types.ModuleType("gi.repository.GObject")
 
@@ -38,10 +39,16 @@ def _build_gi_stubs():
 
     gobject_mod.Property = _property
 
+    class _ResourceLookupFlags:
+        NONE = 0
+
     gio_mod = types.ModuleType("gi.repository.Gio")
-    gio_mod.BusType = type("BusType", (), {"SYSTEM": 0})
-    gio_mod.DBusCallFlags = type("DBusCallFlags", (), {"NONE": 0})
     gio_mod.bus_get_sync = MagicMock()
+    gio_mod.BusType = types.SimpleNamespace(SYSTEM=0)
+    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=0)
+    gio_mod.ResourceLookupFlags = _ResourceLookupFlags
+    gio_mod.resources_lookup_data = MagicMock()
+    gio_mod.File = MagicMock()
 
     glib_mod = types.ModuleType("gi.repository.GLib")
     glib_mod.Variant = lambda *_args, **_kwargs: None
@@ -80,33 +87,25 @@ def _import_done():
 
 class TestDoReboot(unittest.TestCase):
 
-    def _fresh_done(self):
-        """Re-import done.py and ensure Gio/GLib stubs have the attrs we need to patch."""
-        for mod_name in list(sys.modules):
-            if mod_name == "bootc_installer.views.done":
-                del sys.modules[mod_name]
-        import bootc_installer.views.done as done_mod
-        gio = done_mod.Gio
-        glib = done_mod.GLib
-        for attr in ("bus_get_sync", "BusType", "DBusCallFlags"):
-            if not hasattr(gio, attr):
-                setattr(gio, attr, MagicMock())
-        if not hasattr(glib, "Variant"):
-            glib.Variant = MagicMock()
-        return done_mod
+    def setUp(self):
+        # Rebuild gi stubs and reimport done.py to ensure patch targets are consistent
+        # across test files that also modify sys.modules (test_branding_parity, test_slurp_helpers).
+        _build_gi_stubs()
+        sys.modules.pop("bootc_installer.views.done", None)
+        import bootc_installer.views.done  # noqa: F401 — re-populates sys.modules
 
     def test_reboot_via_dbus_success(self):
-        done_mod = self._fresh_done()
+        import bootc_installer.views.done as done_mod
         conn = MagicMock()
-        with patch.object(done_mod.Gio, "bus_get_sync", return_value=conn):
+        with patch("bootc_installer.views.done.Gio.bus_get_sync", return_value=conn):
             result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
         conn.call_sync.assert_called_once()
 
     def test_reboot_falls_back_to_subprocess_when_dbus_fails(self):
-        done_mod = self._fresh_done()
-        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch.object(done_mod.subprocess, "run") as mock_run:
+        import bootc_installer.views.done as done_mod
+        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+             patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = done_mod.do_reboot(in_flatpak=False)
         self.assertTrue(result)
@@ -114,9 +113,9 @@ class TestDoReboot(unittest.TestCase):
         self.assertIn("systemctl", first_argv)
 
     def test_reboot_flatpak_fallback_uses_flatpak_spawn(self):
-        done_mod = self._fresh_done()
-        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch.object(done_mod.subprocess, "run") as mock_run:
+        import bootc_installer.views.done as done_mod
+        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+             patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
@@ -124,9 +123,9 @@ class TestDoReboot(unittest.TestCase):
         self.assertEqual(first_argv[:2], ["flatpak-spawn", "--host"])
 
     def test_reboot_tries_reboot_binary_when_systemctl_fails(self):
-        done_mod = self._fresh_done()
-        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch.object(done_mod.subprocess, "run") as mock_run:
+        import bootc_installer.views.done as done_mod
+        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+             patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
                 MagicMock(returncode=1, stderr=b"failed"),
                 MagicMock(returncode=0),
@@ -136,9 +135,9 @@ class TestDoReboot(unittest.TestCase):
         self.assertEqual(mock_run.call_count, 2)
 
     def test_reboot_returns_false_when_all_methods_fail(self):
-        done_mod = self._fresh_done()
-        with patch.object(done_mod.Gio, "bus_get_sync", side_effect=Exception("no bus")), \
-             patch.object(done_mod.subprocess, "run") as mock_run:
+        import bootc_installer.views.done as done_mod
+        with patch("bootc_installer.views.done.Gio.bus_get_sync", side_effect=Exception("no bus")), \
+             patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stderr=b"permission denied")
             result = done_mod.do_reboot(in_flatpak=False)
         self.assertFalse(result)

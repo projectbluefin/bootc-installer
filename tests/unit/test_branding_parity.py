@@ -53,6 +53,9 @@ def _build_gi_stubs():
         NONE = 0
 
     gio_mod = types.ModuleType("gi.repository.Gio")
+    gio_mod.bus_get_sync = MagicMock()
+    gio_mod.BusType = types.SimpleNamespace(SYSTEM=0)
+    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=0)
     gio_mod.ResourceLookupFlags = _ResourceLookupFlags
     gio_mod.resources_lookup_data = MagicMock()
     gio_mod.File = MagicMock()
@@ -291,9 +294,8 @@ class TestProgressSoundtrackData(unittest.TestCase):
         mock_bytes = MagicMock()
         mock_bytes.get_data.return_value = json.dumps(tracks).encode()
         prog_mod.Gio.resources_lookup_data = MagicMock(return_value=mock_bytes)
-        # Also mock the filesystem fallback path in case GResource mock fails
-        with patch("builtins.open") as mock_open:
-            mock_open.side_effect = FileNotFoundError
+        # Mock pathlib.Path.read_text for dev-mode fallback path
+        with patch("pathlib.Path.read_text", side_effect=FileNotFoundError):
             prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
         obj._BootcProgress__populate_carousel.assert_called_once_with(tracks)
 
