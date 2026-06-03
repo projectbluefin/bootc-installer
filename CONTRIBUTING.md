@@ -43,11 +43,11 @@ sudo ninja -C build install
 
 ## Running
 
-- Demo / preview mode: `python -m bootc_installer --demo`
+- Demo / preview mode: `./run-dev.sh`
 - Tests: `pytest tests/`
 
 ## Pull requests
 
-- Target the `main` branch
+- PRs target the `dev` branch
 - Use conventional commits when possible (`fix:`, `docs:`, `feat:`)
 - Open a normal PR; no special branch model is required
