@@ -21,6 +21,8 @@ except ImportError:
 logger = logging.getLogger("BootcInstaller::QrCompanion")
 
 class BootcDefaultQrCompanion(Adw.Bin):
+    __gtype_name__ = "BootcDefaultQrCompanion"
+
     def __init__(self, window, distro_info, key, step, **kwargs):
         super().__init__(**kwargs)
         self.__window = window
