@@ -212,8 +212,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
-- **`.github/workflows/python-test.yml`** runs on every push: 210+ unit tests
-  (no display) + 14 GTK UI integration tests (Xvfb).
+- **`.github/workflows/python-test.yml`** runs on every push: 400+ unit tests
+  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 26% unit.
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -231,22 +231,24 @@ tests/
 ├── unit/
 │   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
 │   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
-│   ├── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
+│   ├── test_slurp_helpers.py   ← 45+ tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
 │   ├── test_defaults_misc.py   ← tests for vm, nvidia, theme, network defaults
-│   ├── test_conn_check.py      ← 7 tests for conn_check.py: should_show() offline/online, async check, env bypass
-│   ├── test_done.py            ← tests for views/done.py: D-Bus reboot contract, apply_icon, warmup_registry
+│   ├── test_conn_check.py      ← tests for conn_check.py: should_show() offline/online, async check, env bypass
+│   ├── test_codec_check.py     ← tests for utils/codec_check.py: GStreamer VP9/AV1 probe logic
+│   ├── test_done.py            ← D-Bus reboot contract, apply_icon, warmup_registry, icon extraction
 │   ├── test_recipe_loader.py   ← tests for utils/recipe loader logic incl. Flatpak live-ISO path
 │   ├── test_run_async.py       ← tests for utils/run_async helpers
 │   ├── test_recovery_key.py    ← tests for views/recovery_key pure logic
-│   ├── test_user_validation.py ← 17 tests for user.py: username derivation, password strength, get_finals()
+│   ├── test_user_validation.py ← username derivation, password strength, get_finals()
 │   ├── test_locale.py          ← tests for defaults/locale.py keyboard/locale enumeration
 │   ├── test_diskutils.py       ← tests for utils/diskutils.py disk enumeration helpers
 │   ├── test_keymaps.py         ← tests for keymaps module layout
 │   ├── test_main_args.py       ← tests for __main__.py CLI argument parsing
+│   ├── test_pastry_compat.py   ← tests for libpastry integration compat layer
 │   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
 └── ui/
     ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
-    ├── test_wizard.py          ← 14 GTK integration tests (real widgets via Xvfb)
+    ├── test_wizard.py          ← GTK integration tests (real widgets via Xvfb)
     ├── test_should_show.py     ← tests for should_show() step visibility pattern
     ├── test_done_credits.py    ← tests for done screen and credits dialog
     └── test_demo_e2e.py        ← end-to-end demo flow tests
@@ -264,9 +266,9 @@ xvfb-run -a pytest tests/ui/ -q
 
 ### Coverage baseline
 
-Current measured coverage (as of 2026-06-02, on dev post-PR-#60 merge):
-- **Unit tests**: ~24% of `bootc_installer/` (319 tests)
-- **UI tests**: ~42% of `bootc_installer/` (measured in CI)
+Current measured coverage (as of 2026-06-02, on dev post-PRs #71/#72/#73 merge):
+- **Unit tests**: ~26.77% of `bootc_installer/` (402 tests, 5593 stmts) — CI gate: 26%
+- **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 The CI coverage gate (`--cov-fail-under`) is a ratchet — it should only go up. To measure before raising the gate:
 ```bash
@@ -286,6 +288,9 @@ Never raise the gate above the *measured* value — use the actual number as the
 - Update `tests/unit/test_done.py::TestMainWindowIconExtraction` — it imports
   `_extract_icon_and_name` directly and tests all edge cases (non-dict entries,
   fields split across dicts, first-occurrence wins, empty list).
+
+**When you add or change `bootc_installer/utils/codec_check.py`:**
+- Update `tests/unit/test_codec_check.py` — covers GStreamer element probe, missing-codec error path, and fallback behavior.
 
 **When you change a wizard step's `get_finals()` output (e.g. `defaults/image.py`,
 `defaults/disk.py`, `defaults/encryption.py`, `defaults/user.py`):**
@@ -337,12 +342,15 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder, `update_finals()` |
 | `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |
 | `bootc_installer/utils/finals.py` | `_extract_icon_and_name()` — pure helper used by `main_window.update_finals()` |
+| `bootc_installer/utils/codec_check.py` | GStreamer VP9/AV1 codec probe — called by progress.py before video playback |
 | `bootc_installer/defaults/slurp.py` | Windows data slurp wizard step: async fisherman scan, category checkboxes, budget warning |
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
 | `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
-| `tests/unit/test_slurp_helpers.py` | 23 unit tests for slurp.py pure logic (no display) |
+| `tests/unit/test_slurp_helpers.py` | 45+ unit tests for slurp.py pure logic (no display) |
+| `tests/unit/test_codec_check.py` | unit tests for GStreamer codec probe (no display) |
+| `tests/unit/test_conn_check.py` | unit tests for conn_check.py should_show() + offline bypass |
 | `tests/unit/test_done.py` | D-Bus reboot contract, apply_icon, warmup_registry, icon extraction |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
@@ -378,14 +386,6 @@ Never raise the gate above the *measured* value — use the actual number as the
 - **`CompanionServer.start()` global reset (fixed in #106)**: `GLOBAL_CONFIG = None`
   inside a method creates a local variable, not a module-level reset. Always add
   `global GLOBAL_CONFIG` before the assignment when resetting module-level state.
-- **PR #70 (QR Phone Companion) — deeper review notes**: Beyond the `__gtype_name__`
-  GObject registration fix, two additional risks were identified:
-  1. `__on_page_changed()` uses `self.__step_num - 1` while other steps compare
-     directly to `self.__step_num`. Verify this is not an off-by-one before merging.
-  2. `get_finals()` only returns `hostname`. The companion collects `fullname`,
-     `username`, `password`, `sshkey` into `window.companion_config` but these are
-     not forwarded to the recipe. If intentional (future work), document it with a
-     comment; if accidental, wire the fields in before merging.
 - **Rebase + force-push for overlapping test PRs**: When merging multiple PRs that
   all add to the same test files (`test_branding_parity.py`, `test_done.py`,
   `test_network_helpers.py`, `test_slurp_helpers.py`), always rebase onto the latest
@@ -450,7 +450,7 @@ sudo umount /tmp/ir
 - **GStreamer VP9/AV1 codec validation (Done — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
 - **libpastry integration (Done — #71)**: Integrates libpastry for install-time configuration generation.
 - **QR soundtrack codes (Done — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
-- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`. **Pending deeper review** — see Known Issues for `__gtype_name__`, off-by-one, and `get_finals()` field-wiring risks.
+- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
 - **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 
 ---
