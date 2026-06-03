@@ -11,7 +11,7 @@
 
 ```bash
 curl -Lo installer.flatpak \
-  https://github.com/tuna-os/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer org.bootcos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
@@ -19,7 +19,7 @@ curl -Lo installer.flatpak \
 
 ```bash
 curl -Lo installer-devel.flatpak \
-  https://github.com/tuna-os/bootc-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer.Devel 2>/dev/null; sudo flatpak install --bundle -y installer-devel.flatpak
 ```
 
@@ -336,6 +336,7 @@ PRs to add new images, icons, or flatpak lists are very welcome!
 ### Flatpak (recommended)
 
 ```bash
+git submodule update --init --recursive
 flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json
 flatpak run org.bootcinstaller.Installer
 ```
@@ -343,6 +344,7 @@ flatpak run org.bootcinstaller.Installer
 ### Meson (development)
 
 ```bash
+git submodule update --init --recursive
 meson setup build
 ninja -C build
 sudo ninja -C build install
