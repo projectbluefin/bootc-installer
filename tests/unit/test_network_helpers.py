@@ -70,6 +70,8 @@ def _build_gi_stubs():
         DeviceWifi = _Stub
         DeviceEthernet = _Stub
 
+    from unittest.mock import MagicMock as _MagicMock
+    net_stubs = {}
     for lib in ("Gtk", "Adw", "GLib", "Gio", "Gdk", "NMA4"):
         stub = types.ModuleType(f"gi.repository.{lib}")
         stub.Template = _template_instance
@@ -84,6 +86,22 @@ def _build_gi_stubs():
         stub.Align = type("Align", (), {"CENTER": 0, "FILL": 1, "START": 2})
         setattr(repo_mod, lib, stub)
         sys.modules[f"gi.repository.{lib}"] = stub
+        net_stubs[lib] = stub
+
+    # Adw needs Window for dialog_credits.BootcCreditsWindow(Adw.Window)
+    net_stubs["Adw"].Window = _Stub
+    net_stubs["Adw"].ExpanderRow = _Stub
+    net_stubs["Adw"].PreferencesGroup = _Stub
+
+    # Gio needs ResourceLookupFlags for progress.py GResource lookups
+    class _ResourceLookupFlags:
+        NONE = 0
+    net_stubs["Gio"].ResourceLookupFlags = _ResourceLookupFlags
+    net_stubs["Gio"].resources_lookup_data = _MagicMock()
+    net_stubs["Gio"].bus_get_sync = _MagicMock()
+    net_stubs["Gio"].BusType = types.SimpleNamespace(SYSTEM=0)
+    net_stubs["Gio"].DBusCallFlags = types.SimpleNamespace(NONE=0)
+    net_stubs["Gio"].File = _MagicMock()
 
     repo_mod.NM = _FakeNM
     sys.modules["gi.repository.NM"] = _FakeNM
