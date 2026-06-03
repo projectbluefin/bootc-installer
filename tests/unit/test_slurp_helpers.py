@@ -44,6 +44,8 @@ def _build_gi_stubs():
     class _Stub:
         pass
 
+    from unittest.mock import MagicMock as _MagicMock
+    stubs = {}
     for lib in ("Gtk", "Adw", "GLib", "Gio", "Gdk", "NM"):
         stub = types.ModuleType(f"gi.repository.{lib}")
         stub.Template = _template_instance
@@ -59,6 +61,26 @@ def _build_gi_stubs():
         stub.Client = type("Client", (), {"new": staticmethod(lambda: None)})
         setattr(repo_mod, lib, stub)
         sys.modules[f"gi.repository.{lib}"] = stub
+        stubs[lib] = stub
+
+    # Adw needs Window for dialog_credits.BootcCreditsWindow(Adw.Window)
+    stubs["Adw"].Window = _Stub
+    stubs["Adw"].ActionRow = _Stub
+    stubs["Adw"].ExpanderRow = _Stub
+
+    # Gio needs these for progress.py GResource lookups and dbus calls
+    class _ResourceLookupFlags:
+        NONE = 0
+    stubs["Gio"].ResourceLookupFlags = _ResourceLookupFlags
+    stubs["Gio"].resources_lookup_data = _MagicMock()
+    stubs["Gio"].bus_get_sync = _MagicMock()
+    stubs["Gio"].BusType = types.SimpleNamespace(SYSTEM=0)
+    stubs["Gio"].DBusCallFlags = types.SimpleNamespace(NONE=0)
+    stubs["Gio"].File = _MagicMock()
+    stubs["GObject"] = types.ModuleType("gi.repository.GObject")
+    stubs["GObject"].Property = lambda *a, **kw: (lambda f: property(f))
+    repo_mod.GObject = stubs["GObject"]
+    sys.modules["gi.repository.GObject"] = stubs["GObject"]
 
     gi_mod.repository = repo_mod
     gi_mod.require_version = lambda *a, **kw: None

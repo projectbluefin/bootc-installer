@@ -10,6 +10,7 @@ sources = [
   'builder.py',
   'progress_parser.py',
   'pastry_compat.py',
+  'codec_check.py',
 ]
 
 install_data(sources, install_dir: utilsdir)
