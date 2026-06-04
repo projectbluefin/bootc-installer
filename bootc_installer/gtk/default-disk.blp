@@ -125,6 +125,11 @@ template $BootcDefaultDisk: Adw.Bin {
               "error",
             ]
           }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Device Name");
+          description: _("Choose a unique name to identify this computer on your network.");
 
           Adw.EntryRow hostname_entry {
             title: _("Hostname");
