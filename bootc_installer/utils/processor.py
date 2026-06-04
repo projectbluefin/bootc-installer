@@ -194,10 +194,12 @@ class Processor:
 
         # --- Hostname ---
         # Use hardware-derived hostname if no explicit hostname was set by the user.
+        # "localhost" is treated as unset because systemd ignores it as a static
+        # hostname, causing the image default (e.g. "bluefin") to take precedence.
         hostname = merged.get("hostname", "")
-        if not hostname:
+        if not hostname or hostname == "localhost":
             hostname = sys_recipe.get("hostname", "")
-        if not hostname:
+        if not hostname or hostname == "localhost":
             from bootc_installer.core.system import Systeminfo
             hostname = Systeminfo.generate_hostname()
 

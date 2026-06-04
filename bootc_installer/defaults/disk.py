@@ -780,6 +780,7 @@ class BootcDefaultDisk(Adw.Bin):
         self.__filesystem_options = ["xfs"]
         self.__window.carousel.connect("page-changed", self.__on_carousel_page_changed)
         self.__refresh_from_image_step()
+        self.__set_default_hostname()
         self.auto_select_single_disk()
 
         # Auto-select virtual disk if still no physical disks are available
@@ -823,6 +824,15 @@ class BootcDefaultDisk(Adw.Bin):
             logger.debug("Failed to determine power state", exc_info=True)
 
         self.battery_banner.set_revealed(on_battery)
+
+    def __set_default_hostname(self):
+        """Pre-populate hostname from hardware if still empty or default."""
+        current = self.hostname_entry.get_text().strip()
+        if current in ("", "localhost"):
+            from bootc_installer.core.system import Systeminfo
+            generated = Systeminfo.generate_hostname()
+            if generated:
+                self.hostname_entry.set_text(generated)
 
     def __refresh_from_image_step(self):
         """Re-read image metadata and update filesystem picker and hostname."""

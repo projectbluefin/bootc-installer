@@ -110,6 +110,15 @@ template $BootcDefaultDisk: Adw.Bin {
         }
 
         Adw.PreferencesGroup {
+          title: _("Hostname");
+          description: _("A unique name for this computer on the network.");
+
+          Adw.EntryRow hostname_entry {
+            title: _("Hostname");
+          }
+        }
+
+        Adw.PreferencesGroup {
           title: _("System");
 
           Adw.ComboRow filesystem_row {
@@ -124,11 +133,6 @@ template $BootcDefaultDisk: Adw.Bin {
             styles [
               "error",
             ]
-          }
-
-          Adw.EntryRow hostname_entry {
-            title: _("Hostname");
-            text: "localhost";
           }
         }
 
