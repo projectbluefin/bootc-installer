@@ -267,6 +267,11 @@ class CompanionRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(COMPANION_HTML.encode('utf-8'))
+        elif self.path in ["/config", "/api/config"]:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(GLOBAL_CONFIG or {}).encode("utf-8"))
         else:
             self.send_error(404, "Not Found")
 
@@ -344,3 +349,6 @@ class CompanionServer:
             self.server.shutdown()
             self.server.server_close()
             logger.info("Stopped Phone Companion server")
+
+    def get_config(self):
+        return GLOBAL_CONFIG
