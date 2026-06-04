@@ -111,6 +111,7 @@ template $BootcDefaultDisk: Adw.Bin {
 
         Adw.PreferencesGroup {
           title: _("System");
+          description: _("Set the hostname that identifies this machine on the network.");
 
           Adw.ComboRow filesystem_row {
             title: _("Root Filesystem");
@@ -128,7 +129,6 @@ template $BootcDefaultDisk: Adw.Bin {
 
           Adw.EntryRow hostname_entry {
             title: _("Hostname");
-            text: "localhost";
           }
         }
 

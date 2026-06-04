@@ -780,6 +780,10 @@ class BootcDefaultDisk(Adw.Bin):
         self.__filesystem_options = ["xfs"]
         self.__window.carousel.connect("page-changed", self.__on_carousel_page_changed)
         self.__refresh_from_image_step()
+        # If no image step populated the hostname yet, generate a unique one now.
+        if not self.hostname_entry.get_text().strip():
+            from bootc_installer.core.system import Systeminfo
+            self.hostname_entry.set_text(Systeminfo.generate_hostname())
         self.auto_select_single_disk()
 
         # Auto-select virtual disk if still no physical disks are available
@@ -833,12 +837,14 @@ class BootcDefaultDisk(Adw.Bin):
         if not isinstance(finals, dict):
             finals = {}
         supported = finals.get("supported_filesystems") or []
-        default_hostname = finals.get("default_hostname") or ""
-        if not isinstance(default_hostname, str):
-            default_hostname = ""
         current = self.hostname_entry.get_text().strip()
-        if default_hostname and current in ("", "localhost"):
-            self.hostname_entry.set_text(default_hostname)
+        if not current or current == "localhost":
+            # Always suggest a unique hardware-derived hostname so every machine
+            # gets a distinct name by default.  The image's default_hostname is
+            # used only as a base prefix when the hardware DMI data is unavailable.
+            from bootc_installer.core.system import Systeminfo
+            suggested = Systeminfo.generate_hostname()
+            self.hostname_entry.set_text(suggested)
         self.__setup_filesystem_row(supported)
 
     # Maps filesystem type → (required tool, package name)
@@ -1055,7 +1061,7 @@ class BootcDefaultDisk(Adw.Bin):
             disk["btrfsSubvolumes"] = (fs == "btrfs")
         result = {
             "disk": disk,
-            "hostname": self.hostname_entry.get_text().strip() or "localhost",
+            "hostname": self.hostname_entry.get_text().strip() or "",
         }
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG
