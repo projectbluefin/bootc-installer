@@ -274,7 +274,15 @@ class BootcWindow(Adw.ApplicationWindow):
         is_final = page in [self.__view_progress, self.__view_recovery_key, self.__view_done]
         is_confirm = page == self.__view_confirm
 
-        if is_final or is_confirm:
+        if is_confirm:
+            logger.info("(%s) It is the confirm page", getattr(page, "__gtype_name__", type(page).__name__))
+            self.btn_back.set_visible(True)
+            self.btn_back.set_sensitive(True)
+            self.carousel_indicator_dots.set_visible(False)
+            self.btn_next.set_visible(False)
+            return
+
+        if is_final:
             logger.info("(%s) It is a final page", getattr(page, "__gtype_name__", type(page).__name__))
             self.btn_back.set_visible(False)
             self.btn_back.set_sensitive(False)
