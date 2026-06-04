@@ -212,8 +212,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
-- **`.github/workflows/python-test.yml`** runs on every push: 400+ unit tests
-  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 28% unit.
+- **`.github/workflows/python-test.yml`** runs on every push: 470+ unit tests
+  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 39% unit.
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -246,7 +246,15 @@ tests/
 │   ├── test_main_args.py       ← tests for __main__.py CLI argument parsing
 │   ├── test_pastry_compat.py   ← tests for libpastry integration compat layer
 │   ├── test_qr_companion.py    ← tests for qr_companion.py / phone_companion.py (CompanionServer, get_local_ip, QR step logic)
-   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
+│   ├── test_phone_companion.py ← CompanionServer lifecycle, get_local_ip, TLS setup, handler GET/POST (all mocked — no network)
+│   ├── test_finals.py          ← _extract_icon_and_name() edge cases (empty, split fields, first-occurrence)
+│   ├── test_builder.py         ← Builder class: load, display-conditions, get_finals, distro_info (99% coverage)
+│   ├── test_disk.py            ← defaults/disk.py pure logic: should_show, get_finals, auto_select, partition recipe
+│   ├── test_timezone.py        ← BootcDefaultTimezone get_finals, timezone_verify, gen/del_deltas
+│   ├── test_language.py        ← BootcDefaultLanguage get_finals, gen/del_deltas
+│   ├── test_keyboard.py        ← BootcDefaultKeyboard get_finals, layout selection
+│   ├── test_encryption.py      ← BootcDefaultEncryption get_finals, passphrase strength (Weak/Fair/Strong), btn_next logic
+│   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
 └── ui/
     ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
     ├── test_wizard.py          ← GTK integration tests (real widgets via Xvfb)
@@ -267,8 +275,8 @@ xvfb-run -a pytest tests/ui/ -q
 
 ### Coverage baseline
 
-Current measured coverage (as of 2026-06-02, on dev post-PR #70 merge):
-- **Unit tests**: ~28% of `bootc_installer/` (405 tests, 5811 stmts) — CI gate: 28%
+Current measured coverage (as of 2026-06-04, on dev post-PRs #141-148):
+- **Unit tests**: ~39.61% of `bootc_installer/` (472 tests, 5842 stmts) — CI gate: 39%
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 The CI coverage gate (`--cov-fail-under`) is a ratchet — it should only go up. To measure before raising the gate:
@@ -286,15 +294,16 @@ Never raise the gate above the *measured* value — use the actual number as the
   parametrized test asserting the correct JSON value in the output recipe.
 
 **When you change `bootc_installer/utils/finals.py`:**
-- Update `tests/unit/test_done.py::TestMainWindowIconExtraction` — it imports
-  `_extract_icon_and_name` directly and tests all edge cases (non-dict entries,
-  fields split across dicts, first-occurrence wins, empty list).
+- Update `tests/unit/test_finals.py` — covers all `_extract_icon_and_name()` edge cases
+  (empty list, non-dict entries, fields split across dicts, first-occurrence wins, early break).
 
 **When you add or change `bootc_installer/utils/codec_check.py`:**
 - Update `tests/unit/test_codec_check.py` — covers GStreamer element probe, missing-codec error path, and fallback behavior.
 
 **When you change a wizard step's `get_finals()` output (e.g. `defaults/image.py`,
 `defaults/disk.py`, `defaults/encryption.py`, `defaults/user.py`):**
+- Update the corresponding `tests/unit/test_disk.py`, `test_encryption.py`, etc. if the
+  changed step has a dedicated test file.
 - Update `tests/ui/test_wizard.py` if the changed step is covered there.
 - If a new `get_finals()` key is added, add an assertion for it in the
   relevant `TestXxxStep` class.
@@ -355,7 +364,15 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `tests/unit/test_codec_check.py` | unit tests for GStreamer codec probe (no display) |
 | `tests/unit/test_conn_check.py` | unit tests for conn_check.py should_show() + offline bypass |
 | `tests/unit/test_done.py` | D-Bus reboot contract, apply_icon, warmup_registry, icon extraction |
-| `tests/unit/test_qr_companion.py` | CompanionServer unit tests, `get_local_ip`, QR step logic (all mocked — no network) |
+| `tests/unit/test_finals.py` | _extract_icon_and_name() all edge cases (empty, split, first-wins) |
+| `tests/unit/test_builder.py` | Builder class: load, conditions, get_finals, distro_info (99% coverage) |
+| `tests/unit/test_phone_companion.py` | CompanionServer lifecycle + handler GET/POST; all network mocked |
+| `tests/unit/test_disk.py` | defaults/disk.py pure logic: should_show, get_finals, auto_select |
+| `tests/unit/test_encryption.py` | BootcDefaultEncryption: get_finals, passphrase strength, btn_next |
+| `tests/unit/test_timezone.py` | BootcDefaultTimezone: get_finals, gen/del_deltas |
+| `tests/unit/test_language.py` | BootcDefaultLanguage: get_finals, gen/del_deltas |
+| `tests/unit/test_keyboard.py` | BootcDefaultKeyboard: get_finals, layout selection |
+| `tests/unit/test_qr_companion.py` | QR step logic (mocked — no network) |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
 | `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
@@ -406,6 +423,13 @@ Never raise the gate above the *measured* value — use the actual number as the
   Both block in CI. Always add to the patcher list:
   `patch("bootc_installer.defaults.qr_companion.CompanionServer")` and
   `patch("bootc_installer.defaults.qr_companion.get_local_ip", return_value="127.0.0.1")`.
+- **GTK widget unit testing — `__new__` + attribute injection**: GTK subclasses (`Adw.Bin`,
+  `Adw.ActionRow`, etc.) cannot be instantiated via `__init__` without a display. Use
+  `cls.__new__(cls)` then manually inject private attributes (Python name-mangling:
+  `obj._ClassName__attr = ...`) and mock widget children (`obj.hostname_entry = MagicMock()`).
+  Combined with `_build_gi_stubs()` at module level this lets you test `get_finals()`,
+  `should_show()`, passphrase strength logic, and other pure methods without Xvfb.
+  See `tests/unit/test_disk.py`, `test_encryption.py`, `test_timezone.py` for canonical examples.
 
 ---
 
