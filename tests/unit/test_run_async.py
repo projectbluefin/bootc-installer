@@ -7,22 +7,31 @@ import os
 import sys
 import threading
 import time
+import importlib
+import types
 import unittest
 from unittest.mock import MagicMock, patch
 
-# Inject GLib mock before RunAsync is imported so the top-level
-# "from gi.repository import GLib" in run_async.py succeeds headlessly.
-_glib_mock = MagicMock()
-_glib_mock.idle_add.return_value = 1
-_gi_mock = MagicMock()
-_gi_mock.repository = MagicMock()
-_gi_mock.repository.GLib = _glib_mock
-sys.modules.setdefault("gi", _gi_mock)
-sys.modules.setdefault("gi.repository", _gi_mock.repository)
-sys.modules["gi.repository"].GLib = _glib_mock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from bootc_installer.utils.run_async import RunAsync  # noqa: E402
+def _import_run_async_fresh():
+    """Re-import run_async with a clean GLib mock each time."""
+    glib_mock = MagicMock()
+    glib_mock.idle_add.return_value = 1
+    gi_mock = MagicMock()
+    gi_mock.repository = MagicMock()
+    gi_mock.repository.GLib = glib_mock
+    sys.modules["gi"] = gi_mock
+    sys.modules["gi.repository"] = gi_mock.repository
+    sys.modules["gi.repository.GLib"] = glib_mock
+
+    sys.modules.pop("bootc_installer.utils.run_async", None)
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+    return importlib.import_module("bootc_installer.utils.run_async")
+
+
+# One-time import for the module; tests use patch() to override GLib per-test.
+_run_async_mod = _import_run_async_fresh()
+RunAsync = _run_async_mod.RunAsync
 
 
 def _join(t, timeout=2.0):
