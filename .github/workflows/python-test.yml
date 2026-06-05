@@ -28,7 +28,7 @@ jobs:
         run: pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=42
+        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=46
 
 
       - name: Upload coverage report
