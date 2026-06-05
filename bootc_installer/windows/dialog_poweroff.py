@@ -16,10 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import subprocess
-from gettext import gettext as _
 from bootc_installer.core.system import Systeminfo
 
-from gi.repository import Adw, GLib, Gtk
+from gi.repository import Adw, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/dialog-poweroff.ui")

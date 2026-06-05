@@ -17,7 +17,6 @@
 import logging
 import os
 import urllib.request
-from collections import OrderedDict
 from gettext import gettext as _
 
 from gi.repository import Adw, Gtk

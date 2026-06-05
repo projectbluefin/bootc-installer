@@ -217,7 +217,7 @@ class TestFullSequence:
             _complete(boot_id="0003"),
         ]
         state = new_progress_state()
-        updates = [apply_progress_event(l, state) for l in log_lines]
+        updates = [apply_progress_event(line, state) for line in log_lines]
         non_none = [u for u in updates if u is not None]
 
         # Must reach completion

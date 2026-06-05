@@ -6,9 +6,7 @@ GTK display or GLib main loop is needed.
 import os
 import sys
 import threading
-import time
 import importlib
-import types
 import unittest
 from unittest.mock import MagicMock, patch
 

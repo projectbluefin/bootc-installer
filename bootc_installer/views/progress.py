@@ -40,9 +40,9 @@ _FISHERMAN_CACHE_DIR = os.path.join(os.environ.get("HOME", "/tmp"), ".cache", "b
 _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
-from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state
-from bootc_installer.utils.pastry_compat import new_grid_spinner
-from bootc_installer.utils.codec_check import check_codecs_present
+from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state  # noqa: E402
+from bootc_installer.utils.pastry_compat import new_grid_spinner  # noqa: E402
+from bootc_installer.utils.codec_check import check_codecs_present  # noqa: E402
 
 
 def _track_qr_resource_path(track: dict) -> str | None:
@@ -108,7 +108,7 @@ def _stage_fisherman_on_host() -> bool:
         logger.error(f"Failed to stage fisherman binary: {e}")
         return False
 
-from gi.repository import Gdk, Gio, GLib, Gtk, Adw
+from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/progress.ui")

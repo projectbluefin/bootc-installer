@@ -282,14 +282,14 @@ def _verify_partitions(device: str):
     print(f"\n  [lsblk]\n{r.stdout}")
     base = device.split("/")[-1]  # e.g. "nbd0" or "sda"
     parts = []
-    for l in r.stdout.splitlines():
-        if not l.strip():
+    for line in r.stdout.splitlines():
+        if not line.strip():
             continue
         # Strip lsblk tree-drawing chars to get the bare device name.
-        name = l.split()[0].lstrip("├─└│ ")
+        name = line.split()[0].lstrip("├─└│ ")
         # A partition name differs from the base device (e.g. nbd0p1 != nbd0).
         if name != base:
-            parts.append(l)
+            parts.append(line)
     assert len(parts) >= 3, f"Expected ≥3 partitions, got:\n{r.stdout}"
 
 
@@ -427,7 +427,7 @@ def _boot_verify(raw_path: str, vnc_display: int = 10, timeout: int = BOOT_TIMEO
             from PIL import Image
             import numpy as np
             img = Image.open(screenshot).convert("L")
-            arr = __import__("numpy").array(img)
+            arr = np.array(img)
             non_black_pct = (arr > 20).sum() / arr.size
             print(f"  [boot_verify] non-black pixels: {non_black_pct:.1%}")
             if non_black_pct > 0.05:

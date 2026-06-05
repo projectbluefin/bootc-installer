@@ -9,9 +9,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import GLib  # noqa: E402
 
-from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
-from bootc_installer.views.confirm import BootcConfirm
-from bootc_installer.views.progress import BootcProgress
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401, E402
+from bootc_installer.views.confirm import BootcConfirm  # noqa: E402
+from bootc_installer.views.progress import BootcProgress  # noqa: E402
 
 
 def _pump():

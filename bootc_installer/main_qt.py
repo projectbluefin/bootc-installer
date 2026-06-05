@@ -40,7 +40,7 @@ except ImportError as e:
         return main(version)
     sys.exit(0)
 
-from bootc_installer.core.system import Systeminfo
+from bootc_installer.core.system import Systeminfo  # noqa: E402
 
 try:
     from bootc_installer._version import VERSION as APP_VERSION

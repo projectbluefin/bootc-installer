@@ -3,7 +3,6 @@ Unit tests for done.py — reboot logic and icon application.
 No display required; GTK widgets are not instantiated.
 """
 
-import subprocess
 import sys
 import types
 import unittest
@@ -77,7 +76,6 @@ if "bootc_installer.windows.dialog_output" not in sys.modules:
 from bootc_installer.views.done import (  # noqa: E402
     BootcDone,
     apply_icon,
-    do_reboot,
     warmup_registry,
 )
 
@@ -257,7 +255,7 @@ class TestRegistryWarmup(unittest.TestCase):
 class TestFailureHintExtraction(unittest.TestCase):
 
     def _extract_hint(self, log_data=None, open_side_effect=None):
-        import bootc_installer.views.done as done_mod
+        import bootc_installer.views.done as done_mod  # noqa: F401
 
         progress_mod = types.SimpleNamespace(_FISHERMAN_LOG_PATH="/unused/fisherman.log")
         done_page = BootcDone.__new__(BootcDone)

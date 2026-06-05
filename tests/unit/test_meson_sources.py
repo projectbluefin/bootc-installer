@@ -6,9 +6,7 @@ in meson.build, causing ModuleNotFoundError only after the Flatpak is
 built and installed (invisible when running from source).
 """
 
-import os
 import re
-import sys
 from pathlib import Path
 
 import pytest

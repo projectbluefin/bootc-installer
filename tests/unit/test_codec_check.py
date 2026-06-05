@@ -1,6 +1,5 @@
 import sys
 from unittest.mock import MagicMock, patch
-import pytest
 
 def test_codec_check_when_gst_missing():
     """Verify that when GStreamer bindings are missing, check returns False for both codecs."""
