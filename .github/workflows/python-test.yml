@@ -28,7 +28,7 @@ jobs:
         run: pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=42
+        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=47
 
 
       - name: Upload coverage report
@@ -37,6 +37,13 @@ jobs:
           name: coverage-unit
           path: coverage.xml
           retention-days: 30
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: unit
+          fail_ci_if_error: false
 
   # ── Job 2: GTK integration tests (offscreen backend + compiled resources) ──
   ui:

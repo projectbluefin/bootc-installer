@@ -71,3 +71,37 @@ def test_codec_check_when_gst_present_but_codecs_missing():
         assert codecs["av1"] is False
         
         gst_mock.init.assert_not_called()  # Already initialized
+
+
+def test_codec_check_has_gst_true_when_import_succeeds():
+    """HAS_GST is set to True when gi.repository.Gst imports successfully."""
+    gst_mock = MagicMock()
+    import types
+    gi_repo = sys.modules.get("gi.repository", types.ModuleType("gi.repository"))
+    gi_repo.Gst = gst_mock
+
+    with patch("gi.require_version"), \
+         patch.dict(sys.modules, {"gi.repository.Gst": gst_mock}):
+        sys.modules.pop("bootc_installer.utils.codec_check", None)
+        import bootc_installer.utils.codec_check as cc
+
+    assert cc.HAS_GST is True
+
+
+def test_codec_check_exception_during_registry_inspection():
+    """When Gst.Registry.get() raises, the exception is caught and codecs default to False."""
+    gst_mock = MagicMock()
+    gst_mock.is_initialized.return_value = True
+    gst_mock.Registry.get.side_effect = RuntimeError("registry exploded")
+
+    with patch("gi.require_version"):
+        sys.modules.pop("bootc_installer.utils.codec_check", None)
+        import bootc_installer.utils.codec_check as cc
+
+        cc.Gst = gst_mock
+        cc.HAS_GST = True
+
+        codecs = cc.check_codecs_present()
+
+    assert codecs["vp9"] is False
+    assert codecs["av1"] is False

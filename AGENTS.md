@@ -216,8 +216,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
-- **`.github/workflows/python-test.yml`** runs on every push: 530+ unit tests
-  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 42% unit.
+- **`.github/workflows/python-test.yml`** runs on every push: 620+ unit tests
+  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 48% unit.
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -234,20 +234,21 @@ Always verify CI passes after pushing both submodule + parent repo commits.
 tests/
 ├── unit/
 │   ├── test_processor.py       ← 185+ pure-Python tests for processor.py (no display)
-│   ├── test_image_helpers.py   ← 49 tests for defaults/image.py pure helpers (_imgref_to_pretty_name, _count_leaves, _fetch_remote_flatpak_list, _load_manifest overrides)
+│   ├── test_image_helpers.py   ← 55+ tests for defaults/image.py pure helpers (_imgref_to_pretty_name, _count_leaves, _fetch_remote_flatpak_list, _load_manifest overrides)
 │   ├── test_system.py          ← 40 tests for core/system.py (generate_hostname, has_nvidia_gpu, is_uefi, is_ram_enough)
 │   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
 │   ├── test_slurp_helpers.py   ← 45+ tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
-│   ├── test_defaults_misc.py   ← tests for vm, nvidia, theme, network defaults
+│   ├── test_defaults_misc.py   ← tests for vm, nvidia, theme, network, conn_check defaults
 │   ├── test_conn_check.py      ← tests for conn_check.py: should_show() offline/online, async check, env bypass
-│   ├── test_codec_check.py     ← tests for utils/codec_check.py: GStreamer VP9/AV1 probe logic
+│   ├── test_codec_check.py     ← tests for utils/codec_check.py: GStreamer VP9/AV1 probe logic (100% coverage)
 │   ├── test_done.py            ← D-Bus reboot contract, apply_icon, warmup_registry, icon extraction
 │   ├── test_recipe_loader.py   ← tests for utils/recipe loader logic incl. Flatpak live-ISO path
 │   ├── test_run_async.py       ← tests for utils/run_async helpers
-│   ├── test_recovery_key.py    ← tests for views/recovery_key pure logic
+│   ├── test_recovery_key.py    ← set_recovery_key, ack_toggled, on_copy, on_continue (79% coverage)
+│   ├── test_welcome.py         ← _needs_bluetooth_pairing() all branches, get_finals, should_show (68% coverage)
 │   ├── test_user_validation.py ← username derivation, password strength, get_finals()
 │   ├── test_locale.py          ← tests for defaults/locale.py keyboard/locale enumeration
-│   ├── test_diskutils.py       ← tests for utils/diskutils.py disk enumeration helpers
+│   ├── test_diskutils.py       ← core/disks.py: Disk/Partition/DisksManager via __new__ + injection (99% coverage)
 │   ├── test_keymaps.py         ← tests for keymaps module layout
 │   ├── test_main_args.py       ← tests for __main__.py CLI argument parsing
 │   ├── test_pastry_compat.py   ← tests for libpastry integration compat layer
@@ -260,6 +261,9 @@ tests/
 │   ├── test_language.py        ← BootcDefaultLanguage get_finals, gen/del_deltas
 │   ├── test_keyboard.py        ← BootcDefaultKeyboard get_finals, layout selection
 │   ├── test_encryption.py      ← BootcDefaultEncryption get_finals, passphrase strength (Weak/Fair/Strong), btn_next logic
+│   ├── test_dialog_recovery.py ← _host_binary_exists() subprocess helper (61% coverage)
+│   ├── test_layouts.py         ← BootcLayoutYesNo/BootcLayoutPreferences: get_finals, should_show, __next_step, __on_response, __on_info
+│   ├── test_tour_helpers.py    ← BootcTour.__build_ui() asset URI routing (resource:///, resource://, abs path, GResource path)
 │   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
 └── ui/
     ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
@@ -281,19 +285,28 @@ xvfb-run -a pytest tests/ui/ -q
 
 ### Coverage baseline
 
-Current measured coverage (as of 2026-06-05, on dev post-PR #163):
-- **Unit tests**: ~42% of `bootc_installer/` (534 tests, 5844 stmts) — CI gate: 42%
+Current measured coverage (as of 2026-06-05, on dev post-PR #164):
+- **Unit tests**: ~48% of `bootc_installer/` (665 tests, 5825 stmts) — CI gate: 47%
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 Key per-module baselines:
 | Module | Coverage |
 |--------|----------|
-| `utils/processor.py` | 87% |
-| `defaults/image.py` | 56% |
-| `core/system.py` | 96% |
+| `utils/processor.py` | 100% |
+| `utils/progress_parser.py` | 100% |
+| `utils/codec_check.py` | 100% |
 | `utils/finals.py` | 100% |
+| `core/system.py` | 96% |
+| `core/disks.py` | 99% |
 | `utils/builder.py` | 99% |
 | `utils/phone_companion.py` | 97% |
+| `views/tour.py` | 83% |
+| `views/recovery_key.py` | 79% |
+| `defaults/welcome.py` | 68% |
+| `defaults/image.py` | 61% |
+| `windows/dialog_recovery.py` | 61% |
+| `layouts/yes_no.py` | 55% |
+| `layouts/preferences.py` | 47% |
 | `views/progress.py` | 20% (GTK-heavy, unit-test only via mocks) |
 | `defaults/disk.py` | 31% (GTK-heavy) |
 | `windows/main_window.py` | 0% (GTK-heavy, covered by UI tests) |
@@ -399,6 +412,10 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `tests/unit/test_language.py` | BootcDefaultLanguage: get_finals, gen/del_deltas |
 | `tests/unit/test_keyboard.py` | BootcDefaultKeyboard: get_finals, layout selection |
 | `tests/unit/test_qr_companion.py` | QR step logic (mocked — no network) |
+| `tests/unit/test_diskutils.py` | core/disks.py: Disk/Partition/DisksManager pure logic (99% coverage) via `__new__` + injection |
+| `tests/unit/test_recovery_key.py` | recovery_key.py: set_recovery_key, ack_toggled, on_copy, on_continue (79% coverage) |
+| `tests/unit/test_welcome.py` | welcome.py: _needs_bluetooth_pairing() all branches, get_finals, should_show |
+| `tests/unit/test_defaults_misc.py` | vm/nvidia/theme/conn_check/network step logic (no display) |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
 | `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
@@ -430,6 +447,15 @@ Never raise the gate above the *measured* value — use the actual number as the
      Assign `done_mod.Gio = gio_stub` in `setUp()` so `patch.object` always targets a
      controllable object and typos like `Gio.BusTyp` surface as failures.
   Fixed in #67 and hardened across `test_done.py` / `test_branding_parity.py`.
+- **`patch("module.Gio.method")` fails when real GIO is loaded first**: When
+  `test_builder.py` (or any module that imports real GTK) runs before a test that tries to
+  patch `bootc_installer.defaults.image.Gio.resources_lookup_data`, the patch silently
+  fails — the real C-extension method is called instead. **Fix**: use `_import_image_fresh()`
+  to reload the module with gi stubs, then set `fresh_mod.Gio.resources_lookup_data = MagicMock(...)`
+  directly on the reloaded module's attribute. Never use `patch("...Gio.some_method", ...)` 
+  when the test file might run after one that loads the real Gio. See
+  `tests/unit/test_image_helpers.py::TestLoadManifestOverrides` for the canonical pattern.
+  Fixed in PR #164.
 - **`CompanionServer.start()` global reset (fixed in #106)**: `GLOBAL_CONFIG = None`
   inside a method creates a local variable, not a module-level reset. Always add
   `global GLOBAL_CONFIG` before the assignment when resetting module-level state.
