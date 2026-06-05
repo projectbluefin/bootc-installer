@@ -212,8 +212,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
-- **`.github/workflows/python-test.yml`** runs on every push: 470+ unit tests
-  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 39% unit.
+- **`.github/workflows/python-test.yml`** runs on every push: 530+ unit tests
+  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 42% unit.
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -229,7 +229,9 @@ Always verify CI passes after pushing both submodule + parent repo commits.
 ```
 tests/
 ├── unit/
-│   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
+│   ├── test_processor.py       ← 185+ pure-Python tests for processor.py (no display)
+│   ├── test_image_helpers.py   ← 49 tests for defaults/image.py pure helpers (_imgref_to_pretty_name, _count_leaves, _fetch_remote_flatpak_list, _load_manifest overrides)
+│   ├── test_system.py          ← 40 tests for core/system.py (generate_hostname, has_nvidia_gpu, is_uefi, is_ram_enough)
 │   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
 │   ├── test_slurp_helpers.py   ← 45+ tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
 │   ├── test_defaults_misc.py   ← tests for vm, nvidia, theme, network defaults
@@ -275,9 +277,22 @@ xvfb-run -a pytest tests/ui/ -q
 
 ### Coverage baseline
 
-Current measured coverage (as of 2026-06-04, on dev post-PRs #141-148):
-- **Unit tests**: ~39.61% of `bootc_installer/` (472 tests, 5842 stmts) — CI gate: 39%
+Current measured coverage (as of 2026-06-05, on dev post-PR #163):
+- **Unit tests**: ~42% of `bootc_installer/` (534 tests, 5844 stmts) — CI gate: 42%
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
+
+Key per-module baselines:
+| Module | Coverage |
+|--------|----------|
+| `utils/processor.py` | 87% |
+| `defaults/image.py` | 56% |
+| `core/system.py` | 96% |
+| `utils/finals.py` | 100% |
+| `utils/builder.py` | 99% |
+| `utils/phone_companion.py` | 97% |
+| `views/progress.py` | 20% (GTK-heavy, unit-test only via mocks) |
+| `defaults/disk.py` | 31% (GTK-heavy) |
+| `windows/main_window.py` | 0% (GTK-heavy, covered by UI tests) |
 
 The CI coverage gate (`--cov-fail-under`) is a ratchet — it should only go up. To measure before raising the gate:
 ```bash
@@ -299,6 +314,13 @@ Never raise the gate above the *measured* value — use the actual number as the
 
 **When you add or change `bootc_installer/utils/codec_check.py`:**
 - Update `tests/unit/test_codec_check.py` — covers GStreamer element probe, missing-codec error path, and fallback behavior.
+
+**When you change `bootc_installer/defaults/image.py` pure helpers:**
+- Update `tests/unit/test_image_helpers.py` — covers `_find_icon_for_imgref`, `_resolve_aliases`, `_imgref_to_pretty_name`, `_count_leaves`, `_fetch_remote_flatpak_list`, and `_load_manifest` override paths.
+- Note: `_imgref_to_pretty_name` returns slashless input unchanged (not title-cased).
+
+**When you change `bootc_installer/core/system.py`:**
+- Update `tests/unit/test_system.py` — covers `generate_hostname` (DMI + fallbacks), `has_nvidia_gpu`, `is_uefi`, `is_ram_enough`, `is_cpu_enough`.
 
 **When you change a wizard step's `get_finals()` output (e.g. `defaults/image.py`,
 `defaults/disk.py`, `defaults/encryption.py`, `defaults/user.py`):**
@@ -359,7 +381,7 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
-| `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
+| `tests/unit/test_processor.py` | 185+ unit tests for processor paths, disk variants, image fallbacks (no display) |
 | `tests/unit/test_slurp_helpers.py` | 45+ unit tests for slurp.py pure logic (no display) |
 | `tests/unit/test_codec_check.py` | unit tests for GStreamer codec probe (no display) |
 | `tests/unit/test_conn_check.py` | unit tests for conn_check.py should_show() + offline bypass |
