@@ -157,6 +157,10 @@ git push
 ```bash
 cd /path/to/bootc-installer
 # edit bootc_installer/views/*.py or other files
+
+# Lint before committing
+python3 -m ruff check bootc_installer/ tests/
+
 git add -A && git commit -m "fix: describe the change"
 git push
 ```
