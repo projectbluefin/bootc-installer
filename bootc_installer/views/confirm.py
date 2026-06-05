@@ -14,13 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import re
 from gettext import gettext as _
 
 from bootc_installer.views.confirm_data import _ENC_LABELS, _SENNA_QUOTES
 
-from gi.repository import Adw, GLib, GObject, Gtk
+from gi.repository import Adw, GObject, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-choice.ui")
@@ -77,7 +76,6 @@ class BootcConfirm(Adw.Bin):
             pass
         self.active_widgets = []
 
-        pretty_name = None
         selected_language = None
 
         for final in finals:
@@ -166,7 +164,6 @@ class BootcConfirm(Adw.Bin):
                     )
                 elif key == "selected_image":
                     pn = final.get("pretty_name") or value
-                    pretty_name = pn
                     self.active_widgets.append(
                         BootcChoiceEntry(
                             _("Image"),
@@ -175,8 +172,6 @@ class BootcConfirm(Adw.Bin):
                         )
                     )
                 elif key == "custom_image":
-                    pn = final.get("pretty_name") or value
-                    pretty_name = pn
                     self.active_widgets.append(
                         BootcChoiceEntry(
                             _("Image"),

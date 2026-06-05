@@ -31,7 +31,7 @@ from typing import Union
 import logging
 import os
 
-from gi.repository import Adw, GLib, GObject, Gtk
+from gi.repository import Adw, GObject, Gtk
 
 from bootc_installer.core.disks import DisksManager, Diskutils, Partition
 from bootc_installer.core.system import Systeminfo

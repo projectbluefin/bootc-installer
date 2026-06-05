@@ -8,7 +8,7 @@ import importlib
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 def _build_keymap_stubs():

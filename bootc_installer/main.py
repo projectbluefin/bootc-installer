@@ -39,24 +39,24 @@ logging.basicConfig(
 logger_boot = logging.getLogger("Installer::Boot")
 logger_boot.info(f"Logging to {_log_file}")
 
-import gi
+import gi  # noqa: E402
 logger_boot.info("gi imported")
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 logger_boot.info("gi.require_version done")
 
-from gi.repository import Adw, Gio, GLib
+from gi.repository import Adw, Gio, GLib  # noqa: E402
 logger_boot.info("Adw/Gio imported")
 
-from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401 — must load before blueprints
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: E402,F401 - must load before blueprints
 logger_boot.info("BootcPageHeader imported")
-from bootc_installer.windows.main_window import BootcWindow
+from bootc_installer.windows.main_window import BootcWindow  # noqa: E402
 logger_boot.info("BootcWindow imported")
-from bootc_installer.windows.window_unsupported import BootcUnsupportedWindow
-from bootc_installer.windows.window_ram import BootcRamWindow
-from bootc_installer.windows.window_cpu import BootcCpuWindow
-from bootc_installer.core.system import Systeminfo
+from bootc_installer.windows.window_unsupported import BootcUnsupportedWindow  # noqa: E402
+from bootc_installer.windows.window_ram import BootcRamWindow  # noqa: E402
+from bootc_installer.windows.window_cpu import BootcCpuWindow  # noqa: E402
+from bootc_installer.core.system import Systeminfo  # noqa: E402
 logger_boot.info("All imports done")
 
 logger = logging.getLogger("Installer::Main")

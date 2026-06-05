@@ -65,10 +65,9 @@ _FIXTURE_MANIFEST = {
     ],
 }
 
-import json as _json
 
 _mock_gio_data = MagicMock()
-_mock_gio_data.get_data.return_value = _json.dumps(_FIXTURE_MANIFEST).encode()
+_mock_gio_data.get_data.return_value = json.dumps(_FIXTURE_MANIFEST).encode()
 sys.modules["gi.repository"].Gio.resources_lookup_data.return_value = _mock_gio_data
 sys.modules["gi.repository"].Gio.ResourceLookupFlags.NONE = 0
 
@@ -132,7 +131,6 @@ def _import_image_fresh():
 
 import bootc_installer.defaults.image as image_mod  # noqa: E402
 from bootc_installer.defaults.image import (  # noqa: E402
-    BootcDefaultImage,
     _count_leaves,
     _fetch_remote_flatpak_list,
     _find_icon_for_imgref,
@@ -633,7 +631,7 @@ class TestImagesCatalogIntegrity(unittest.TestCase):
 
     def _load_catalog(self):
         with open(self._CATALOG_PATH) as f:
-            return _json.load(f)
+            return json.load(f)
 
     def _all_imgrefs(self, nodes, registry_ctx=""):
         """Yield every effective imgref in the tree, resolving registry+tag nodes."""
@@ -700,7 +698,7 @@ class TestImagesCatalogIntegrity(unittest.TestCase):
         def _check(nodes, registry_ctx=""):
             for n in nodes:
                 registry = n.get("registry", registry_ctx)
-                if "tag" in n and not "imgref" in n:
+                if "tag" in n and "imgref" not in n:
                     self.assertTrue(
                         registry,
                         f"Node '{n.get('name')}' has 'tag' but no registry in scope"

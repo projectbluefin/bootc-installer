@@ -9,8 +9,6 @@ Testing approach:
 - bootc_installer.core.system is left as the real module since it has no GTK dep
 """
 
-import importlib
-import logging
 import os
 import sys
 import types
@@ -229,7 +227,7 @@ class TestMainEnvGuard(unittest.TestCase):
     def test_bootc_installer_init_does_not_raise(self):
         """BootcInstaller() succeeds with gi stubs in place."""
         try:
-            app = self.mod.BootcInstaller()
+            self.mod.BootcInstaller()
         except Exception as e:
             self.fail(f"BootcInstaller() raised {type(e).__name__}: {e}")
 
@@ -238,7 +236,7 @@ class TestMainEnvGuard(unittest.TestCase):
         with patch.object(self.mod.GLib, "OptionFlags", types.SimpleNamespace(NONE=0)):
             with patch.object(self.mod.GLib, "OptionArg", types.SimpleNamespace(STRING=1)):
                 try:
-                    app = self.mod.BootcInstaller()
+                    self.mod.BootcInstaller()
                 except Exception:
                     self.fail("BootcInstaller() failed")
         # The add_main_option call is verified by the class not raising

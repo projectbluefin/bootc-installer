@@ -1,4 +1,3 @@
-import locale
 import logging
 import os
 import subprocess
@@ -12,7 +11,8 @@ from bootc_installer.utils.pastry_compat import wrap_glass
 from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
 from bootc_installer.windows.dialog_output import BootcDialogOutput
 
-log = logging.getLogger("Installer::Done")
+logger = logging.getLogger("Installer::Done")
+log = logger
 
 
 def apply_icon(page_header, icon_spec):
@@ -198,12 +198,9 @@ class BootcDone(Adw.Bin):
 
         # Find the last "fatal:" line from fisherman
         fatal_msg = ""
-        last_step = ""
         for line in lines:
             if "fatal:" in line.lower():
                 fatal_msg = line.strip()
-            if '"type":"step"' in line or '"type": "step"' in line:
-                last_step = line.strip()
 
         if not fatal_msg:
             return _("The installer exited unexpectedly. Check the log for details.")
@@ -307,7 +304,7 @@ class BootcDone(Adw.Bin):
             if tz in us_zones:
                 return True
         except Exception as e:
-            logger.debug("Could not read timezone name: %s", e)
+            log.debug("Could not read timezone name: %s", e)
         # Check /etc/timezone or timedatectl output
         try:
             with open("/etc/timezone") as f:

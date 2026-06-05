@@ -31,7 +31,6 @@ except ValueError:
 
 from gi.repository import Adw, Gio  # noqa: E402
 
-import pytest  # noqa: E402
 
 
 def _find_gresource() -> str | None:
