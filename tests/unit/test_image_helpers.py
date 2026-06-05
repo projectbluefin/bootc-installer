@@ -1,7 +1,11 @@
 """Unit tests for image.py helpers — no GTK required."""
+import importlib
+import json
 import os
 import sys
+import types
 import unittest
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -68,7 +72,75 @@ _mock_gio_data.get_data.return_value = _json.dumps(_FIXTURE_MANIFEST).encode()
 sys.modules["gi.repository"].Gio.resources_lookup_data.return_value = _mock_gio_data
 sys.modules["gi.repository"].Gio.ResourceLookupFlags.NONE = 0
 
-from bootc_installer.defaults.image import _find_icon_for_imgref, _resolve_aliases  # noqa: E402
+
+def _build_gi_stubs():
+    gi_mod = types.ModuleType("gi")
+    repo_mod = types.ModuleType("gi.repository")
+
+    class _Template:
+        def __call__(self, *args, **kwargs):
+            return lambda cls: cls
+
+        def Child(self, *args, **kwargs):
+            return None
+
+    class _Stub:
+        pass
+
+    template = _Template()
+    stubs = {}
+    for lib in ("Gtk", "Adw", "Gio"):
+        stub = types.ModuleType(f"gi.repository.{lib}")
+        stub.Template = template
+        stub.Bin = _Stub
+        setattr(repo_mod, lib, stub)
+        sys.modules[f"gi.repository.{lib}"] = stub
+        stubs[lib] = stub
+
+    stubs["Gtk"].Image = _Stub
+    stubs["Gtk"].CheckButton = _Stub
+    stubs["Gtk"].SelectionMode = type("SelectionMode", (), {"NONE": 0})
+    stubs["Adw"].ActionRow = _Stub
+    stubs["Adw"].ExpanderRow = _Stub
+
+    class _ResourceLookupFlags:
+        NONE = 0
+
+    data = MagicMock()
+    data.get_data.return_value = json.dumps(_FIXTURE_MANIFEST).encode()
+    stubs["Gio"].ResourceLookupFlags = _ResourceLookupFlags
+    stubs["Gio"].resources_lookup_data = MagicMock(return_value=data)
+
+    gi_mod.repository = repo_mod
+    gi_mod.require_version = lambda *args, **kwargs: None
+    sys.modules["gi"] = gi_mod
+    sys.modules["gi.repository"] = repo_mod
+
+
+
+def _import_image_fresh():
+    _build_gi_stubs()
+    sys.modules.pop("bootc_installer.defaults.image", None)
+    try:
+        import bootc_installer.defaults as defaults_pkg
+
+        defaults_pkg.__dict__.pop("image", None)
+    except Exception:
+        pass
+    return importlib.import_module("bootc_installer.defaults.image")
+
+
+import bootc_installer.defaults.image as image_mod  # noqa: E402
+from bootc_installer.defaults.image import (  # noqa: E402
+    BootcDefaultImage,
+    _count_leaves,
+    _fetch_remote_flatpak_list,
+    _find_icon_for_imgref,
+    _imgref_to_pretty_name,
+    _load_manifest,
+    _make_icon,
+    _resolve_aliases,
+)
 
 
 class TestFindIconForImgref(unittest.TestCase):
@@ -150,6 +222,389 @@ class TestResolveAliases(unittest.TestCase):
         manifest = {"key": "@something"}
         _resolve_aliases(manifest, aliases)
         self.assertEqual(manifest["key"], "@something")
+
+
+class TestPrettyNameHelpers(unittest.TestCase):
+
+    def test_imgref_to_pretty_name_hyphenated_slug(self):
+        self.assertEqual(
+            _imgref_to_pretty_name("ghcr.io/ublue-os/bluefin-dx:latest"),
+            "Bluefin DX",
+        )
+
+    def test_imgref_to_pretty_name_single_word(self):
+        self.assertEqual(
+            _imgref_to_pretty_name("ghcr.io/ublue-os/aurora:stable"),
+            "Aurora",
+        )
+
+    def test_imgref_to_pretty_name_underscores_become_hyphens(self):
+        self.assertEqual(
+            _imgref_to_pretty_name("ghcr.io/example/bluefin_dx:latest"),
+            "Bluefin DX",
+        )
+
+    def test_imgref_to_pretty_name_empty_string(self):
+        self.assertEqual(_imgref_to_pretty_name(""), "")
+
+    def test_imgref_to_pretty_name_invalid_imgref_returns_as_is(self):
+        self.assertEqual(_imgref_to_pretty_name("bluefin"), "bluefin")
+
+
+class TestCountLeaves(unittest.TestCase):
+
+    def test_empty_list_has_no_leaves(self):
+        self.assertEqual(_count_leaves([]), 0)
+
+    def test_flat_list_counts_all_leaves(self):
+        nodes = [
+            {"name": "A", "imgref": "ghcr.io/example/a:latest"},
+            {"name": "B", "imgref": "ghcr.io/example/b:latest"},
+            {"name": "C", "imgref": "ghcr.io/example/c:latest"},
+        ]
+        self.assertEqual(_count_leaves(nodes), 3)
+
+    def test_nested_groups_count_recursively(self):
+        nodes = [
+            {
+                "name": "Group",
+                "children": [
+                    {"name": "A", "imgref": "ghcr.io/example/a:latest"},
+                    {
+                        "name": "Nested",
+                        "children": [
+                            {"name": "B", "imgref": "ghcr.io/example/b:latest"},
+                            {"name": "C", "imgref": "ghcr.io/example/c:latest"},
+                        ],
+                    },
+                ],
+            },
+        ]
+        self.assertEqual(_count_leaves(nodes), 3)
+
+    def test_mixed_groups_and_leaves(self):
+        nodes = [
+            {"name": "Top", "imgref": "ghcr.io/example/top:latest"},
+            {
+                "name": "Group",
+                "children": [
+                    {"name": "Child", "imgref": "ghcr.io/example/child:latest"},
+                ],
+            },
+            {"name": "EmptyGroup", "children": []},
+        ]
+        self.assertEqual(_count_leaves(nodes), 2)
+
+
+class TestFetchRemoteFlatpakList(unittest.TestCase):
+
+    @staticmethod
+    def _mock_urlopen(text):
+        response = MagicMock()
+        response.read.return_value = text.encode("utf-8")
+        context = MagicMock()
+        context.__enter__.return_value = response
+        context.__exit__.return_value = False
+        return context
+
+    def test_fetch_remote_flatpak_list_parses_brewfile_format(self):
+        text = '\n# comment\nflatpak "com.example.App"\n\nflatpak "org.mozilla.Firefox"\n'
+        with patch("urllib.request.urlopen", return_value=self._mock_urlopen(text)):
+            self.assertEqual(
+                _fetch_remote_flatpak_list("https://example.test/Brewfile"),
+                ["com.example.App", "org.mozilla.Firefox"],
+            )
+
+    def test_fetch_remote_flatpak_list_parses_plain_ref_format(self):
+        text = "app/com.example.App/x86_64/stable\napp/org.mozilla.Firefox/x86_64/stable\n"
+        with patch("urllib.request.urlopen", return_value=self._mock_urlopen(text)):
+            self.assertEqual(
+                _fetch_remote_flatpak_list("https://example.test/refs.txt"),
+                ["com.example.App", "org.mozilla.Firefox"],
+            )
+
+    def test_fetch_remote_flatpak_list_parses_plain_app_ids(self):
+        text = "com.example.App\norg.mozilla.Firefox\n"
+        with patch("urllib.request.urlopen", return_value=self._mock_urlopen(text)):
+            self.assertEqual(
+                _fetch_remote_flatpak_list("https://example.test/appids.txt"),
+                ["com.example.App", "org.mozilla.Firefox"],
+            )
+
+    def test_fetch_remote_flatpak_list_handles_mixed_content(self):
+        text = (
+            "# comment\n"
+            "flatpak \"com.example.BrewfileApp\"\n"
+            "app/com.example.RefApp/x86_64/stable\n"
+            "runtime/org.freedesktop.Platform/x86_64/24.08\n"
+            "org.mozilla.Firefox\n"
+            "\n"
+        )
+        with patch("urllib.request.urlopen", return_value=self._mock_urlopen(text)):
+            self.assertEqual(
+                _fetch_remote_flatpak_list("https://example.test/mixed.txt"),
+                ["com.example.BrewfileApp", "com.example.RefApp", "org.mozilla.Firefox"],
+            )
+
+    def test_fetch_remote_flatpak_list_returns_none_on_network_error(self):
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.URLError("boom"),
+        ):
+            self.assertIsNone(_fetch_remote_flatpak_list("https://example.test/down.txt"))
+
+    def test_fetch_remote_flatpak_list_returns_none_when_no_apps_found(self):
+        text = "# comment\n\nruntime/org.freedesktop.Platform/x86_64/24.08\n"
+        with patch("urllib.request.urlopen", return_value=self._mock_urlopen(text)):
+            self.assertIsNone(_fetch_remote_flatpak_list("https://example.test/empty.txt"))
+
+
+class TestLoadManifestOverrides(unittest.TestCase):
+
+    def test_load_manifest_prefers_user_override(self):
+        user_override = "/custom/config/bootc-installer/images.json"
+        manifest = {"fallback_flatpaks": [], "images": [{"imgref": "user"}]}
+
+        def exists_side_effect(path):
+            return str(path) == user_override
+
+        with (
+            patch.dict(os.environ, {"XDG_CONFIG_HOME": "/custom/config"}, clear=False),
+            patch("pathlib.Path.exists", new=lambda path: exists_side_effect(path)),
+            patch("pathlib.Path.read_text", new=lambda path, *args, **kwargs: json.dumps(manifest)),
+            patch("bootc_installer.defaults.image.Gio.resources_lookup_data") as lookup,
+        ):
+            self.assertEqual(_load_manifest(), manifest)
+            lookup.assert_not_called()
+
+    def test_load_manifest_uses_system_override_when_user_missing(self):
+        system_override = "/etc/bootc-installer/images.json"
+        manifest = {"fallback_flatpaks": ["org.mozilla.firefox"], "images": []}
+
+        def exists_side_effect(path):
+            return str(path) == system_override
+
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch("pathlib.Path.exists", new=lambda path: exists_side_effect(path)),
+            patch("pathlib.Path.read_text", new=lambda path, *args, **kwargs: json.dumps(manifest)),
+            patch("bootc_installer.defaults.image.Gio.resources_lookup_data") as lookup,
+        ):
+            self.assertEqual(_load_manifest(), manifest)
+            lookup.assert_not_called()
+
+    def test_load_manifest_falls_back_to_system_when_user_override_is_invalid(self):
+        user_override = "/custom/config/bootc-installer/images.json"
+        system_override = "/etc/bootc-installer/images.json"
+        system_manifest = {"fallback_flatpaks": [], "images": [{"imgref": "system"}]}
+
+        def exists_side_effect(path):
+            return str(path) in {user_override, system_override}
+
+        def read_text_side_effect(path, *args, **kwargs):
+            if str(path) == user_override:
+                return "{not-json}"
+            if str(path) == system_override:
+                return json.dumps(system_manifest)
+            raise AssertionError(f"unexpected path: {path}")
+
+        with (
+            patch.dict(os.environ, {"XDG_CONFIG_HOME": "/custom/config"}, clear=False),
+            patch("pathlib.Path.exists", new=lambda path: exists_side_effect(path)),
+            patch("pathlib.Path.read_text", new=lambda path, *args, **kwargs: read_text_side_effect(path, *args, **kwargs)),
+            patch("bootc_installer.defaults.image.Gio.resources_lookup_data") as lookup,
+        ):
+            self.assertEqual(_load_manifest(), system_manifest)
+            lookup.assert_not_called()
+
+
+class TestMakeIcon(unittest.TestCase):
+
+    def test_make_icon_returns_none_for_blank_spec(self):
+        with patch.object(image_mod.Gtk, "Image", create=True) as image_cls:
+            self.assertIsNone(_make_icon(""))
+            image_cls.assert_not_called()
+
+    def test_make_icon_loads_resource_icons(self):
+        image = MagicMock()
+        with patch.object(image_mod.Gtk, "Image", return_value=image, create=True):
+            result = _make_icon("resource:///org/bootcinstaller/Installer/images/foo.svg", size=24)
+        self.assertIs(result, image)
+        image.set_pixel_size.assert_called_once_with(24)
+        image.set_from_resource.assert_called_once_with("/org/bootcinstaller/Installer/images/foo.svg")
+
+    def test_make_icon_loads_filesystem_icons(self):
+        image = MagicMock()
+        with patch.object(image_mod.Gtk, "Image", return_value=image, create=True):
+            result = _make_icon("/usr/share/icons/foo.svg")
+        self.assertIs(result, image)
+        image.set_from_file.assert_called_once_with("/usr/share/icons/foo.svg")
+
+    def test_make_icon_loads_icon_theme_names(self):
+        image = MagicMock()
+        with patch.object(image_mod.Gtk, "Image", return_value=image, create=True):
+            result = _make_icon("computer-symbolic")
+        self.assertIs(result, image)
+        image.set_from_icon_name.assert_called_once_with("computer-symbolic")
+
+    def test_make_icon_returns_none_when_loading_fails(self):
+        image = MagicMock()
+        image.set_from_resource.side_effect = RuntimeError("bad icon")
+        with patch.object(image_mod.Gtk, "Image", return_value=image, create=True):
+            self.assertIsNone(_make_icon("resource:///bad.svg"))
+
+
+class TestBootcDefaultImagePureLogic(unittest.TestCase):
+
+    def setUp(self):
+        self.mod = _import_image_fresh()
+        self.cls = self.mod.BootcDefaultImage
+
+    def _make_widget(self):
+        widget = object.__new__(self.cls)
+        widget.row_custom = MagicMock()
+        widget.image_url_entry = MagicMock()
+        widget.btn_next = MagicMock()
+        widget._BootcDefaultImage__update_btn_next = MagicMock()
+        widget._BootcDefaultImage__radio_anchor = MagicMock()
+        widget._BootcDefaultImage__selected_imgref = "ghcr.io/example/default:latest"
+        widget._BootcDefaultImage__selected_flatpaks = ["org.default.App"]
+        widget._BootcDefaultImage__selected_flatpak_var_path = "/var/lib/flatpak"
+        widget._BootcDefaultImage__selected_carousel = ["slide1"]
+        widget._BootcDefaultImage__selected_needs_user_creation = True
+        widget._BootcDefaultImage__selected_composefs_backend = True
+        widget._BootcDefaultImage__selected_image_type = "ostree"
+        widget._BootcDefaultImage__selected_bootloader = "grub2"
+        widget._BootcDefaultImage__selected_image_filesystem = "xfs"
+        widget._BootcDefaultImage__selected_icon = "computer-symbolic"
+        widget._BootcDefaultImage__selected_pretty_name = "Example"
+        widget._BootcDefaultImage__selected_default_hostname = "example-host"
+        widget._BootcDefaultImage__selected_filesystems = ["xfs", "btrfs"]
+        return widget
+
+    def test_on_check_toggled_updates_selected_state_for_remote_flatpaks(self):
+        widget = self._make_widget()
+        check = MagicMock()
+        check.get_active.return_value = True
+        widget.row_custom.get_expanded.return_value = True
+
+        with patch.object(
+            self.mod,
+            "_fetch_remote_flatpak_list",
+            return_value=["org.remote.App"],
+        ) as fetch_remote:
+            self.cls._BootcDefaultImage__on_check_toggled(
+                widget,
+                check,
+                "ghcr.io/example/new:latest",
+                "https://example.test/flatpaks.txt",
+                "computer-symbolic",
+                ["slide2"],
+                False,
+                False,
+                "bootc",
+                "systemd",
+                "btrfs",
+                "/var/lib/custom-flatpak",
+                "new-host",
+                ["btrfs"],
+            )
+
+        fetch_remote.assert_called_once_with("https://example.test/flatpaks.txt")
+        self.assertEqual(widget._BootcDefaultImage__selected_imgref, "ghcr.io/example/new:latest")
+        self.assertEqual(widget._BootcDefaultImage__selected_flatpaks, ["org.remote.App"])
+        self.assertEqual(widget._BootcDefaultImage__selected_pretty_name, "New")
+        self.assertEqual(widget._BootcDefaultImage__selected_default_hostname, "new-host")
+        self.assertEqual(widget._BootcDefaultImage__selected_filesystems, ["btrfs"])
+        widget.row_custom.set_expanded.assert_called_once_with(False)
+        widget._BootcDefaultImage__update_btn_next.assert_called_once_with()
+
+    def test_on_custom_toggled_resets_selection_for_custom_image(self):
+        widget = self._make_widget()
+        expander = MagicMock()
+        expander.get_expanded.return_value = True
+
+        self.cls._BootcDefaultImage__on_custom_toggled(widget, expander, None)
+
+        widget._BootcDefaultImage__radio_anchor.set_active.assert_called_once_with(True)
+        self.assertIsNone(widget._BootcDefaultImage__selected_imgref)
+        self.assertIsNone(widget._BootcDefaultImage__selected_icon)
+        self.assertIsNone(widget._BootcDefaultImage__selected_carousel)
+        self.assertFalse(widget._BootcDefaultImage__selected_needs_user_creation)
+        self.assertFalse(widget._BootcDefaultImage__selected_composefs_backend)
+        self.assertEqual(widget._BootcDefaultImage__selected_image_type, "bootc")
+        self.assertEqual(widget._BootcDefaultImage__selected_bootloader, "")
+        self.assertEqual(widget._BootcDefaultImage__selected_image_filesystem, "")
+        self.assertIsNone(widget._BootcDefaultImage__selected_pretty_name)
+        self.assertEqual(widget._BootcDefaultImage__selected_default_hostname, "")
+        self.assertEqual(widget._BootcDefaultImage__selected_filesystems, [])
+        widget._BootcDefaultImage__update_btn_next.assert_called_once_with()
+
+    def test_update_btn_next_uses_custom_url_validation(self):
+        widget = self._make_widget()
+        widget.row_custom.get_expanded.return_value = True
+        widget.image_url_entry.get_text.return_value = "ghcr.io/example/custom:latest"
+
+        self.cls._BootcDefaultImage__update_btn_next(widget)
+
+        widget.btn_next.set_sensitive.assert_called_once_with(True)
+
+    def test_on_url_changed_marks_invalid_custom_url(self):
+        widget = self._make_widget()
+        entry = MagicMock()
+        entry.get_text.return_value = "not-a-valid-image"
+        widget._BootcDefaultImage__update_btn_next = MagicMock()
+
+        self.cls._BootcDefaultImage__on_url_changed(widget, entry)
+
+        entry.add_css_class.assert_called_once_with("error")
+        entry.remove_css_class.assert_not_called()
+        widget._BootcDefaultImage__update_btn_next.assert_called_once_with()
+
+    def test_should_show_skip_screen_and_leaf_count_helpers(self):
+        widget = self._make_widget()
+        self.assertFalse(self.cls.should_show(widget, {"leaf_count": 1}))
+        self.assertTrue(self.cls.should_show(widget, {"leaf_count": 2}))
+        self.assertEqual(self.cls.leaf_count.fget(widget), 4)
+        self.assertFalse(self.cls.skip_screen.fget(widget))
+
+    def test_get_finals_for_selected_catalog_image(self):
+        widget = self._make_widget()
+        widget.row_custom.get_expanded.return_value = False
+
+        finals = self.cls.get_finals(widget)
+
+        self.assertEqual(finals["selected_image"], "ghcr.io/example/default:latest")
+        self.assertEqual(finals["pretty_name"], "Example")
+        self.assertEqual(finals["flatpaks"], ["org.default.App"])
+        self.assertEqual(finals["flatpak_var_path"], "/var/lib/flatpak")
+        self.assertEqual(finals["carousel"], ["slide1"])
+        self.assertTrue(finals["needs_user_creation"])
+        self.assertTrue(finals["composefs_backend"])
+        self.assertEqual(finals["image_type"], "ostree")
+        self.assertEqual(finals["bootloader"], "grub2")
+        self.assertEqual(finals["image_filesystem"], "xfs")
+        self.assertEqual(finals["icon"], "computer-symbolic")
+        self.assertEqual(finals["default_hostname"], "example-host")
+        self.assertEqual(finals["supported_filesystems"], ["xfs", "btrfs"])
+
+    def test_get_finals_for_custom_image_uses_fallbacks(self):
+        widget = self._make_widget()
+        widget.row_custom.get_expanded.return_value = True
+        widget.image_url_entry.get_text.return_value = "ghcr.io/example/custom-dx:stable"
+
+        finals = self.cls.get_finals(widget)
+
+        self.assertEqual(finals["custom_image"], "ghcr.io/example/custom-dx:stable")
+        self.assertEqual(finals["pretty_name"], "Custom DX")
+        self.assertEqual(finals["flatpaks"], ["org.mozilla.firefox"])
+        self.assertIsNone(finals["carousel"])
+        self.assertFalse(finals["needs_user_creation"])
+        self.assertFalse(finals["composefs_backend"])
+        self.assertEqual(finals["image_type"], "bootc")
+        self.assertEqual(finals["bootloader"], "")
+        self.assertEqual(finals["image_filesystem"], "")
+        self.assertIsNone(finals["icon"])
 
 
 class TestImagesCatalogIntegrity(unittest.TestCase):

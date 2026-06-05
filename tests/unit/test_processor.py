@@ -563,6 +563,159 @@ class TestNvidiaAutoDetect:
 
 # ── Hostname generation tests ─────────────────────────────────────────────────
 
+class TestManualPartitionLayout:
+    """Tests for manual partition mode (all keys start with /dev/)."""
+
+    def _manual_finals(self, partitions, image="ghcr.io/t/img:latest", hostname="h"):
+        return [{
+            "disk": partitions,
+            "selected_image": image,
+            "hostname": hostname,
+            "encryption": {"use_encryption": False},
+        }]
+
+    def test_custom_mounts_populated(self):
+        finals = self._manual_finals({
+            "/dev/sda1": {"fs": "fat32", "mp": "/boot/efi"},
+            "/dev/sda2": {"fs": "xfs", "mp": "/"},
+        })
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert "customMounts" in r
+        mounts = {m["partition"]: m for m in r["customMounts"]}
+        assert mounts["/dev/sda1"]["target"] == "/boot/efi"
+        assert mounts["/dev/sda2"]["fstype"] == "xfs"
+
+    def test_partition_without_mountpoint_skipped(self):
+        """Partitions with no mp= are silently skipped."""
+        finals = self._manual_finals({
+            "/dev/sda1": {"fs": "swap", "mp": ""},
+            "/dev/sda2": {"fs": "xfs", "mp": "/"},
+        })
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        mounts = r.get("customMounts", [])
+        partitions = [m["partition"] for m in mounts]
+        assert "/dev/sda1" not in partitions
+        assert "/dev/sda2" in partitions
+
+    def test_all_partitions_no_mountpoint_no_custom_mounts_key(self):
+        """If every partition lacks a mountpoint, customMounts is omitted."""
+        finals = self._manual_finals({
+            "/dev/sda1": {"fs": "swap", "mp": ""},
+        })
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert "customMounts" not in r
+
+
+class TestDiskInfoVariants:
+    """Tests for alternate disk_info shapes (dict with 'disk'/'device' key, plain string)."""
+
+    def test_disk_key_in_dict(self):
+        finals = [{
+            "disk": {"disk": "/dev/nvme0n1", "filesystem": "xfs"},
+            "selected_image": "ghcr.io/t/img:latest",
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["disk"] == "/dev/nvme0n1"
+
+    def test_device_key_in_dict(self):
+        finals = [{
+            "disk": {"device": "/dev/sdb", "filesystem": "xfs"},
+            "selected_image": "ghcr.io/t/img:latest",
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["disk"] == "/dev/sdb"
+
+    def test_disk_as_plain_string(self):
+        finals = [{
+            "disk": "/dev/vda",
+            "selected_image": "ghcr.io/t/img:latest",
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["disk"] == "/dev/vda"
+
+
+class TestImageFallbackPaths:
+    """Tests for image resolution from sys_recipe fallback paths."""
+
+    def test_default_marked_image_used_when_no_selected(self):
+        """When no image in finals, fall back to the default-marked entry in sys_recipe."""
+        finals = [{
+            "disk": {"auto": {"disk": "/dev/vda"}},
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        sys_recipe = {
+            "images": [
+                {"imgref": "ghcr.io/org/base:latest", "default": False},
+                {"imgref": "ghcr.io/org/preferred:latest", "default": True},
+            ]
+        }
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/org/preferred:latest"
+
+    def test_first_image_used_when_none_default_marked(self):
+        """If no entry is default-marked, use the first entry in sys_recipe images."""
+        finals = [{
+            "disk": {"auto": {"disk": "/dev/vda"}},
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        sys_recipe = {
+            "images": [
+                {"imgref": "ghcr.io/org/first:latest"},
+                {"imgref": "ghcr.io/org/second:latest"},
+            ]
+        }
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/org/first:latest"
+
+    def test_local_imgref_overrides_install_source(self):
+        """local_imgref in sys_recipe overrides the install image while target_imgref stays remote."""
+        finals = _auto_finals(image="ghcr.io/org/image:latest")
+        sys_recipe = {
+            "imgref": "ghcr.io/org/image:latest",
+            "local_imgref": "containers-storage:ghcr.io/org/image:latest",
+        }
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["image"] == "containers-storage:ghcr.io/org/image:latest"
+        assert r["targetImgref"] == "ghcr.io/org/image:latest"
+
+    def test_additional_image_stores_propagated(self):
+        """additionalImageStores from sys_recipe passes through to the recipe."""
+        finals = _auto_finals()
+        sys_recipe = {"additionalImageStores": ["/run/media/iso/ostree/repo"]}
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["additionalImageStores"] == ["/run/media/iso/ostree/repo"]
+
+    def test_no_image_available_leaves_image_empty(self):
+        """If finals and sys_recipe provide no image, recipe keeps empty image fields."""
+        finals = [{
+            "disk": {"auto": {"disk": "/dev/vda"}},
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, {})
+        r = _load(path)
+        assert r["image"] == ""
+        assert r["targetImgref"] == ""
+ 
+ 
 class TestHardwareHostname:
     def test_explicit_hostname_used(self):
         """User-provided hostname takes priority over hardware-derived."""

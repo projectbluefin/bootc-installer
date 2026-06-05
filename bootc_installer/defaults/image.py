@@ -171,6 +171,8 @@ def _imgref_to_pretty_name(imgref: str) -> str:
     First word: Title Case. Subsequent words: ALL CAPS.
     """
     try:
+        if "/" not in imgref:
+            return imgref
         slug = imgref.split("/")[-1].split(":")[0]   # e.g. "bluefin-dx"
         parts = slug.replace("_", "-").split("-")
         return " ".join(
