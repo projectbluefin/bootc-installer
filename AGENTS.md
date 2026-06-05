@@ -482,6 +482,20 @@ Never raise the gate above the *measured* value — use the actual number as the
   Combined with `_build_gi_stubs()` at module level this lets you test `get_finals()`,
   `should_show()`, passphrase strength logic, and other pure methods without Xvfb.
   See `tests/unit/test_disk.py`, `test_encryption.py`, `test_timezone.py` for canonical examples.
+- **Dialog stub staleness across multiple `_build_gi_stubs()` calls**: Each call to
+  `_build_gi_stubs()` (one per `_import_X_fresh()`) creates a **new** `BootcDialog = MagicMock()`
+  and stores it in `sys.modules["bootc_installer.windows.dialog"]`. Modules that already ran
+  `from bootc_installer.windows.dialog import BootcDialog` hold the **old** reference. If a
+  test tracks the dialog via `sys.modules["bootc_installer.windows.dialog"].BootcDialog`, it
+  gets the current (newer) stub — which was never called — and the assertion fails. **Fix:**
+  Always reference the dialog mock via the module's own attribute: `_yn_mod.BootcDialog` (not
+  `sys.modules["bootc_installer.windows.dialog"].BootcDialog`). See `test_layouts.py` for
+  the canonical pattern.
+- **`pytest-cov --cov-fail-under` rounding quirk**: 47.57% is displayed as "48%" in terminal
+  output and the FAIL message prints "Total coverage: 47.57%" while exiting with code 0 when
+  `--cov-fail-under=48`. This is because pytest-cov 7.1.0 rounds the displayed value before
+  comparing. Set the gate one point below the displayed integer (e.g., `--cov-fail-under=47`
+  for 47.57% measured coverage) so the intent is unambiguous and the exit code is clean.
 
 ---
 
