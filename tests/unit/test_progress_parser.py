@@ -228,3 +228,33 @@ class TestFullSequence:
         assert state["current_step"] == 8
         # Bar at 100% at end
         assert non_none[-1]["fraction"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Edge cases that extend branch coverage
+# ---------------------------------------------------------------------------
+
+def test_substep_empty_message_returns_none():
+    """Substep event with an empty message string is silently ignored."""
+    state = new_progress_state()
+    line = json.dumps({"type": "substep", "message": ""})
+    result = apply_progress_event(line, state)
+    assert result is None
+
+
+def test_duplicate_layer_substep_returns_fraction():
+    """A repeated layer-progress substep still returns the updated fraction."""
+    state = new_progress_state()
+    # Prime state with a step that has weight_pct set
+    apply_progress_event(_step(step=6, total=9, cumulative_pct=50, weight_pct=20), state)
+    layer_msg = "Pulling image: layer 10/40"
+    # First occurrence — adds to seen_substeps
+    apply_progress_event(_substep(layer_msg), state)
+    # Second occurrence — msg is already in seen_substeps; fraction is computed
+    # because it matches _RE_LAYER_PROGRESS and weight_pct > 0
+    result = apply_progress_event(_substep(layer_msg), state)
+    assert result is not None
+    assert result["fraction"] is not None
+    assert result["label"] is None
+    assert result["pulse"] is False
+    assert result["complete"] is False
