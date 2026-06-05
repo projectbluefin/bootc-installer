@@ -415,6 +415,83 @@ class TestLoadManifestOverrides(unittest.TestCase):
             self.assertEqual(_load_manifest(), system_manifest)
             lookup.assert_not_called()
 
+    def test_load_manifest_system_override_invalid_json_falls_through(self):
+        """When system override exists but has invalid JSON, fall through to GResource."""
+        fresh_mod = _import_image_fresh()
+        system_override = "/etc/bootc-installer/images.json"
+        gresource_manifest = {"fallback_flatpaks": [], "images": [{"imgref": "gresource"}]}
+
+        def exists_side_effect(path):
+            return str(path) == system_override
+
+        def read_text_side_effect(path, *a, **kw):
+            return "{not-valid-json}"
+
+        gresource_data = MagicMock()
+        gresource_data.get_data.return_value = json.dumps(gresource_manifest).encode()
+        fresh_mod.Gio.resources_lookup_data = MagicMock(return_value=gresource_data)
+
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch("pathlib.Path.exists", new=lambda path: exists_side_effect(path)),
+            patch("pathlib.Path.read_text", new=lambda path, *a, **kw: read_text_side_effect(path)),
+        ):
+            result = fresh_mod._load_manifest()
+        self.assertEqual(result, gresource_manifest)
+
+    def test_load_manifest_uses_gresource_when_no_overrides(self):
+        """When no override files exist, load from GResource."""
+        fresh_mod = _import_image_fresh()
+        gresource_manifest = {"fallback_flatpaks": [], "images": [{"imgref": "bundled"}]}
+        gresource_data = MagicMock()
+        gresource_data.get_data.return_value = json.dumps(gresource_manifest).encode()
+        fresh_mod.Gio.resources_lookup_data = MagicMock(return_value=gresource_data)
+
+        with patch("pathlib.Path.exists", return_value=False):
+            result = fresh_mod._load_manifest()
+        self.assertEqual(result, gresource_manifest)
+
+    def test_load_manifest_installed_path_fallback(self):
+        """When GResource fails, load from installed data path."""
+        fresh_mod = _import_image_fresh()
+        installed_manifest = {"fallback_flatpaks": [], "images": [{"imgref": "installed"}]}
+        fresh_mod.Gio.resources_lookup_data = MagicMock(side_effect=Exception("gresource missing"))
+
+        def read_text_side_effect(path, *a, **kw):
+            if str(path).startswith("/app/share") or str(path).startswith("/usr/share"):
+                return json.dumps(installed_manifest)
+            raise FileNotFoundError(path)
+
+        with patch("pathlib.Path.read_text",
+                   new=lambda path, *a, **kw: read_text_side_effect(path)):
+            result = fresh_mod._load_manifest()
+        self.assertEqual(result, installed_manifest)
+
+    def test_load_manifest_dev_path_fallback(self):
+        """When GResource and installed paths fail, fall back to the dev repo path."""
+        fresh_mod = _import_image_fresh()
+        dev_manifest = {"fallback_flatpaks": [], "images": [{"imgref": "dev"}]}
+        fresh_mod.Gio.resources_lookup_data = MagicMock(side_effect=Exception("gresource missing"))
+
+        def read_text_side_effect(path, *a, **kw):
+            if "fisherman/data/images.json" in str(path):
+                return json.dumps(dev_manifest)
+            raise FileNotFoundError(path)
+
+        with patch("pathlib.Path.read_text",
+                   new=lambda path, *a, **kw: read_text_side_effect(path)):
+            result = fresh_mod._load_manifest()
+        self.assertEqual(result, dev_manifest)
+
+    def test_load_manifest_returns_empty_fallback_when_all_fail(self):
+        """When all manifest sources fail, return the hardcoded empty fallback."""
+        fresh_mod = _import_image_fresh()
+        fresh_mod.Gio.resources_lookup_data = MagicMock(side_effect=Exception("gresource missing"))
+
+        with patch("pathlib.Path.read_text", side_effect=FileNotFoundError("not found")):
+            result = fresh_mod._load_manifest()
+        self.assertEqual(result, {"fallback_flatpaks": [], "images": []})
+
 
 class TestMakeIcon(unittest.TestCase):
 

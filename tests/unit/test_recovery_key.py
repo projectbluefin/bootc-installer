@@ -90,6 +90,15 @@ class TestPlaceholderKey(unittest.TestCase):
 class TestSetRecoveryKey(unittest.TestCase):
     """Tests for set_recovery_key logic without full Gtk display."""
 
+    def setUp(self):
+        self.mod = _import_recovery_key()
+        cls = self.mod.BootcRecoveryKey
+        self.obj = cls.__new__(cls)
+        self.obj.key_label = MagicMock()
+        self.obj.copy_button = MagicMock()
+        self.obj.ack_check = MagicMock()
+        self.obj.btn_continue = MagicMock()
+
     def test_strip_whitespace(self):
         """set_recovery_key should strip whitespace from keys."""
         key_obj = MagicMock()
@@ -111,6 +120,79 @@ class TestSetRecoveryKey(unittest.TestCase):
         self.assertFalse(has_key(""))
         self.assertFalse(has_key("   "))
         self.assertFalse(has_key(None))
+
+    def test_set_recovery_key_with_real_key(self):
+        """set_recovery_key sets label to the key when key is non-empty."""
+        self.mod.BootcRecoveryKey.set_recovery_key(self.obj, "ABC-123-DEF")
+        self.obj.key_label.set_label.assert_called_with("ABC-123-DEF")
+        self.obj.copy_button.set_sensitive.assert_called_with(True)
+        self.obj.btn_continue.set_sensitive.assert_called_with(False)
+
+    def test_set_recovery_key_with_empty_key_shows_placeholder(self):
+        """set_recovery_key shows placeholder when key is empty."""
+        self.mod.BootcRecoveryKey.set_recovery_key(self.obj, "")
+        self.obj.key_label.set_label.assert_called_with(self.mod._PLACEHOLDER_KEY)
+        self.obj.copy_button.set_sensitive.assert_called_with(False)
+
+    def test_set_recovery_key_with_whitespace_key_shows_placeholder(self):
+        """set_recovery_key strips whitespace and shows placeholder for blank keys."""
+        self.mod.BootcRecoveryKey.set_recovery_key(self.obj, "   ")
+        self.obj.key_label.set_label.assert_called_with(self.mod._PLACEHOLDER_KEY)
+        self.obj.copy_button.set_sensitive.assert_called_with(False)
+
+    def test_on_ack_toggled_enables_continue_when_active(self):
+        """__on_ack_toggled enables btn_continue when checkbox is active."""
+        check = MagicMock()
+        check.get_active.return_value = True
+        self.mod.BootcRecoveryKey._BootcRecoveryKey__on_ack_toggled(self.obj, check)
+        self.obj.btn_continue.set_sensitive.assert_called_with(True)
+
+    def test_on_ack_toggled_disables_continue_when_inactive(self):
+        """__on_ack_toggled disables btn_continue when checkbox is unchecked."""
+        check = MagicMock()
+        check.get_active.return_value = False
+        self.mod.BootcRecoveryKey._BootcRecoveryKey__on_ack_toggled(self.obj, check)
+        self.obj.btn_continue.set_sensitive.assert_called_with(False)
+
+    def test_on_continue_emits_signal(self):
+        """__on_continue emits recovery-key-acknowledged signal."""
+        self.obj.emit = MagicMock()
+        self.mod.BootcRecoveryKey._BootcRecoveryKey__on_continue(self.obj)
+        self.obj.emit.assert_called_once_with("recovery-key-acknowledged")
+
+    def test_on_copy_skips_when_button_not_sensitive(self):
+        """__on_copy does nothing when copy_button is not sensitive."""
+        self.obj.copy_button.get_sensitive.return_value = False
+        self.mod.BootcRecoveryKey._BootcRecoveryKey__on_copy(self.obj)
+        self.obj.key_label.get_label.assert_not_called()
+
+    def test_on_copy_skips_when_display_is_none(self):
+        """__on_copy does nothing when Gdk.Display.get_default() returns None."""
+        self.obj.copy_button.get_sensitive.return_value = True
+        # Gdk.Display.get_default already returns None in the stub
+        self.mod.BootcRecoveryKey._BootcRecoveryKey__on_copy(self.obj)
+        self.obj.key_label.get_label.assert_not_called()
+
+    def test_on_copy_sets_clipboard_and_changes_icon(self):
+        """__on_copy sets clipboard and changes icon when display is available."""
+        mod = self.mod
+        display = MagicMock()
+        clipboard = MagicMock()
+        display.get_clipboard.return_value = clipboard
+        self.obj.copy_button.get_sensitive.return_value = True
+        self.obj.key_label.get_label.return_value = "ABC-123"
+
+        orig_get_default = mod.Gdk.Display.get_default
+        try:
+            mod.Gdk.Display.get_default = staticmethod(lambda: display)
+            mod.GLib.timeout_add = MagicMock()
+            mod.BootcRecoveryKey._BootcRecoveryKey__on_copy(self.obj)
+        finally:
+            mod.Gdk.Display.get_default = orig_get_default
+
+        clipboard.set.assert_called_once_with("ABC-123")
+        self.obj.copy_button.set_icon_name.assert_called_with("emblem-ok-symbolic")
+        mod.GLib.timeout_add.assert_called_once()
 
 
 class TestRecoveryKeyIntegration(unittest.TestCase):

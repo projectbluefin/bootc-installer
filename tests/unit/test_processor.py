@@ -743,3 +743,137 @@ class TestHardwareHostname:
         assert r["hostname"] == "framework-13-a7c3"
 
 
+class TestFindNvidiaImgref:
+    """Tests for _find_nvidia_imgref_for() — the manifest-walk helper."""
+
+    def _inject_manifest(self, monkeypatch, manifest: dict):
+        """Inject a fake _MANIFEST via sys.modules without importing the real image module."""
+        import sys
+        import types
+
+        fake_image = types.ModuleType("bootc_installer.defaults.image")
+        fake_image._MANIFEST = manifest
+        monkeypatch.setitem(sys.modules, "bootc_installer.defaults.image", fake_image)
+
+    def test_returns_empty_when_import_fails(self, monkeypatch):
+        """If _MANIFEST cannot be imported, return empty string instead of crashing."""
+        import sys
+        import types
+
+        # A module with no _MANIFEST attribute — accessing it raises AttributeError.
+        broken = types.ModuleType("bootc_installer.defaults.image")
+        monkeypatch.setitem(sys.modules, "bootc_installer.defaults.image", broken)
+
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/anything:latest")
+        assert result == ""
+
+    def test_finds_direct_match(self, monkeypatch):
+        """Returns nvidia_imgref when the imgref is a direct leaf node."""
+        self._inject_manifest(monkeypatch, {
+            "images": [
+                {
+                    "imgref": "ghcr.io/org/base:latest",
+                    "nvidia_imgref": "ghcr.io/org/base-nvidia:latest",
+                }
+            ]
+        })
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/base:latest")
+        assert result == "ghcr.io/org/base-nvidia:latest"
+
+    def test_finds_nested_match(self, monkeypatch):
+        """Returns inherited nvidia_imgref when imgref is inside a children list."""
+        self._inject_manifest(monkeypatch, {
+            "images": [
+                {
+                    "nvidia_imgref": "ghcr.io/org/group-nvidia:latest",
+                    "children": [
+                        {"imgref": "ghcr.io/org/child:latest"},
+                    ],
+                }
+            ]
+        })
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/child:latest")
+        assert result == "ghcr.io/org/group-nvidia:latest"
+
+    def test_returns_empty_when_not_found(self, monkeypatch):
+        """Returns empty string when imgref is absent from the manifest."""
+        self._inject_manifest(monkeypatch, {
+            "images": [{"imgref": "ghcr.io/org/other:latest"}]
+        })
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/missing:latest")
+        assert result == ""
+
+
+class TestFlatpakCacheDir:
+    """Tests for the flatpak cache_dir path in gen_install_recipe."""
+
+    def test_flatpak_recipe_written_to_cache_dir(self, monkeypatch, tmp_path):
+        """In flatpak mode, the recipe JSON is written inside ~/.cache/bootc-installer/."""
+        import os as _os
+        import bootc_installer.utils.processor as proc_mod
+
+        cache_dir = tmp_path / ".cache" / "bootc-installer"
+        monkeypatch.setattr(_os.path, "exists", lambda p: p == "/.flatpak-info")
+        monkeypatch.setenv("HOME", str(tmp_path))
+
+        finals = _auto_finals()
+        path = proc_mod.Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+
+        assert str(cache_dir) in path
+        assert _os.path.isfile(path)
+
+
+class TestLiveISOFallback:
+    """Tests for the live-ISO images.json fallback in gen_install_recipe (lines 236-243)."""
+
+    def test_filesystem_read_from_images_json(self, monkeypatch, tmp_path):
+        """When merged has no image_filesystem and sys_recipe has no images key,
+        gen_install_recipe reads /etc/bootc-installer/images.json for the filesystem."""
+        import io
+        import json as _json
+        import bootc_installer.utils.processor as proc_mod
+
+        images_json_content = _json.dumps({"images": [{"filesystem": "btrfs"}]})
+        images_json_path = "/etc/bootc-installer/images.json"
+
+        real_open = open
+
+        def fake_open(path, *args, **kwargs):
+            if path == images_json_path:
+                return io.StringIO(images_json_content)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", fake_open)
+        # Ensure not in flatpak so path is /etc (not /run/host/etc)
+        monkeypatch.setattr("os.path.exists", lambda p: False)
+
+        # image_filesystem="" so the fallback branch is triggered
+        finals = _auto_finals(image_filesystem="")
+        path = proc_mod.Processor.gen_install_recipe("log", finals, {})
+        r = _load(path)
+        assert r["filesystem"] == "btrfs"
+
+    def test_fallback_handles_missing_images_json(self, monkeypatch):
+        """When images.json is absent, gen_install_recipe logs a warning and continues."""
+        import bootc_installer.utils.processor as proc_mod
+
+        monkeypatch.setattr("os.path.exists", lambda p: False)
+        real_open = open
+
+        def raise_for_images_json(path, *args, **kwargs):
+            if "bootc-installer/images.json" in str(path):
+                raise FileNotFoundError("no file")
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", raise_for_images_json)
+
+        finals = _auto_finals(image_filesystem="")
+        # Should not raise — just log a warning
+        path = proc_mod.Processor.gen_install_recipe("log", finals, {})
+        assert path  # recipe file still written
+
+
