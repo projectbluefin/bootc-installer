@@ -217,7 +217,7 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
 - **`.github/workflows/python-test.yml`** runs on every push: 620+ unit tests
-  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 46% unit.
+  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 48% unit.
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -261,6 +261,9 @@ tests/
 │   ├── test_language.py        ← BootcDefaultLanguage get_finals, gen/del_deltas
 │   ├── test_keyboard.py        ← BootcDefaultKeyboard get_finals, layout selection
 │   ├── test_encryption.py      ← BootcDefaultEncryption get_finals, passphrase strength (Weak/Fair/Strong), btn_next logic
+│   ├── test_dialog_recovery.py ← _host_binary_exists() subprocess helper (61% coverage)
+│   ├── test_layouts.py         ← BootcLayoutYesNo/BootcLayoutPreferences: get_finals, should_show, __next_step, __on_response, __on_info
+│   ├── test_tour_helpers.py    ← BootcTour.__build_ui() asset URI routing (resource:///, resource://, abs path, GResource path)
 │   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
 └── ui/
     ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
@@ -283,7 +286,7 @@ xvfb-run -a pytest tests/ui/ -q
 ### Coverage baseline
 
 Current measured coverage (as of 2026-06-05, on dev post-PR #164):
-- **Unit tests**: ~46% of `bootc_installer/` (623 tests, 5825 stmts) — CI gate: 46%
+- **Unit tests**: ~48% of `bootc_installer/` (665 tests, 5825 stmts) — CI gate: 47%
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 Key per-module baselines:
@@ -297,9 +300,13 @@ Key per-module baselines:
 | `core/disks.py` | 99% |
 | `utils/builder.py` | 99% |
 | `utils/phone_companion.py` | 97% |
+| `views/tour.py` | 83% |
 | `views/recovery_key.py` | 79% |
 | `defaults/welcome.py` | 68% |
 | `defaults/image.py` | 61% |
+| `windows/dialog_recovery.py` | 61% |
+| `layouts/yes_no.py` | 55% |
+| `layouts/preferences.py` | 47% |
 | `views/progress.py` | 20% (GTK-heavy, unit-test only via mocks) |
 | `defaults/disk.py` | 31% (GTK-heavy) |
 | `windows/main_window.py` | 0% (GTK-heavy, covered by UI tests) |
