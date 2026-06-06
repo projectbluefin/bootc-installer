@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "bootc-installer documentation"
+    url: https://github.com/projectbluefin/bootc-installer/blob/dev/README.md
+    about: "Recipe format, image customisation, and autoinstall reference."
+  - name: "fisherman backend"
+    url: https://github.com/projectbluefin/fisherman
+    about: "Go install backend — open issues there for disk/partition/LUKS bugs."
+  - name: "Project Bluefin"
+    url: https://projectbluefin.io
+    about: "Homepage for Project Bluefin and Dakota."
