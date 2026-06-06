@@ -1,0 +1,73 @@
+name: Bug Report
+description: Something isn't working in the installer
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in as much detail as you can.
+
+  - type: dropdown
+    id: variant
+    attributes:
+      label: Installer variant
+      options:
+        - GNOME (org.bootcinstaller.Installer)
+        - XFCE (org.xfceinstaller.Installer)
+        - KDE (org.kdeinstaller.Installer)
+        - Native (meson install)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / release tag
+      placeholder: "e.g. continuous, continuous-dev, v0.3.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where does it fail?
+      options:
+        - Wizard (before install starts)
+        - Install progress (fisherman running)
+        - Done / reboot screen
+        - Post-reboot (first boot)
+        - Demo mode (BOOTC_DEMO=1)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      placeholder: "Describe what you expected vs what actually occurred."
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Install log (if applicable)
+      description: |
+        Paste the relevant section from `~/.cache/bootc-installer/fisherman-output.log`
+      render: text
+
+  - type: textarea
+    id: recipe
+    attributes:
+      label: Recipe JSON (if applicable)
+      description: |
+        The recipe is written to `~/.cache/bootc-installer/bootc-recipe-*.json`.
+        Redact any passwords before pasting.
+      render: json
+
+  - type: textarea
+    id: context
+    attributes:
+      label: System context
+      description: |
+        Output of: `flatpak info org.bootcinstaller.Installer`, hardware model, disk type (NVMe/SATA/USB), encryption type used.

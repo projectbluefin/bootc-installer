@@ -1,7 +1,7 @@
 <div align="center">
-    <img src="data/icons/hicolor/scalable/apps/org.bootcos.Installer.svg" height="64">
-    <h1>BootcOS Installer</h1>
-    <p>A GTK 4 / Libadwaita Flatpak installer for <a href="https://github.com/tuna-os">BootcOS</a> and other <a href="https://universal-blue.org">Universal Blue</a> bootc images.</p>
+    <img src="data/icons/hicolor/scalable/apps/org.bootcinstaller.Installer.svg" height="64">
+    <h1>bootc-installer</h1>
+    <p>A GTK 4 / Libadwaita Flatpak installer for <a href="https://projectbluefin.io">Project Bluefin</a> and other <a href="https://universal-blue.org">Universal Blue</a> bootc images.</p>
     <hr />
 </div>
 
@@ -11,7 +11,7 @@
 
 ```bash
 curl -Lo installer.flatpak \
-  https://github.com/tuna-os/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer org.bootcos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
@@ -19,7 +19,7 @@ curl -Lo installer.flatpak \
 
 ```bash
 curl -Lo installer-devel.flatpak \
-  https://github.com/tuna-os/bootc-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer.Devel 2>/dev/null; sudo flatpak install --bundle -y installer-devel.flatpak
 ```
 
@@ -37,8 +37,8 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "filesystem": "xfs",
   "btrfsSubvolumes": false,
   "encryption": { "type": "none" },
-  "image": "ghcr.io/tuna-os/yellowfin:gnome50",
-  "targetImgref": "ghcr.io/tuna-os/yellowfin:gnome50",
+  "image": "ghcr.io/projectbluefin/bootcos:latest",
+  "targetImgref": "ghcr.io/projectbluefin/bootcos:latest",
   "selinuxDisabled": false,
   "unifiedStorage": true,
   "composeFsBackend": false,
@@ -62,8 +62,8 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "filesystem": "btrfs",
   "btrfsSubvolumes": true,
   "encryption": { "type": "tpm2-luks" },
-  "image": "ghcr.io/tuna-os/yellowfin:gnome50",
-  "targetImgref": "ghcr.io/tuna-os/yellowfin:gnome50",
+  "image": "ghcr.io/projectbluefin/bootcos:latest",
+  "targetImgref": "ghcr.io/projectbluefin/bootcos:latest",
   "selinuxDisabled": false,
   "unifiedStorage": true,
   "composeFsBackend": false,
@@ -90,8 +90,8 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
     "type": "tpm2-luks-passphrase",
     "passphrase": "my-recovery-passphrase"
   },
-  "image": "ghcr.io/tuna-os/yellowfin:gnome50",
-  "targetImgref": "ghcr.io/tuna-os/yellowfin:gnome50",
+  "image": "ghcr.io/projectbluefin/bootcos:latest",
+  "targetImgref": "ghcr.io/projectbluefin/bootcos:latest",
   "selinuxDisabled": false,
   "unifiedStorage": true,
   "composeFsBackend": false,
