@@ -5,13 +5,85 @@
     <hr />
 </div>
 
+bootc-installer is a guided graphical installer for [bootc](https://containers.github.io/bootc/) container-native OS images. It handles everything from disk partitioning and encryption setup to post-install personalisation — including importing your files and settings from an existing Windows installation.
+
+## Features
+
+### Install pipeline
+
+The `fisherman` Go backend executes a 9-step pipeline entirely from a JSON recipe:
+
+1. **Partition** — always 3-partition GPT: EFI (FAT32) + `/boot` (ext4) + root. The separate ext4 `/boot` is required because GRUB cannot read modern XFS features (`nrext64`, `exchange`, `rmapbt`), and `bootupctl` needs to find the `/boot` UUID from a raw block device rather than a LUKS mapper device.
+2. **Format** — EFI (`mkfs.fat -F32`) and `/boot` (`mkfs.ext4`)
+3. **LUKS encryption** (optional) — `cryptsetup luksFormat` + `luksOpen`
+4. **Format root** — `mkfs.xfs` or `mkfs.btrfs` (with optional named subvolumes)
+5. **Mount** — everything assembled under `/mnt/fisherman-target`
+6. **bootc install** — `podman run --privileged bootc install to-filesystem --skip-finalize` writes the OS into the mounted root. `--skip-finalize` keeps the target writable so post-install steps can still write files.
+7. **Post-install** — hostname, Flatpak copy, Bluetooth/WiFi persistence, audio device naming, OEM detection, cache warming
+8. **Windows data migration** (optional) — imports documents, photos, music, bookmarks, fonts, and wallpapers from an existing Windows partition
+9. **Finalize** — `fstrim` → remount read-only → `fsfreeze`/`fsthaw`. This replicates what `bootc install finalize` would do (it is currently a no-op upstream), ensuring a clean filesystem state before reboot.
+
+> **Scratch space note:** fisherman uses `/var/fisherman-tmp` (disk-backed, bind-mounted to `/var/tmp`) as scratch space for OCI blob downloads. `/run` is a tmpfs capped at ~50% RAM and is too small for large images — do not redirect scratch there.
+
+### Encryption
+
+| Mode | Description |
+|------|-------------|
+| `none` | Unencrypted install |
+| `luks-passphrase` | LUKS2 with user-supplied passphrase |
+| `tpm2-luks` | LUKS2 auto-unlocked by TPM2 at boot (no passphrase prompt) |
+| `tpm2-luks-passphrase` | TPM2 primary + passphrase fallback. A recovery key is shown on screen and must be acknowledged before proceeding. |
+
+### Instant first boot
+
+These run automatically during every install — no user action required:
+
+| Feature | What it does |
+|---------|-------------|
+| **Bluetooth persistence** | Copies `/var/lib/bluetooth` into the installed OS so previously-paired devices reconnect immediately on first boot |
+| **WiFi persistence** | Copies NetworkManager `.nmconnection` files so saved networks reconnect automatically |
+| **Audio device naming** | Installs WirePlumber rules that rename ugly ALSA identifiers (e.g. `alsa_output.pci-0000_00_1f.3.analog-stereo`) to human-readable names, and hides S/PDIF and Pro Audio sinks |
+| **Live audio fix** | Applies the same audio naming rules to the live session immediately, so headphones work before you even reboot |
+| **OEM detection** | Detects ASUS, Framework, and TUXEDO hardware and queues the appropriate first-boot brew packages |
+| **Cache warming** | Pre-generates font, icon, pixbuf, GIO, ldconfig, man-db, and Flatpak caches so the first boot feels instant rather than spending 30+ seconds regenerating them |
+| **Print services** | Enables `cups-browsed`, `avahi-daemon`, and `ipp-usb` so USB printers and AirPrint work out of the box |
+
+### Windows data migration (Slurp)
+
+When an existing Windows partition is detected, the installer offers to import your data. A scan runs asynchronously and shows per-user category checkboxes with size estimates:
+
+| Category | What's imported |
+|----------|----------------|
+| Documents | Files from `Documents`, `Desktop`, `Downloads` |
+| Photos | Files from `Pictures` |
+| Music | Files from `Music` |
+| Bookmarks | Chrome/Edge browser bookmarks |
+| Fonts | User-installed fonts from `AppData\Local\Microsoft\Windows\Fonts` |
+| **Wallpaper** | Current and recent Windows wallpapers — always imported as a silent easter egg even if the slurp step is skipped |
+
+A RAM budget warning appears if the selected categories would exceed available memory. Wallpaper thumbnails for the GNOME wallpaper picker are pre-generated during install.
+
+### Phone companion
+
+During installation, the installer starts a local HTTPS server (port 8443, self-signed cert) and displays a QR code. Scanning it with your phone opens a page where you can fill in account details and preferences from your phone instead of typing on the installer screen. Configuration is submitted as JSON and fed directly into the recipe.
+
+### Video playback during install
+
+The progress screen plays a branded AV1/VP9 video during the install. Distributions can provide their own video at `/etc/bootc-installer/install-video.webm`. The installer validates GStreamer codec availability before attempting playback and falls back gracefully to a static progress display if the required codecs are missing.
+
+### Offline / live ISO install
+
+When the installer detects it is running on a live ISO (via `/etc/bootc-installer/live-iso-mode`), it switches to offline mode: the pre-embedded OCI image in the ISO's VFS containers-storage is passed to fisherman via `additionalImageStores` so no network pull is required.
+
+---
+
 ## Installing
 
 ### Production
 
 ```bash
 curl -Lo installer.flatpak \
-  https://github.com/projectbluefin/bootc-installer/releases/download/continuous/org.bootcinstaller.Installer.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/download/latest-stable/org.bootcinstaller.Installer.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer org.bootcos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
@@ -19,7 +91,7 @@ curl -Lo installer.flatpak \
 
 ```bash
 curl -Lo installer-devel.flatpak \
-  https://github.com/projectbluefin/bootc-installer/releases/download/continuous-dev/org.bootcinstaller.Installer.Devel.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/download/latest-dev/org.bootcinstaller.Installer.Devel.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer.Devel 2>/dev/null; sudo flatpak install --bundle -y installer-devel.flatpak
 ```
 
@@ -397,4 +469,3 @@ sudo FISHERMAN_BIN=/path/to/fisherman BOOT_VERIFY=1 pytest tests/integration/tes
 
 Real release qualification still requires destructive installs on lab hardware for TPM2, physical boot prompts, recovery-key/passphrase fallback, Windows slurp, and offline ISO paths. Use the repo runbook in [`.github/CI_CD_GUIDE.md`](.github/CI_CD_GUIDE.md#release-qualification-runbook) to separate what can be verified now from what remains hardware-only.
 
-# Rebuild trigger: 1778728267
