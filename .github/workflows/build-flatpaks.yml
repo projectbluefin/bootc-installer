@@ -21,12 +21,6 @@ jobs:
           - name: gnome
             app_id: org.bootcinstaller.Installer
             manifest: flatpak/org.bootcinstaller.Installer.json
-          - name: xfce
-            app_id: org.xfceinstaller.Installer
-            manifest: flatpak/org.xfceinstaller.Installer.json
-          - name: kde
-            app_id: org.kdeinstaller.Installer
-            manifest: flatpak/org.kdeinstaller.Installer.json
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -77,9 +71,9 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
             TAG="${{ github.ref_name }}"
           elif [[ "${{ github.ref }}" == "refs/heads/prod" ]]; then
-            TAG="continuous"
+            TAG="latest-stable"
           else
-            TAG="continuous-dev"
+            TAG="latest-dev"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Build tag: $TAG"
@@ -122,7 +116,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Built Variants:" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ GNOME: org.bootcinstaller.Installer" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ XFCE: org.xfceinstaller.Installer" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ KDE: org.kdeinstaller.Installer" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All variants available in [Releases](../releases)" >> $GITHUB_STEP_SUMMARY
