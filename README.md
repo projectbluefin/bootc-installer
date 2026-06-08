@@ -7,14 +7,23 @@
 
 bootc-installer is a guided graphical installer for [bootc](https://containers.github.io/bootc/) container-native OS images. It handles everything from disk partitioning and encryption setup to post-install personalisation — including importing your files and settings from an existing Windows installation.
 
+It supports two distinct boot stacks:
+
+| Stack | Images | Bootloader | Root FS | Layout |
+|---|---|---|---|---|
+| **systemd-boot** | [Dakota](https://github.com/projectbluefin/dakota) | systemd-boot + UKI | btrfs + composefs | 2-partition (EFI + root) |
+| **GRUB2** | Bluefin, Bluefin-LTS, Bazzite | GRUB2 | XFS or btrfs | 3-partition (EFI + `/boot` + root) |
+
 ## Features
 
 ### Install pipeline
 
 The `fisherman` Go backend executes a 9-step pipeline entirely from a JSON recipe:
 
-1. **Partition** — always 3-partition GPT: EFI (FAT32) + `/boot` (ext4) + root. The separate ext4 `/boot` is required because GRUB cannot read modern XFS features (`nrext64`, `exchange`, `rmapbt`), and `bootupctl` needs to find the `/boot` UUID from a raw block device rather than a LUKS mapper device.
-2. **Format** — EFI (`mkfs.fat -F32`) and `/boot` (`mkfs.ext4`)
+1. **Partition** — layout depends on the target boot stack:
+   - **systemd-boot (Dakota):** 2-partition GPT — EFI (1 GiB FAT32) + root. systemd-boot reads the FAT32 ESP directly; no separate `/boot` partition is needed. The root partition is tagged with the architecture-specific GPT type GUID so systemd-boot can auto-discover it.
+   - **GRUB2 (Bluefin, Bluefin-LTS):** 3-partition GPT — EFI (FAT32) + `/boot` (ext4) + root. The separate ext4 `/boot` is required because GRUB's built-in XFS driver cannot read modern XFS features (`nrext64`, `exchange`, `rmapbt`), and `bootupctl` needs to find the `/boot` UUID from a raw block device rather than a LUKS mapper device.
+2. **Format** — EFI (`mkfs.fat -F32`) and, for GRUB2 images only, `/boot` (`mkfs.ext4`)
 3. **LUKS encryption** (optional) — `cryptsetup luksFormat` + `luksOpen`
 4. **Format root** — `mkfs.xfs` or `mkfs.btrfs` (with optional named subvolumes)
 5. **Mount** — everything assembled under `/mnt/fisherman-target`
@@ -24,6 +33,22 @@ The `fisherman` Go backend executes a 9-step pipeline entirely from a JSON recip
 9. **Finalize** — `fstrim` → remount read-only → `fsfreeze`/`fsthaw`. This replicates what `bootc install finalize` would do (it is currently a no-op upstream), ensuring a clean filesystem state before reboot.
 
 > **Scratch space note:** fisherman uses `/var/fisherman-tmp` (disk-backed, bind-mounted to `/var/tmp`) as scratch space for OCI blob downloads. `/run` is a tmpfs capped at ~50% RAM and is too small for large images — do not redirect scratch there.
+
+### Dakota / systemd-boot images
+
+[Dakota](https://github.com/projectbluefin/dakota) is the next-generation Project Bluefin variant built on a modern sealed-image stack. The installer handles it as a first-class target with a different code path from GRUB2-based images:
+
+| Feature | Dakota |
+|---|---|
+| **Bootloader** | systemd-boot + UKI (Unified Kernel Image) |
+| **Deployment backend** | composefs (`--composefs-backend`) |
+| **Root filesystem** | btrfs |
+| **Partition layout** | 2-partition GPT: EFI (1 GiB FAT32) + root |
+| **GPT auto-discovery** | Root partition tagged with the x86-64 Linux root GUID so systemd-boot finds it without explicit configuration |
+| **User creation** | Not required — dakota ships a first-boot user-setup flow |
+| **Recipe fields** | `"bootloader": "systemd"`, `"composeFsBackend": true` |
+
+> **Bluefin / Bluefin-LTS** continue to use the GRUB2 + 3-partition + XFS/ext4 stack. The installer auto-selects the correct path based on `bootloader` and `composeFsBackend` in the recipe — no manual steps needed.
 
 ### Encryption
 
@@ -101,7 +126,7 @@ curl -Lo installer-devel.flatpak \
 
 The installer drives the `fisherman` backend with a JSON recipe file. The wizard generates one automatically, but you can write one by hand for automation or liveISO customisation.
 
-### Minimal recipe (BootcOS GNOME 50, XFS, no encryption)
+### Minimal recipe (Bluefin / Bluefin-LTS, XFS, GRUB2, no encryption)
 
 ```json
 {
@@ -126,7 +151,29 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
 }
 ```
 
-### Btrfs + TPM2/LUKS encryption
+### Dakota (systemd-boot + composefs + btrfs)
+
+```json
+{
+  "disk": "/dev/nvme0n1",
+  "filesystem": "btrfs",
+  "btrfsSubvolumes": false,
+  "encryption": { "type": "none" },
+  "image": "ghcr.io/projectbluefin/dakota:latest",
+  "targetImgref": "ghcr.io/projectbluefin/dakota:latest",
+  "selinuxDisabled": false,
+  "unifiedStorage": true,
+  "composeFsBackend": true,
+  "bootloader": "systemd",
+  "hostname": "bootcos",
+  "flatpaks": [],
+  "user": { "username": "", "fullname": "", "password": "", "groups": [] }
+}
+```
+
+`bootloader: "systemd"` selects the 2-partition layout (EFI + root) and enables GPT auto-discovery root retagging. `composeFsBackend: true` passes `--composefs-backend` to bootc. User creation is skipped for Dakota because it ships its own first-boot setup flow.
+
+### Btrfs + TPM2/LUKS encryption (Bluefin-LTS)
 
 ```json
 {
@@ -168,26 +215,6 @@ The installer drives the `fisherman` backend with a JSON recipe file. The wizard
   "unifiedStorage": true,
   "composeFsBackend": false,
   "bootloader": "grub2",
-  "hostname": "bootcos",
-  "flatpaks": [],
-  "user": { "username": "", "fullname": "", "password": "", "groups": [] }
-}
-```
-
-### Bluefin / Dakota (composefs + systemd-boot)
-
-```json
-{
-  "disk": "/dev/nvme0n1",
-  "filesystem": "btrfs",
-  "btrfsSubvolumes": false,
-  "encryption": { "type": "none" },
-  "image": "ghcr.io/projectbluefin/dakota:latest",
-  "targetImgref": "ghcr.io/projectbluefin/dakota:latest",
-  "selinuxDisabled": false,
-  "unifiedStorage": true,
-  "composeFsBackend": true,
-  "bootloader": "systemd",
   "hostname": "bootcos",
   "flatpaks": [],
   "user": { "username": "", "fullname": "", "password": "", "groups": [] }
