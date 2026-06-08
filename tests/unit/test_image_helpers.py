@@ -493,6 +493,46 @@ class TestLoadManifestOverrides(unittest.TestCase):
         self.assertEqual(result, {"fallback_flatpaks": [], "images": []})
 
 
+    def test_load_manifest_uses_run_host_etc_in_flatpak(self):
+        """Inside a Flatpak sandbox, system override is read from /run/host/etc."""
+        flatpak_system_override = "/run/host/etc/bootc-installer/images.json"
+        manifest = {"fallback_flatpaks": [], "images": [{"imgref": "flatpak-host"}]}
+
+        def exists_side_effect(path):
+            return str(path) == flatpak_system_override
+
+        with (
+            patch("os.path.exists", new=lambda p: p == "/.flatpak-info"),
+            patch("pathlib.Path.exists", new=lambda path: exists_side_effect(path)),
+            patch("pathlib.Path.read_text", new=lambda path, *a, **kw: json.dumps(manifest)),
+            patch("bootc_installer.defaults.image.Gio.resources_lookup_data") as lookup,
+        ):
+            result = _load_manifest()
+        self.assertEqual(result, manifest)
+        lookup.assert_not_called()
+
+    def test_load_manifest_uses_etc_outside_flatpak(self):
+        """Outside a Flatpak sandbox, system override is read from /etc (not /run/host/etc)."""
+        plain_system_override = "/etc/bootc-installer/images.json"
+        manifest = {"fallback_flatpaks": [], "images": [{"imgref": "plain-etc"}]}
+
+        def exists_side_effect(path):
+            # /.flatpak-info does not exist, system override at /etc does
+            if str(path) == "/.flatpak-info":
+                return False
+            return str(path) == plain_system_override
+
+        with (
+            patch("os.path.exists", new=lambda p: exists_side_effect(p)),
+            patch("pathlib.Path.exists", new=lambda path: exists_side_effect(path)),
+            patch("pathlib.Path.read_text", new=lambda path, *a, **kw: json.dumps(manifest)),
+            patch("bootc_installer.defaults.image.Gio.resources_lookup_data") as lookup,
+        ):
+            result = _load_manifest()
+        self.assertEqual(result, manifest)
+        lookup.assert_not_called()
+
+
 class TestMakeIcon(unittest.TestCase):
 
     def test_make_icon_returns_none_for_blank_spec(self):
