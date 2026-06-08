@@ -40,17 +40,17 @@ jobs:
           path: org.bootcinstaller.Installer.flatpak
           retention-days: 30
 
-      - name: Delete existing continuous release (prod branch)
+      - name: Delete existing latest-stable release (prod branch)
         if: github.ref == 'refs/heads/prod'
-        run: gh release delete continuous --yes --cleanup-tag || true
+        run: gh release delete latest-stable --yes --cleanup-tag || true
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Publish continuous pre-release (prod branch)
+      - name: Publish stable pre-release (prod branch)
         if: github.ref == 'refs/heads/prod'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: continuous
+          tag_name: latest-stable
           name: Continuous Build
           prerelease: true
           body: "Latest build from the `prod` branch. Updated automatically on every push."
@@ -93,9 +93,9 @@ jobs:
           path: org.bootcinstaller.Installer.Devel.flatpak
           retention-days: 30
 
-      - name: Delete existing continuous-dev release (dev branch)
+      - name: Delete existing latest-dev release (dev branch)
         if: github.ref == 'refs/heads/dev'
-        run: gh release delete continuous-dev --yes --cleanup-tag || true
+        run: gh release delete latest-dev --yes --cleanup-tag || true
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -103,7 +103,7 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: continuous-dev
+          tag_name: latest-dev
           name: Dev Build
           prerelease: true
           body: "Latest build from the `dev` branch. May be unstable."
