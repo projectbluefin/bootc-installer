@@ -40,6 +40,12 @@ jobs:
           path: org.bootcinstaller.Installer.flatpak
           retention-days: 30
 
+      - name: Delete existing continuous release (prod branch)
+        if: github.ref == 'refs/heads/prod'
+        run: gh release delete continuous --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Publish continuous pre-release (prod branch)
         if: github.ref == 'refs/heads/prod'
         uses: softprops/action-gh-release@v2
@@ -86,6 +92,12 @@ jobs:
           name: org.bootcinstaller.Installer.Devel.flatpak
           path: org.bootcinstaller.Installer.Devel.flatpak
           retention-days: 30
+
+      - name: Delete existing continuous-dev release (dev branch)
+        if: github.ref == 'refs/heads/dev'
+        run: gh release delete continuous-dev --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Publish dev pre-release (dev branch)
         if: github.ref == 'refs/heads/dev'
