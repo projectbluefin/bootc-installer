@@ -1,6 +1,6 @@
 ---
 name: bootc-installer
-description: bootc-installer — GTK4/Adwaita + KDE/XFCE multi-variant Flatpak installer for bootc images. Dev setup, build loop, testing, CI/release, and dakota-iso integration. Load when working in projectbluefin/bootc-installer.
+description: bootc-installer — GTK4/Adwaita Flatpak installer for bootc images. Dev setup, build loop, testing, CI/release, and dakota-iso integration. Load when working in projectbluefin/bootc-installer.
 ---
 
 # bootc-installer Skill
@@ -19,7 +19,7 @@ Full dev, test, and release workflow for `projectbluefin/bootc-installer`.
 - Changing the fisherman Go backend (submodule at `fisherman/`)
 - Debugging the install pipeline, progress parsing, or Flatpak sandbox
 - Writing or fixing unit tests for GTK4 code without a display
-- Building or deploying a Flatpak variant (GNOME / XFCE / KDE)
+- Building or deploying the GNOME Flatpak
 - Working on the live-ISO integration with `dakota-iso`
 
 ## When NOT to Use
@@ -42,8 +42,7 @@ Full dev, test, and release workflow for `projectbluefin/bootc-installer`.
 | Dev loop (toolbox) | `./run-dev.sh` |
 | Force rebuild | `./run-dev.sh --rebuild` |
 | Tail debug log | `./run-dev.sh --logs` |
-| Build GNOME Flatpak | `flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json` |
-| Build all 3 variants | `./BUILD_ALL_VARIANTS.sh --install` |
+| Build Flatpak | `flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json` |
 | Build fisherman | `cd fisherman/fisherman && go build -o /var/tmp/fisherman-test ./cmd/fisherman/` |
 | Lint fisherman | `cd fisherman/fisherman && go vet ./...` |
 | Watch install log | `tail -f ~/.cache/bootc-installer/fisherman-output.log` |
@@ -62,15 +61,9 @@ Python GUI  →  wizard finals  →  Processor  →  recipe.json
                                     9-step disk install
 ```
 
-### Multi-Variant GUI
+### GUI: GNOME (GTK4/Adwaita)
 
-| Variant | Entry point | Flatpak ID | Build flag |
-|---------|-------------|------------|------------|
-| **GNOME** (default) | `main.py` (GTK4/Adwaita) | `org.bootcinstaller.Installer` | `-Dvariant=gnome` |
-| **XFCE** | `main.py` (GTK4) | `org.xfceinstaller.Installer` | `-Dvariant=xfce` |
-| **KDE** | `main_qt.py` (Qt/Kirigami) | `org.kdeinstaller.Installer` | `-Dvariant=kde` |
-
-All three share `core/`, `defaults/`, `utils/`, `fisherman/`. Blueprint `.blp` files live in `gtk/`; KDE QML lives in `kde/`.
+Single variant: `org.bootcinstaller.Installer`. Entry point: `main.py`. Blueprint `.blp` files live in `gtk/`.
 
 ### fisherman Install Pipeline (9 steps)
 
@@ -117,11 +110,9 @@ bootc_installer/
 ├── layouts/      yes_no.py, preferences.py
 ├── utils/        processor.py, recipe.py, finals.py, builder.py,
 │                 codec_check.py, progress_parser.py, phone_companion.py,
-│                 pastry_compat.py, run_async.py
-├── gtk/          *.blp   (Blueprint UI — GNOME/XFCE)
-├── kde/          main.qml, *.json  (KDE/Kirigami)
-├── main.py       GTK4 entry point (GNOME + XFCE)
-└── main_qt.py    Qt/Kirigami entry point (KDE)
+│                 run_async.py
+├── gtk/          *.blp   (Blueprint UI files)
+└── main.py       GTK4 entry point
 ```
 
 **Key data flows:**
@@ -153,7 +144,7 @@ toolbox run --container dakota-lab sudo dnf install -y \
 # Build and install
 cd ~/src/bootc-installer
 toolbox run --container dakota-lab meson setup build \
-  --prefix=/tmp/bootc-installer-dev -Dvariant=gnome -Dbuild-fisherman=false
+  --prefix=/tmp/bootc-installer-dev -Dbuild-fisherman=false
 toolbox run --container dakota-lab ninja -C build && \
 toolbox run --container dakota-lab meson install -C build
 ```
@@ -188,12 +179,12 @@ Do NOT use `nohup` or `setsid` with `toolbox run` — they silently fail to conn
 
 ```
 tests/
-├── unit/    665 tests, no display required (pytest tests/unit/ -q)
+├── unit/    662 tests, no display required (pytest tests/unit/ -q)
 ├── ui/      GTK integration tests (xvfb-run -a pytest tests/ui/ -q)
 └── integration/  E2E fisherman install (root + QEMU/NBD; not in CI)
 ```
 
-**CI gate:** `--cov-fail-under=47` (currently measuring 48%, 5825 stmts)  
+**CI gate:** `--cov-fail-under=47` (currently measuring 48%, 5673 stmts)  
 **Ruff:** run before every commit — `python3 -m ruff check bootc_installer/ tests/`
 
 ### Key unit test files
