@@ -92,13 +92,6 @@ for _mod in (
 ):
     sys.modules.setdefault(_mod, MagicMock())
 
-# pastry_compat needs real stubs (not MagicMock) so imports work
-_pastry = types.ModuleType("bootc_installer.utils.pastry_compat")
-_pastry.wrap_glass = lambda w: w
-_pastry.add_glass_root = lambda w: None
-_pastry.new_grid_spinner = MagicMock(return_value=MagicMock())
-sys.modules["bootc_installer.utils.pastry_compat"] = _pastry
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures

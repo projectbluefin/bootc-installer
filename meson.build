@@ -6,8 +6,6 @@ project('org.bootcinstaller.Installer',
                    ],
 )
 
-variant = get_option('variant')
-
 python = import('python')
 py_inst = python.find_installation('python3')
 
