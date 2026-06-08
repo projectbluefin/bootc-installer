@@ -7,7 +7,7 @@ from gettext import gettext as _
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from bootc_installer.utils.pastry_compat import wrap_glass
+
 from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
 from bootc_installer.windows.dialog_output import BootcDialogOutput
 
@@ -124,7 +124,7 @@ class BootcDone(Adw.Bin):
         except Exception:
             return
 
-        parent.prepend(wrap_glass(self.store_qr))
+        parent.prepend(self.store_qr)
 
     def set_result(self, result, terminal, boot_id="", elapsed_secs=0, image_ref=None):
         self.__terminal = terminal

@@ -1,4 +1,2 @@
 option('build-fisherman', type: 'boolean', value: true,
   description: 'Build the fisherman Go backend (disable when fisherman is built separately, e.g. in Flatpak)')
-option('variant', type: 'combo', choices: ['gnome', 'xfce', 'kde'], value: 'gnome',
-  description: 'Desktop environment variant (gnome, xfce, or kde)')

@@ -41,7 +41,7 @@ _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
 from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state  # noqa: E402
-from bootc_installer.utils.pastry_compat import new_grid_spinner  # noqa: E402
+
 from bootc_installer.utils.codec_check import check_codecs_present  # noqa: E402
 
 
@@ -619,23 +619,14 @@ class BootcProgress(Gtk.Box):
 
     def __build_ui(self):
         self.__install_progress_css()
-        self.__build_pastry_spinner()
         self.__configure_soundtrack()
         self.__set_media_mode("video")
 
-    def __build_pastry_spinner(self):
-        self._media_overlay = self.media_box.get_first_child()
-        self._video_spinner = new_grid_spinner()
-        if self._video_spinner is not None and self._media_overlay is not None:
-            self._media_overlay.add_overlay(self._video_spinner)
-
     def __show_video_spinner(self):
-        if self._video_spinner is not None:
-            self._video_spinner.set_visible(True)
+        pass
 
     def __hide_video_spinner(self):
-        if self._video_spinner is not None:
-            self._video_spinner.set_visible(False)
+        pass
 
     def __install_progress_css(self):
         display = Gdk.Display.get_default()

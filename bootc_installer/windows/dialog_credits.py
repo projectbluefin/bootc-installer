@@ -6,7 +6,6 @@ import os
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from bootc_installer.utils.pastry_compat import add_glass_root, wrap_glass
 
 _CREDITS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "credits.json")
 
@@ -143,8 +142,6 @@ class BootcCreditsWindow(Adw.Window):
         self._section_revealers = []
         self._current_section = 0
         self._window = window
-        add_glass_root(self)
-
         # Apply CSS
         provider = Gtk.CssProvider()
         provider.load_from_string(_CREDITS_CSS)
@@ -359,7 +356,7 @@ class BootcCreditsWindow(Adw.Window):
             info_box.append(nick_label)
 
         card.append(info_box)
-        revealer.set_child(wrap_glass(card))
+        revealer.set_child(card)
 
         # Queue for staggered reveal
         self._reveal_queue.append(revealer)
