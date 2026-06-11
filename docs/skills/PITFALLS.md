@@ -207,3 +207,94 @@ patch("bootc_installer.defaults.qr_companion.get_local_ip", return_value="127.0.
 ```
 
 `GLOBAL_CONFIG = None` inside a method creates a local variable, not a module-level reset. Always add `global GLOBAL_CONFIG` before the assignment.
+
+---
+
+## composefs-native bootc: post-install writes go to the wrong place
+
+### The layout
+
+On composefs-native bootc systems (btrfs + systemd-boot, no ostree), the btrfs
+filesystem structure is:
+
+```
+btrfs_root/
+├── state/
+│   ├── deploy/
+│   │   └── <COMPOSEFS_HASH>/
+│   │       ├── etc/    ← ACTUAL writable /etc (bind-mounted at /etc at boot)
+│   │       └── var/    ← NOT the runtime /var
+│   └── os/
+│       └── default/
+│           └── var/    ← ACTUAL writable /var (bind-mounted at /var at boot)
+├── etc/                ← ORPHANED — never mounted at /etc at runtime
+├── var/                ← ORPHANED — never mounted at /var at runtime
+├── composefs/          ← composefs object store (content-addressed /usr)
+└── boot/
+```
+
+**`/proc/self/mountinfo` on a booted composefs-native system:**
+```
+/state/deploy/<COMPOSEFS_HASH>/etc  →  /etc  (rw)
+/state/os/default/var               →  /var  (rw)
+```
+
+`btrfs_root/etc/` and `btrfs_root/var/` are visible at `/sysroot/etc/` and
+`/sysroot/var/` on the running system but are never mounted at `/etc/` or
+`/var/` — writes there are silently discarded after first boot.
+
+### Detection and path resolution
+
+`isComposeFsNative(target)` correctly detects composefs-native (no `/ostree/`
+dir). But the composefs-native branch must use:
+
+```go
+// Find writable /etc: read composefs=<HASH> from BLS loader entry
+etcDir, err = ComposeFsDeployEtcDirFn(target)
+// → target/state/deploy/<COMPOSEFS_HASH>/etc/
+
+// Find writable /var: fixed path
+varDir = ComposeFsVarDir(target)
+// → target/state/os/default/var/
+```
+
+**Never** use `filepath.Join(target, "etc")` or `filepath.Join(target, "var")`
+for composefs-native post-install writes.
+
+### Finding the composefs hash
+
+`DefaultComposeFsDeployEtcDir(target)` reads BLS loader entries under
+`$TARGET/boot/loader/entries/*.conf` and finds `options ... composefs=<HASH>`.
+Falls back to newest directory under `state/deploy/` for fresh installs.
+
+### WarmCaches on composefs-native
+
+All `/usr/` cache writes (`warmFontCache`, `warmIconCache`, `warmGSettingsSchemas`,
+`warmPixbufLoaders`, `warmGIOModules`, `warmManDB`) are silently no-ops on
+composefs-native because `btrfs_root/usr/` doesn't exist. This is **correct**:
+composefs serves `/usr/` from the OCI image's content-addressed store, which
+already ships pre-built caches.
+
+`warmFlatpakAppstream` must use `ComposeFsVarDir(target)` not `target/var/`.
+`warmLdconfig` must be skipped (OCI image ships correct `ld.so.cache`).
+
+### Diagnostic: verify post-install writes landed
+
+```bash
+# On the installed system — check the real writable /etc:
+ls /sysroot/state/deploy/<HASH>/etc/hostname    # should exist
+cat /etc/hostname                               # must match
+# /etc/ is bind-mounted from /state/deploy/<HASH>/etc/
+
+# Find active hash:
+grep -oP 'composefs=\K[0-9a-f]+' /proc/cmdline
+```
+
+### Affected functions (all fixed)
+
+`WriteHostname`, `GenerateAudioConfig`, `CopyWiFiConnections`, `AppendFstabEntry`,
+`EnablePrintServices`, `writeOEMBrewService`, `enableSystemService`,
+`writeMenuIconOverride`, `WarmCaches` flatpak/ldconfig.
+
+`CopyFlatpaks` and `CopyBluetoothPairings` had correct composefs-native paths
+already.
