@@ -51,6 +51,7 @@ jobs:
       - name: Publish stable pre-release (prod branch)
         if: github.ref == 'refs/heads/prod'
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           gh release create latest-stable \
             --title "Continuous Build" \
             --prerelease \
