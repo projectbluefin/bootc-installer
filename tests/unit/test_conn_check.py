@@ -109,22 +109,25 @@ class TestConnCheckAsyncLogic(unittest.TestCase):
     def test_conn_check_success_advances_to_next_page(self):
         mod = _import_conn_check_fresh()
         step = self._step()
+        mock_sock = MagicMock()
 
         with patch.object(mod, "RunAsync", _SyncRunAsync), patch.object(
-            mod.urllib.request, "urlopen", return_value=object()
-        ) as urlopen:
+            mod.socket, "create_connection", return_value=mock_sock
+        ) as create_conn:
             mod.BootcDefaultConnCheck._BootcDefaultConnCheck__conn_check(step, None, 2)
 
         step._BootcDefaultConnCheck__window.next.assert_called_once_with()
-        urlopen.assert_called_once()
+        create_conn.assert_called()
+        mock_sock.close.assert_called_once()
         step.btn_recheck.set_visible.assert_not_called()
 
     def test_conn_check_failure_updates_header_and_reveals_retry(self):
         mod = _import_conn_check_fresh()
         step = self._step()
 
+        # Both fallback targets fail → connection check returns False.
         with patch.object(mod, "RunAsync", _SyncRunAsync), patch.object(
-            mod.urllib.request, "urlopen", side_effect=OSError("offline")
+            mod.socket, "create_connection", side_effect=OSError("offline")
         ):
             mod.BootcDefaultConnCheck._BootcDefaultConnCheck__conn_check(step, None, 2)
 
@@ -145,20 +148,21 @@ class TestConnCheckAsyncLogic(unittest.TestCase):
 
         with patch.object(mod, "RunAsync", _SyncRunAsync), patch.dict(
             mod.os.environ, {"VANILLA_SKIP_CONN_CHECK": "1"}, clear=False
-        ), patch.object(mod.urllib.request, "urlopen") as urlopen:
+        ), patch.object(mod.socket, "create_connection") as create_conn:
             mod.BootcDefaultConnCheck._BootcDefaultConnCheck__conn_check(step, None, 2)
 
         step._BootcDefaultConnCheck__window.next.assert_called_once_with()
-        urlopen.assert_not_called()
+        create_conn.assert_not_called()
 
     def test_ignore_callback_suppresses_navigation_after_back_click(self):
         mod = _import_conn_check_fresh()
         step = self._step()
+        mock_sock = MagicMock()
 
         mod.BootcDefaultConnCheck._BootcDefaultConnCheck__on_btn_back_clicked(step, None, 1)
 
         with patch.object(mod, "RunAsync", _SyncRunAsync), patch.object(
-            mod.urllib.request, "urlopen", return_value=object()
+            mod.socket, "create_connection", return_value=mock_sock
         ):
             mod.BootcDefaultConnCheck._BootcDefaultConnCheck__conn_check(step, None, 2)
 

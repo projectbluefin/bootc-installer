@@ -16,7 +16,7 @@
 
 import logging
 import os
-import urllib.request
+import socket
 from gettext import gettext as _
 
 from gi.repository import Adw, Gtk
@@ -76,16 +76,19 @@ class BootcDefaultConnCheck(Adw.Bin):
             if "VANILLA_SKIP_CONN_CHECK" in os.environ:
                 return True
 
-            try:
-                req = urllib.request.Request(
-                    "https://github.com",
-                    headers={"User-Agent": "bootc-installer/0.1"}
-                )
-                urllib.request.urlopen(req, timeout=5)
-                return True
-            except Exception as e:
-                logger.error(f"Connection check failed: {str(e)}")
-                return False
+            # Try ghcr.io first (the actual registry for bootc images), then
+            # fall back to 8.8.8.8:53 DNS as a general connectivity probe.
+            # Avoids false-negatives when github.com is blocked but ghcr.io is
+            # reachable (corporate proxies, some national firewalls).
+            for host, port in [("ghcr.io", 443), ("8.8.8.8", 53)]:
+                try:
+                    s = socket.create_connection((host, port), timeout=5)
+                    s.close()
+                    return True
+                except OSError:
+                    continue
+            logger.error("Connection check failed: could not reach ghcr.io:443 or 8.8.8.8:53")
+            return False
 
         def callback(res, *args):
             if self.__ignore_callback:
