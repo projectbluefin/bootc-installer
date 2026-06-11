@@ -207,3 +207,76 @@ patch("bootc_installer.defaults.qr_companion.get_local_ip", return_value="127.0.
 ```
 
 `GLOBAL_CONFIG = None` inside a method creates a local variable, not a module-level reset. Always add `global GLOBAL_CONFIG` before the assignment.
+
+---
+
+## conn_check.py — Don't Check github.com for Connectivity
+
+**Pattern to avoid:**
+```python
+urllib.request.urlopen("https://github.com", timeout=5)  # WRONG
+```
+
+github.com is blocked in corporate environments and some geographic regions. The installer's actual dependency is `ghcr.io` (OCI registry). Use socket-level checks:
+
+```python
+import socket
+for host, port in [("ghcr.io", 443), ("8.8.8.8", 53)]:
+    try:
+        s = socket.create_connection((host, port), timeout=5)
+        s.close()
+        return True  # connected
+    except OSError:
+        continue
+return False  # all failed
+```
+
+This probes the real OCI registry first (ghcr.io:443), then falls back to DNS (8.8.8.8:53) as a basic internet check.
+
+---
+
+## fisherman `checkRequiredTools` — Always Include Late-Stage Tools
+
+**Rule:** If a tool is required at any step of the install pipeline, it must be in `checkRequiredTools`, even if it's only used in the very last step.
+
+**Why:** fisherman fails silently late — the disk is already wiped and the OS is already installed by the time a missing tool is discovered. The only safe pattern is checking ALL required tools before touching any disk.
+
+**Known gap (now fixed):** `systemd-cryptenroll` for TPM2 encryption types was missing. The install would succeed through 8 steps, then fail at TPM2 enrollment (step 9), leaving the disk wiped with no bootable system.
+
+```go
+// checkRequiredTools checklist:
+// - All partition tools (sfdisk, mkfs.*)
+// - Encryption tools (cryptsetup + systemd-cryptenroll for TPM2)
+// - Image tools (skopeo, podman)
+// - Any tool called in post-install steps (systemd-cryptenroll, etc.)
+```
+
+---
+
+## Loop Devices in Kubernetes Containers
+
+Loop partition nodes (`/dev/loopXpY`) do NOT appear in Kubernetes privileged containers after `sfdisk` repartitions a loop device. The `BLKRRPART` ioctl that sfdisk uses to notify the kernel about partition table changes fails in containers.
+
+fisherman's `loopRescan()` (detach + re-attach with `--partscan`) mitigates this for real hardware/VMs, but does NOT work reliably inside k8s pods.
+
+**Impact on testing:** Automated integration tests using `losetup` + fisherman in Argo pods will fail at `mkfs.fat /dev/loop0p1: No such file or directory`.
+
+**Workaround for tests:** Use a KubeVirt VM for full install testing. The validate step (`fisherman validate recipe.json`) uses `os.Stat(disk)` only and DOES work in containers (13/13 test cases pass).
+
+**Real-world impact:** NONE. fisherman is intended for live ISO installs (bare metal, VMs). Loop device rescanning works correctly on real hardware.
+
+---
+
+## Python Escape Sequences in GTK String Literals
+
+Strings used in GTK markup or display names must use raw strings if they contain backslash sequences that aren't valid Python escapes:
+
+```python
+# WRONG — \| is not a valid Python escape; SyntaxWarning in 3.12, SyntaxError in 3.14+
+"Czech (with <\|> key)"
+
+# CORRECT — raw string, backslash is literal
+r"Czech (with <\|> key)"
+```
+
+This affects any string with `\|`, `\%`, `\-` or other non-escape backslash combinations.
