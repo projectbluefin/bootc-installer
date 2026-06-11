@@ -184,7 +184,7 @@ tests/
 └── integration/  E2E fisherman install (root + QEMU/NBD; not in CI)
 ```
 
-**CI gate:** `--cov-fail-under=47` (currently measuring 48%, 5673 stmts)  
+**CI gate:** `--cov-fail-under=51` (currently measuring 52%, 5675 stmts, 712 tests)  
 **Ruff:** run before every commit — `python3 -m ruff check bootc_installer/ tests/`
 
 ### Key unit test files
@@ -300,9 +300,20 @@ The ISO overrides branding at runtime via:
 
 ---
 
+## Key Quality Findings (2026-06-10 audit)
+
+| Area | Finding |
+|---|---|
+| `conn_check.py` | Never check `github.com`; probe `ghcr.io:443` then `8.8.8.8:53` via socket — github.com is blocked in corporate/geo-filtered envs |
+| `fisherman checkRequiredTools` | Must include ALL tools used anywhere in the pipeline — `systemd-cryptenroll` was missing for TPM2; disk wiped before failure surfaced |
+| Python escape sequences | Raw strings required for any `\|` in string literals (`keyboard.py` had `"Czech (with <\|> key)"` → `SyntaxError` in Python 3.14+) |
+| composefs user creation | `CreateUser` uses `root=sysroot` for composefs-native; correct path is `ComposeFsDeployEtcDirFn`. Latent — no current images use composefs+user creation but will matter when they do |
+| Dead code | `keyboard.py`, `language.py`, `timezone.py` are NOT registered in `builder.py` — keyboard/language/timezone are not applied during install |
+| Loop devices in k8s pods | `BLKRRPART` ioctl fails in containers; fisherman's `loopRescan()` doesn't create partition nodes in Argo pods — test infra limitation only, not a real-install bug |
+
 ## Pitfalls Reference
 
-For detailed GTK testing patterns, stub contamination, Gio patching, and ruff gotchas:
+For detailed GTK testing patterns, stub contamination, Gio patching, ruff gotchas, conn_check socket pattern, TPM2 preflight rules, and loop device container limitations:
 
 ```bash
 cat ~/src/bootc-installer/docs/skills/PITFALLS.md

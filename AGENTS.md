@@ -346,8 +346,8 @@ sudo FISHERMAN_BIN=/tmp/fisherman-test pytest tests/integration/ -v -s
 
 ### Coverage baseline
 
-Current measured coverage (as of 2026-06-06, post-PR #167):
-- **Unit tests**: 48% of `bootc_installer/` (665 tests, 5825 stmts) — CI gate: `--cov-fail-under=47`
+Current measured coverage (as of 2026-06-10, post quality audit):
+- **Unit tests**: 52% of `bootc_installer/` (712 tests, 5675 stmts) — CI gate: `--cov-fail-under=51`
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 Key per-module baselines:
