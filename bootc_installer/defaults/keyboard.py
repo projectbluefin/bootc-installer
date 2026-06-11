@@ -146,10 +146,10 @@ class BootcDefaultKeyboard(Adw.Bin):
             for key, value in self.__keymaps.list_all[country].items()
         }
 
-        # Changed display_name as this charchter string is causing gtk markup error
-        if all_keyboard_layouts.get("Czech (with <\|> key)"):
+        # Changed display_name as this character string is causing gtk markup error
+        if all_keyboard_layouts.get(r"Czech (with <\|> key)"):
             all_keyboard_layouts["Czech (bksl)"] = all_keyboard_layouts.pop(
-                "Czech (with <\|> key)"
+                r"Czech (with <\|> key)"
             )
 
         for keyboard_title, content in all_keyboard_layouts.items():
