@@ -3,6 +3,8 @@
 This document describes the architecture, dev workflow, and key commands needed
 to work on this project as an AI agent. Read it before making changes.
 
+**Skills index:** [`docs/skills/INDEX.md`](docs/skills/INDEX.md) — engineering gotchas, architectural facts, composefs-native path layout, GTK testing patterns.
+
 ---
 
 ## Repository layout
