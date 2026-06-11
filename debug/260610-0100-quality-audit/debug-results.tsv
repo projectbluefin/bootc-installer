@@ -1,0 +1,8 @@
+iteration	type	hypothesis	result	severity	location	description
+0	baseline	—	712 passed, 2 skipped	—	—	tests clean, ruff clean, go vet clean
+1	confirmed	keyboard.py \| escape sequences	confirmed	MEDIUM	keyboard.py:150,152	\| is invalid Python escape → SyntaxWarning now, SyntaxError in Python 3.14+
+2	confirmed	conn_check hardcodes github.com	confirmed	MEDIUM	defaults/conn_check.py:38	blocked in corporate nets/China; should check ghcr.io or TCP socket
+3	confirmed	bootnext blkid nil wrap	confirmed	LOW	fisherman/internal/post/bootnext.go:14	err==nil + empty output produces fmt.Errorf("blkid %s: %w", part, nil) → ugly "<nil>" message
+4	confirmed	CreateUser composefs sysroot path	confirmed	HIGH(latent)	fisherman/internal/post/user.go:30	composefs native uses root=sysroot; sysroot/etc is ghost dir, writes lost after boot — NOT triggered by current images (all nuc=False for systemd-boot images)
+5	investigating	demo step count mismatch	—	LOW	views/progress.py:start_demo()	hardcoded 9 steps, real installs have 8-11; misleading for testers
+6	investigating	conn_check fires on every carousel page-change	—	MEDIUM	defaults/conn_check.py	__conn_check() called on every page-changed signal, not just when arriving at conn_check page
