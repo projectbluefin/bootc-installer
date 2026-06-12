@@ -110,14 +110,7 @@ class TestProgressScreen:
         progress, _window = self._make_progress()
 
         assert not progress.console_box.get_visible()
-        assert progress.btn_video_mode.get_active()
-        assert progress.btn_soundtrack_mode.get_sensitive()
-        assert progress.track_carousel.get_n_pages() > 0
-
-        progress.btn_soundtrack_mode.set_active(True)
-        _pump()
-        assert progress.soundtrack_box.get_visible()
-        assert not progress.media_box.get_visible()
+        assert progress.media_box.get_visible()
 
         progress.console_button.emit("clicked")
         _pump()
@@ -125,19 +118,13 @@ class TestProgressScreen:
         assert progress.media_button.get_visible()
         assert not progress.console_button.get_visible()
         assert not progress.media_box.get_visible()
-        assert not progress.soundtrack_box.get_visible()
 
         progress.media_button.emit("clicked")
         _pump()
         assert not progress.console_box.get_visible()
         assert not progress.media_button.get_visible()
         assert progress.console_button.get_visible()
-        assert progress.soundtrack_box.get_visible()
-
-        progress.btn_video_mode.set_active(True)
-        _pump()
         assert progress.media_box.get_visible()
-        assert not progress.soundtrack_box.get_visible()
 
     def test_progress_events_update_labels_percentage_eta_and_completion(self):
         progress, _window = self._make_progress()
