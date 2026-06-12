@@ -44,7 +44,8 @@ bootc-installer/               ← this repo (projectbluefin/bootc-installer)
 ├── data/                     ← GSchema, desktop files, icons, polkit policies (all three variants)
 ├── docs/                     ← feature docs, test plans, live-iso.md, superpowers specs
 ├── po/                       ← translations
-├── run-dev.sh                ← local dev launcher (toolbox + dakota-lab, BOOTC_DEMO=1)
+├── dev.sh                    ← Flatpak dev loop (build + run via flatpak-builder --run, no install needed)
+├── run-dev.sh                ← legacy toolbox dev launcher (kept for reference)
 ├── BUILD_ALL_VARIANTS.sh     ← build GNOME + XFCE + KDE Flatpaks in one shot
 ├── MULTI_VARIANT_BUILD.md    ← guide for the three-variant build system
 ├── QUALIFY_SOFTWARE.sh       ← software-only release qualification script
@@ -227,21 +228,30 @@ flatpak run org.kdeinstaller.Installer
 BOOTC_FISHERMAN_PATH=/path/to/fisherman flatpak run org.bootcinstaller.Installer
 ```
 
-### Local dev loop (toolbox)
+### Local dev loop (Flatpak)
 
 ```bash
-# Requires a dakota-lab toolbox container
-./run-dev.sh           # auto-rebuild if sources changed, launch with BOOTC_DEMO=1
-./run-dev.sh --rebuild # force full rebuild
-./run-dev.sh --logs    # tail debug log only
+# First-time build (~5-10 min; everything cached after)
+flatpak run org.flatpak.Builder --ccache --force-clean \
+  _build flatpak/org.bootcinstaller.Installer.Devel.json
+
+# Daily iteration
+./dev.sh           # rebuild if .py/.blp/.xml changed, then launch (BOOTC_DEMO=1)
+./dev.sh --rebuild # force full rebuild
+./dev.sh --run     # skip rebuild, launch immediately
+./dev.sh --screen progress  # preview a single screen
+./dev.sh --logs    # tail debug log only
+```
+
+`BOOTC_DEMO=1` runs a fake 5-step progress sequence — no fisherman launched, no disk touched.  
+Debug log (inside sandbox): `~/.var/app/org.bootcinstaller.Installer.Devel/cache/bootc-installer/installer-debug.log`
+
+**How it works:** `dev.sh` uses `flatpak run org.flatpak.Builder --run _build manifest.json sh -c '/app/bin/bootc-installer'`. The `--run` subcommand applies the manifest's `finish-args` (Wayland, host filesystem, polkit) but executes from the local `_build/` directory. No user/system install needed.
+
+⚠️ **PATH in `--run` mode:** `/app/bin` is NOT in `PATH` by default — always invoke as `/app/bin/bootc-installer`, not `bootc-installer`.
 
 # Build all three variants as Flatpaks in one shot
 ./BUILD_ALL_VARIANTS.sh --install
-```
-
-`BOOTC_DEMO=1` intercepts at `on_installation_confirmed()` and runs a fake 5-step
-progress sequence — no fisherman launched, no disk touched.  
-Debug log: `~/.cache/bootc-installer/installer-debug.log`
 
 ### Invoking fisherman directly (for testing)
 
@@ -349,7 +359,7 @@ sudo FISHERMAN_BIN=/tmp/fisherman-test pytest tests/integration/ -v -s
 ### Coverage baseline
 
 Current measured coverage (as of 2026-06-10, post quality audit):
-- **Unit tests**: 52% of `bootc_installer/` (712 tests, 5675 stmts) — CI gate: `--cov-fail-under=51`
+- **Unit tests**: 53% of `bootc_installer/` (707 tests, 5421 stmts) — CI gate: `--cov-fail-under=51`
 - **UI tests**: not measured locally (requires meson/ninja build for GResources)
 
 Key per-module baselines:
@@ -517,12 +527,12 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
 | `flatpak/org.xfceinstaller.Installer.json` | XFCE Flatpak manifest |
 | `flatpak/org.kdeinstaller.Installer.json` | KDE Flatpak manifest |
-| `run-dev.sh` | Local dev launcher: toolbox build + `BOOTC_DEMO=1`, `--rebuild` and `--logs` flags |
+| `dev.sh` | Flatpak dev loop: `flatpak-builder --run`, `BOOTC_DEMO=1`, `--rebuild`/`--run`/`--screen`/`--logs` flags |
 | `BUILD_ALL_VARIANTS.sh` | Build all three variants (GNOME + XFCE + KDE) as Flatpaks |
 | `MULTI_VARIANT_BUILD.md` | Guide for the multi-variant build system |
 | `QUALIFY_SOFTWARE.sh` | Software-only release qualification (all unit + UI tests + ruff) |
 | `docs/live-iso.md` | How to build a bootable live ISO with bootc-installer |
-| `docs/features/` | Per-feature design docs (GStreamer codec validation, libpastry, QR companion, soundtrack QR) |
+| `docs/features/` | Per-feature design docs (GStreamer codec validation, libpastry, QR companion) |
 | `docs/test-plans/` | Test plans: E2E verification, encryption matrix, failure paths, release qualification |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
@@ -633,7 +643,6 @@ Never raise the gate above the *measured* value — use the actual number as the
   `--cov-fail-under=48`. This is because pytest-cov 7.1.0 rounds the displayed value before
   comparing. Set the gate one point below the displayed integer (e.g., `--cov-fail-under=47`
   for 47.57% measured coverage) so the intent is unambiguous and the exit code is clean.
-
 ---
 
 ## Post-install "instant first boot" features
@@ -691,7 +700,6 @@ sudo umount /tmp/ir
 - **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
 - **GStreamer VP9/AV1 codec validation (Done — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
 - **libpastry integration (Done — #71)**: Integrates libpastry for install-time configuration generation.
-- **QR soundtrack codes (Done — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
 - **QR Phone Companion MVP (Done — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`. `BootcDefaultQrCompanion` wizard step in `bootc_installer/defaults/qr_companion.py`.
 - **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 

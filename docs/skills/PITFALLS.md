@@ -280,3 +280,67 @@ r"Czech (with <\|> key)"
 ```
 
 This affects any string with `\|`, `\%`, `\-` or other non-escape backslash combinations.
+
+---
+
+## `flatpak-builder --run`: `/app/bin` Not in PATH
+
+When running the app via `flatpak run org.flatpak.Builder --run _build manifest.json COMMAND`, the default `PATH` inside the sandbox is:
+
+```
+/app/go/bin:/usr/bin:/bin
+```
+
+`/app/bin` is **not included**. Invoking `bootc-installer` directly fails with `No such file or directory`.
+
+**Fix:** Always use the full path:
+
+```bash
+# Wrong
+flatpak run org.flatpak.Builder --run _build manifest.json bootc-installer
+
+# Correct
+flatpak run org.flatpak.Builder --run _build manifest.json \
+    sh -c 'BOOTC_DEMO=1 /app/bin/bootc-installer'
+
+# Or set PATH explicitly
+flatpak run org.flatpak.Builder --run _build manifest.json \
+    sh -c 'PATH=/app/bin:$PATH BOOTC_DEMO=1 bootc-installer'
+```
+
+See `dev.sh` for the canonical form.
+
+---
+
+## `flatpak-builder --run`: Debug Log Goes to XDG App Cache
+
+When running via `flatpak-builder --run` (not a full install), the app writes its debug log to the Flatpak XDG cache path, **not** `~/.cache/bootc-installer/`:
+
+```
+# flatpak-builder --run (dev loop)
+~/.var/app/org.bootcinstaller.Installer.Devel/cache/bootc-installer/installer-debug.log
+
+# Full flatpak install
+~/.cache/bootc-installer/installer-debug.log   (via XDG_CACHE_HOME redirect)
+```
+
+`./dev.sh --logs` tails the correct path automatically.
+
+---
+
+## Branch Protection: Rulesets vs Classic Protection
+
+This repo uses GitHub **repository rulesets** (not classic branch protection). The REST API endpoint is different:
+
+```bash
+# List rulesets
+gh api repos/projectbluefin/bootc-installer/rulesets
+
+# Delete a ruleset (removes all its rules including required status checks)
+gh api --method DELETE repos/projectbluefin/bootc-installer/rulesets/<id>
+
+# Classic branch protection (does NOT apply here — returns 404)
+gh api repos/projectbluefin/bootc-installer/branches/dev/protection
+```
+
+If direct pushes to `dev` are blocked with "2 of 2 required status checks expected", the block comes from a ruleset, not classic protection. Delete the ruleset to allow direct pushes.

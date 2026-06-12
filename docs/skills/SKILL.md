@@ -39,10 +39,12 @@ Full dev, test, and release workflow for `projectbluefin/bootc-installer`.
 | Run integration tests (root + QEMU) | `sudo FISHERMAN_BIN=/tmp/fisherman-test pytest tests/integration/ -v -s` |
 | Lint | `python3 -m ruff check bootc_installer/ tests/` |
 | Coverage report | `pytest tests/unit/ -q --cov=bootc_installer --cov-report=term-missing 2>&1 \| tail -5` |
-| Dev loop (toolbox) | `./run-dev.sh` |
-| Force rebuild | `./run-dev.sh --rebuild` |
-| Tail debug log | `./run-dev.sh --logs` |
-| Build Flatpak | `flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json` |
+| Dev loop | `./dev.sh` |
+| Force rebuild | `./dev.sh --rebuild` |
+| Run without rebuild | `./dev.sh --run` |
+| Preview one screen | `./dev.sh --screen progress` |
+| Tail debug log | `./dev.sh --logs` |
+| Build Flatpak (ship) | `flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json` |
 | Build fisherman | `cd fisherman/fisherman && go build -o /var/tmp/fisherman-test ./cmd/fisherman/` |
 | Lint fisherman | `cd fisherman/fisherman && go vet ./...` |
 | Watch install log | `tail -f ~/.cache/bootc-installer/fisherman-output.log` |
@@ -127,49 +129,39 @@ bootc_installer/
 ### First-time setup
 
 ```bash
-# Requires dakota-lab toolbox
-toolbox list  # confirm dakota-lab exists
-
 cd ~/src/bootc-installer
 git submodule update --init --recursive
 
-# Build fisherman
-cd fisherman/fisherman && go build -o /var/tmp/fisherman-test ./cmd/fisherman/
-
-# Install build deps (one-time)
-toolbox run --container dakota-lab sudo dnf install -y \
-  meson ninja-build python3-gobject python3-devel \
-  blueprint-compiler libadwaita-devel desktop-file-utils mutter
-
-# Build and install
-cd ~/src/bootc-installer
-toolbox run --container dakota-lab meson setup build \
-  --prefix=/tmp/bootc-installer-dev -Dbuild-fisherman=false
-toolbox run --container dakota-lab ninja -C build && \
-toolbox run --container dakota-lab meson install -C build
+# One-time full build via flatpak-builder (caches everything; ~5-10 min)
+# Requires: flatpak run org.flatpak.Builder installed + GNOME 50 SDK/Platform
+flatpak run org.flatpak.Builder \
+  --ccache --force-clean \
+  _build flatpak/org.bootcinstaller.Installer.Devel.json
 ```
 
 ### Daily dev loop
 
 ```bash
-./run-dev.sh           # rebuild if sources changed, launch with BOOTC_DEMO=1
-./run-dev.sh --rebuild # force full rebuild
-./run-dev.sh --logs    # tail debug log only
+./dev.sh           # rebuild if .py/.blp/.xml changed, then launch (BOOTC_DEMO=1)
+./dev.sh --rebuild # force full rebuild
+./dev.sh --run     # skip rebuild, launch immediately
+./dev.sh --screen progress  # preview a single screen
+./dev.sh --logs    # tail debug log only (app keeps running)
 ```
 
-`BOOTC_DEMO=1` intercepts at `on_installation_confirmed()` in `main_window.py` and calls `progress.start_demo()` — no fisherman, no disk touched.
+`BOOTC_DEMO=1` calls `progress.start_demo()` — no fisherman, no disk touched.  
+**Debug log (in --run sandbox):** `~/.var/app/org.bootcinstaller.Installer.Devel/cache/bootc-installer/installer-debug.log`
 
-**After editing `.blp` files:** `ninja -C build` recompiles blueprints automatically.  
+**How it works:** `dev.sh` calls `flatpak run org.flatpak.Builder --run _build manifest.json sh -c '... /app/bin/bootc-installer'`. The `--run` subcommand applies the manifest's `finish-args` (Wayland, host filesystem, etc.) but reads Python/UI files from the locally built `_build/`. No install step needed.
+
+**After editing `.py` files:** `./dev.sh` detects the change and rebuilds the `bootc-installer` meson module only (other modules stay cached). Typically < 30 s.  
+**After editing `.blp` files:** Same — blueprint compilation is part of the meson build, auto-triggered.  
 **After editing fisherman:** `cd fisherman/fisherman && go build -o /var/tmp/fisherman-test ./cmd/fisherman/`
 
-### toolbox background launch
+### PATH inside `flatpak-builder --run`
 
-`toolbox run` must be in foreground. For timed testing:
-```bash
-toolbox run --container dakota-lab bash /tmp/launch-installer.sh &
-sleep 4 && kill %1
-```
-Do NOT use `nohup` or `setsid` with `toolbox run` — they silently fail to connect to Wayland.
+The default `PATH` in `--run` is `/app/go/bin:/usr/bin:/bin` — `/app/bin` is NOT included. Always call `bootc-installer` as `/app/bin/bootc-installer`, or prefix with `PATH=/app/bin:$PATH`.  
+See `dev.sh` for the canonical invocation.
 
 ---
 
@@ -179,12 +171,12 @@ Do NOT use `nohup` or `setsid` with `toolbox run` — they silently fail to conn
 
 ```
 tests/
-├── unit/    662 tests, no display required (pytest tests/unit/ -q)
+├── unit/    705 tests, no display required (pytest tests/unit/ -q)
 ├── ui/      GTK integration tests (xvfb-run -a pytest tests/ui/ -q)
 └── integration/  E2E fisherman install (root + QEMU/NBD; not in CI)
 ```
 
-**CI gate:** `--cov-fail-under=51` (currently measuring 52%, 5675 stmts, 712 tests)  
+**CI gate:** `--cov-fail-under=51` (measuring 53%, 5421 stmts, 707 unit tests)  
 **Ruff:** run before every commit — `python3 -m ruff check bootc_installer/ tests/`
 
 ### Key unit test files
@@ -267,7 +259,7 @@ CI uses `submodules: recursive` — always push both before opening a PR.
 | Push to `dev` | `devel` | `org.bootcinstaller.Installer.Devel.flatpak` → `continuous-dev` release |
 | Push to `prod` | `production` | `org.bootcinstaller.Installer.flatpak` → `continuous` release |
 | `v*` tag | both | Flatpak attached to tagged GitHub release |
-| Any push | `python-test.yml` | Unit (cov gate 47%) + UI (Xvfb) tests |
+| Any push | `python-test.yml` | Unit (cov gate 51%) + UI (Xvfb) tests |
 
 Branch strategy: `feature/xyz → dev → prod`. Never open PRs directly against `prod`.
 
