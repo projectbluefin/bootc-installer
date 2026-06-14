@@ -301,6 +301,53 @@ class TestHostnameEditableRow(unittest.TestCase):
         override = confirm.get_hostname_override()
         assert override is None
 
+    def test_hostname_user_edit_is_returned(self):
+        """Editing the entry value after update() is reflected in get_hostname_override()."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+        confirm.active_widgets = []
+
+        finals = [{"hostname": "original-host"}]
+        confirm.update(finals)
+
+        # Simulate the user typing a new hostname
+        confirm._hostname_entry_row.set_text("edited-host")
+
+        assert confirm.get_hostname_override() == "edited-host"
+
+    def test_hostname_whitespace_returns_none(self):
+        """Whitespace-only hostname is treated as no override."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+        confirm.active_widgets = []
+
+        finals = [{"hostname": "original-host"}]
+        confirm.update(finals)
+
+        confirm._hostname_entry_row.set_text("   ")
+
+        assert confirm.get_hostname_override() is None
+
+    def test_get_hostname_override_before_update_is_safe(self):
+        """Calling get_hostname_override() before update() returns None safely."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+        # Never call update() — mimics a code path that calls get_hostname_override early
+        # Manually initialize as __init__ would
+        confirm._hostname_entry_row = None
+
+        result = confirm.get_hostname_override()
+        assert result is None
+
 
 if __name__ == "__main__":
     unittest.main()
