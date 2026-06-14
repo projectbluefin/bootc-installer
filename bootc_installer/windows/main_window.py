@@ -474,6 +474,14 @@ class BootcWindow(Adw.ApplicationWindow):
         self.__install_is_encrypted = self.__finals_use_encryption()
         self.__install_recovery_key = ""
 
+        # Apply any hostname edit the user made on the confirm screen.
+        hostname_override = self.__view_confirm.get_hostname_override()
+        if hostname_override:
+            for final in self.finals:
+                if isinstance(final, dict) and "hostname" in final:
+                    final["hostname"] = hostname_override
+                    break
+
         if os.environ.get("BOOTC_DEMO"):
             self.next()
             self.__view_progress.start_demo()
