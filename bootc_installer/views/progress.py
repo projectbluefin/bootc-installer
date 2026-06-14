@@ -115,6 +115,8 @@ class BootcProgress(Gtk.Box):
     media_box = Gtk.Template.Child()
     install_video = Gtk.Template.Child()
     video_fallback_box = Gtk.Template.Child()
+    fallback_dino = Gtk.Template.Child()
+    fallback_store_qr = Gtk.Template.Child()
     progressbar = Gtk.Template.Child()
     progressbar_text = Gtk.Template.Child()
     progress_percentage = Gtk.Template.Child()
@@ -325,6 +327,32 @@ class BootcProgress(Gtk.Box):
 
     def __build_ui(self):
         self.__install_progress_css()
+        self.__setup_fallback_panel()
+
+    def __setup_fallback_panel(self):
+        """Populate the video-unavailable fallback panel with the dino image and store QR."""
+        recipe = self.__window.recipe
+
+        # Dinosaur image — use the tour welcome image from the recipe (set by live ISO),
+        # fall back to the bundled dakota.png if not configured.
+        dino_path = (
+            recipe.get("tour", {}).get("welcome", {}).get("image", "")
+            if isinstance(recipe.get("tour"), dict)
+            else ""
+        )
+        if dino_path and os.path.exists(dino_path):
+            self.fallback_dino.set_filename(dino_path)
+        else:
+            self.fallback_dino.set_resource(
+                "/org/bootcinstaller/Installer/images/dakota.png"
+            )
+
+        # Store QR code — same source as the done screen.
+        qr_resource = recipe.get(
+            "store_qr_resource",
+            "/org/bootcinstaller/Installer/assets/store-qr.svg",
+        )
+        self.fallback_store_qr.set_resource(qr_resource)
 
     def __show_video_spinner(self):
         pass
