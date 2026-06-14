@@ -200,7 +200,7 @@ class BootcConfirm(Adw.Bin):
         else:
             self.page_header.subtitle = _("\"Indeed.\" — Commander Zavala")
 
-        self.btn_confirm.set_label(_("( Become Legend )"))
+        self.btn_confirm.set_label(_("Become Legend"))
 
         for widget in self.active_widgets:
             self.group_changes.add(widget)
