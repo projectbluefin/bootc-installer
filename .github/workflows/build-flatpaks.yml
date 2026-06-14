@@ -79,21 +79,19 @@ jobs:
           echo "Build tag: $TAG"
 
       - name: Create or update release
+        if: "!startsWith(github.ref, 'refs/tags/')"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release_tag.outputs.tag }}
         run: |
-          # Create release if it doesn't exist
+          # Delete and recreate pre-release for branch pushes
+          gh release delete $RELEASE_TAG --yes --cleanup-tag 2>&1 || true
+          git push origin :refs/tags/$RELEASE_TAG 2>&1 || true
           gh release create $RELEASE_TAG \
             --title "Build $RELEASE_TAG" \
+            --prerelease \
             --notes "Multi-variant bootc-installer Flatpak build" \
-            --target ${{ github.sha }} \
-            2>/dev/null || true
-
-          # Upload Flatpak artifact
-          gh release upload $RELEASE_TAG \
-            ${{ matrix.variant.app_id }}.flatpak \
-            --clobber
+            ${{ matrix.variant.app_id }}.flatpak
 
       - name: Upload Flatpak to artifacts
         uses: actions/upload-artifact@v4

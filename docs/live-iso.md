@@ -127,8 +127,7 @@ sent to fisherman.
 
   "store_url": "https://store.my-os.io",
   "store_qr_resource": "/org/bootcinstaller/Installer/assets/store-qr.svg",
-  "credits_data": "/org/bootcinstaller/Installer/data/credits.json",
-  "soundtrack_data": "/org/bootcinstaller/Installer/data/tracks.json"
+  "credits_data": "/org/bootcinstaller/Installer/data/credits.json"
 }
 ```
 
@@ -148,7 +147,6 @@ sent to fisherman.
 | `store_url` | — | If set, shows a merch store QR code for US-locale users on the done screen |
 | `store_qr_resource` | — | GResource path for the store QR SVG; defaults to the built-in `assets/store-qr.svg` |
 | `credits_data` | — | GResource path **or** filesystem path to a `credits.json` file; defaults to the built-in `data/credits.json` |
-| `soundtrack_data` | — | GResource path **or** filesystem path to a `tracks.json` file; defaults to the built-in `data/tracks.json` |
 
 #### Step templates
 

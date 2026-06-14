@@ -9,14 +9,6 @@ project('org.bootcinstaller.Installer',
 python = import('python')
 py_inst = python.find_installation('python3')
 
-# Run build-time QR generation script
-message('Generating soundtrack QR codes...')
-run_command(
-  py_inst,
-  files('scripts/generate_soundtrack_qrs.py'),
-  check: true
-)
-
 i18n = import('i18n')
 
 gnome = import('gnome')
