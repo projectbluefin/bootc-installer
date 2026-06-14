@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shutil
 import stat
 import subprocess
@@ -38,6 +39,27 @@ _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
 from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state  # noqa: E402
+
+_RE_FRIENDLY_LAYER = re.compile(r"Pulling image: layer (\d+)/(\d+)")
+
+
+def _friendly_substep(msg: str) -> str:
+    """Convert a raw fisherman substep message to human-friendly text.
+
+    Called by __parse_progress_line() before setting progress_substep label.
+    Unknown messages are returned as-is to preserve forward-compatibility.
+    """
+    m = _RE_FRIENDLY_LAYER.match(msg)
+    if m:
+        done, total = m.group(1), m.group(2)
+        return _("Downloading\u2026 (%s of %s parts)") % (done, total)
+    if msg.startswith("Pulling image"):
+        return _("Downloading Bluefin\u2026")
+    if "squash" in msg.lower() or "compress" in msg.lower():
+        return _("Compressing\u2026")
+    if "fstrim" in msg.lower() or "fsfreeze" in msg.lower():
+        return _("Optimizing drive\u2026")
+    return msg
 
 from bootc_installer.utils.codec_check import check_codecs_present  # noqa: E402
 
@@ -521,7 +543,8 @@ class BootcProgress(Gtk.Box):
         if event.get("type") == "step":
             self.progress_substep.set_label("")
         elif event.get("type") == "substep":
-            self.progress_substep.set_label(event.get("message", ""))
+            raw_msg = event.get("message", "")
+            self.progress_substep.set_label(_friendly_substep(raw_msg))
         if not update["pulse"]:
             self.__pulse_active = False
 
@@ -551,16 +574,22 @@ class BootcProgress(Gtk.Box):
         No fisherman is launched. No disk is touched.
         """
         logger.info("start_demo() called")
+        # Demo steps: (delay_seconds, bar_fraction, label)
+        # Mirrors real-install proportions: disk prep is fast (<10%),
+        # OS install dominates (~87% of bar, most of the time),
+        # then a quick burst to 100% for apps + config.
         _STEPS = [
-            (0.4,  0.11, "Step 1/9: Partitioning disk"),
-            (0.8,  0.22, "Step 2/9: Formatting EFI partition"),
-            (1.2,  0.33, "Step 3/9: Setting up encryption"),
-            (1.6,  0.44, "Step 4/9: Formatting root filesystem"),
-            (2.0,  0.55, "Step 5/9: Mounting filesystems"),
-            (2.8,  0.66, "Step 6/9: Installing system image"),
-            (3.6,  0.77, "Step 7/9: Copying flatpaks"),
-            (4.2,  0.88, "Step 8/9: Writing configuration"),
-            (4.8,  0.99, "Step 9/9: Finalizing"),
+            (0.3,  0.01, "Checking your drive\u2026"),
+            (0.6,  0.02, "Setting up your drive\u2026"),
+            (0.9,  0.04, "Preparing the boot system\u2026"),
+            (1.2,  0.05, "Formatting your drive\u2026"),
+            (1.5,  0.06, "Almost ready\u2026"),
+            (2.0,  0.10, "Installing Bluefin\u2026"),
+            (3.5,  0.45, "Installing Bluefin\u2026"),
+            (5.2,  0.86, "Installing Bluefin\u2026"),
+            (5.8,  0.93, "Installing your apps\u2026"),
+            (6.3,  0.97, "Configuring your system\u2026"),
+            (6.8,  0.99, "Finishing up\u2026"),
         ]
         self.__pulse_active = False
         self.__set_progress_fraction(0.0)
