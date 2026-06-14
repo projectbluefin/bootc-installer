@@ -67,6 +67,7 @@ class BootcConfirm(Adw.Bin):
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
         self.delta = False
+        self._hostname_entry_row = None
 
     def update(self, finals):
         self._hostname_entry_row = None  # reset on every update

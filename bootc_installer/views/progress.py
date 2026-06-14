@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import pathlib
-import re
 import shutil
 import stat
 import subprocess
@@ -38,7 +37,7 @@ _FISHERMAN_CACHE_DIR = os.path.join(os.environ.get("HOME", "/tmp"), ".cache", "b
 _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
-from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state  # noqa: E402
+from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state, _RE_LAYER_PROGRESS  # noqa: E402
 from bootc_installer.utils.codec_check import check_codecs_present  # noqa: E402
 
 
@@ -86,7 +85,6 @@ def _stage_fisherman_on_host() -> bool:
 
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-_RE_FRIENDLY_LAYER = re.compile(r"Pulling image: layer (\d+)/(\d+)")
 
 
 def _friendly_substep(msg: str) -> str:
@@ -95,7 +93,7 @@ def _friendly_substep(msg: str) -> str:
     Called by __parse_progress_line() before setting progress_substep label.
     Unknown messages are returned as-is to preserve forward-compatibility.
     """
-    m = _RE_FRIENDLY_LAYER.match(msg)
+    m = _RE_LAYER_PROGRESS.match(msg)
     if m:
         done, total = m.group(1), m.group(2)
         return _("Downloading\u2026 (%s of %s parts)") % (done, total)
