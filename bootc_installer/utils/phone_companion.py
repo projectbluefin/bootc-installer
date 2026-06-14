@@ -186,7 +186,7 @@ COMPANION_HTML = """<!DOCTYPE html>
             
             <div class="form-group">
                 <label for="hostname">Hostname</label>
-                <input type="text" id="hostname" placeholder="e.g. dakota-desktop" value="dakota-desktop" required>
+                <input type="text" id="hostname" placeholder="e.g. bluefin-desktop" value="bluefin-desktop" required>
             </div>
             
             <div class="form-group">

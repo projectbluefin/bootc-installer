@@ -211,7 +211,7 @@ class Systeminfo:
 
         Format: {vendor/model}-{4-char hex suffix}
         The suffix is derived from the machine serial for uniqueness.
-        Falls back to 'dakota-XXXX' if DMI data is unavailable.
+        Falls back to 'bluefin-XXXX' if DMI data is unavailable.
         """
         product = _read_dmi("product_name")
         vendor_raw = _read_dmi("sys_vendor")
@@ -236,7 +236,7 @@ class Systeminfo:
             model_part = model_part[:20].rstrip("-")
 
         if not model_part:
-            model_part = "dakota"
+            model_part = "bluefin"
 
         # Generate 4-char hex suffix from hardware serial
         serial = (_read_dmi("product_serial")
@@ -248,6 +248,6 @@ class Systeminfo:
 
         # Final RFC 1123 validation
         if not re.match(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", hostname):
-            hostname = f"dakota-{suffix}"
+            hostname = f"bluefin-{suffix}"
 
         return hostname

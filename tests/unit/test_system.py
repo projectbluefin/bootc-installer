@@ -386,7 +386,7 @@ class TestGenerateHostname:
 
         assert hostname == "framework-3e10"
 
-    def test_generate_hostname_falls_back_to_dakota_when_dmi_missing(self):
+    def test_generate_hostname_falls_back_to_bluefin_when_dmi_missing(self):
         dmi = {
             "product_name": "",
             "sys_vendor": "",
@@ -396,7 +396,7 @@ class TestGenerateHostname:
         with patch("bootc_installer.core.system._read_dmi", side_effect=lambda field: dmi.get(field, "")):
             hostname = Systeminfo.generate_hostname()
 
-        assert hostname == "dakota-27a3"
+        assert hostname == "bluefin-27a3"
 
     def test_generate_hostname_uses_random_suffix_when_serials_missing(self):
         with patch("bootc_installer.core.system._read_dmi", return_value=""), patch(
@@ -404,7 +404,7 @@ class TestGenerateHostname:
         ):
             hostname = Systeminfo.generate_hostname()
 
-        assert hostname == "dakota-34b8"
+        assert hostname == "bluefin-34b8"
 
     def test_generate_hostname_falls_back_when_sanitized_model_is_invalid(self):
         dmi = {
@@ -416,7 +416,7 @@ class TestGenerateHostname:
         with patch("bootc_installer.core.system._read_dmi", side_effect=lambda field: dmi.get(field, "")):
             hostname = Systeminfo.generate_hostname()
 
-        assert hostname == "dakota-3e10"
+        assert hostname == "bluefin-3e10"
 
     def test_generate_hostname_uses_regex_fallback_when_validation_fails(self):
         dmi = {
@@ -430,4 +430,4 @@ class TestGenerateHostname:
         ):
             hostname = Systeminfo.generate_hostname()
 
-        assert hostname == "dakota-3e10"
+        assert hostname == "bluefin-3e10"
