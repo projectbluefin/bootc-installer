@@ -328,6 +328,50 @@ When running via `flatpak-builder --run` (not a full install), the app writes it
 
 ---
 
+## `DeploymentDirFn` mocking masks real command failures
+
+`DefaultDeploymentDir` calls `ostree admin --print-current-dir` to locate the
+deployment directory on the installed target. Every test that exercises
+`WriteHostname` (ostree path) replaces `DeploymentDirFn` with a stub that
+returns a fake path — meaning `DefaultDeploymentDir` itself is **never called**
+in any test.
+
+The real command always exits 1 against a freshly-installed target (never booted,
+no booted-deployment state in the kernel). This caused a fatal installer crash
+on every real install for weeks while CI passed.
+
+The CI e2e wrapper (`scripts/fisherman-install.sh` in `dakota-iso`) silently
+caught the crash and patched the hostname manually. It treated the symptom,
+not the cause, and masked the failure from every CI run.
+
+**Fix:** `DefaultDeploymentDir` now falls back to `filepath.Glob` over
+`ostree/deploy/*/deploy/*` when `--print-current-dir` fails. Three regression
+tests cover the fallback, happy path, and empty-sysroot error — and they call
+`DefaultDeploymentDir` directly through `post.Exec`, not via the stub.
+
+**Rule:** When a function is injected via a package-level `var Fn = Default...`
+pattern, the default implementation must have at least one test that exercises
+it end-to-end. Stub-only coverage is no coverage.
+
+---
+
+## `fisherman-install.sh` wrapper: symptom workaround, not a fix
+
+The `scripts/fisherman-install.sh` wrapper in `dakota-iso` was written to patch
+around the hostname-write crash at the CI level. It detects the specific
+`"ostree admin --print-current-dir"` error in the log, re-mounts the installed
+disk, and writes `/etc/hostname` directly.
+
+This pattern is dangerous: it lets broken releases ship because CI appears green.
+If you see a wrapper script that catches a specific fatal error and patches
+around it, treat it as a **bug report in disguise** — find and fix the root
+cause in fisherman, then remove the workaround.
+
+The wrapper is still present in `scripts/fisherman-install.sh` as a safety net
+but is no longer load-bearing now that `DefaultDeploymentDir` has the glob fallback.
+
+---
+
 ## Branch Protection: Rulesets vs Classic Protection
 
 This repo uses GitHub **repository rulesets** (not classic branch protection). The REST API endpoint is different:

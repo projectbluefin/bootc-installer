@@ -302,6 +302,7 @@ The ISO overrides branding at runtime via:
 | composefs user creation | `CreateUser` uses `root=sysroot` for composefs-native; correct path is `ComposeFsDeployEtcDirFn`. Latent — no current images use composefs+user creation but will matter when they do |
 | Dead code | `keyboard.py`, `language.py`, `timezone.py` are NOT registered in `builder.py` — keyboard/language/timezone are not applied during install |
 | Loop devices in k8s pods | `BLKRRPART` ioctl fails in containers; fisherman's `loopRescan()` doesn't create partition nodes in Argo pods — test infra limitation only, not a real-install bug |
+| `DefaultDeploymentDir` never tested | `DeploymentDirFn` was mocked in every test; `DefaultDeploymentDir` itself was never called. `ostree admin --print-current-dir` always exits 1 on a freshly-installed target → fatal crash on every real install. Fixed in v2.7.4 with glob fallback. See PITFALLS.md. |
 
 ## Pitfalls Reference
 
