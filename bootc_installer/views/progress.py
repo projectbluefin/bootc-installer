@@ -39,28 +39,6 @@ _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
 from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state  # noqa: E402
-
-_RE_FRIENDLY_LAYER = re.compile(r"Pulling image: layer (\d+)/(\d+)")
-
-
-def _friendly_substep(msg: str) -> str:
-    """Convert a raw fisherman substep message to human-friendly text.
-
-    Called by __parse_progress_line() before setting progress_substep label.
-    Unknown messages are returned as-is to preserve forward-compatibility.
-    """
-    m = _RE_FRIENDLY_LAYER.match(msg)
-    if m:
-        done, total = m.group(1), m.group(2)
-        return _("Downloading\u2026 (%s of %s parts)") % (done, total)
-    if msg.startswith("Pulling image"):
-        return _("Downloading Bluefin\u2026")
-    if "squash" in msg.lower() or "compress" in msg.lower():
-        return _("Compressing\u2026")
-    if "fstrim" in msg.lower() or "fsfreeze" in msg.lower():
-        return _("Optimizing drive\u2026")
-    return msg
-
 from bootc_installer.utils.codec_check import check_codecs_present  # noqa: E402
 
 
@@ -107,6 +85,29 @@ def _stage_fisherman_on_host() -> bool:
         return False
 
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+
+_RE_FRIENDLY_LAYER = re.compile(r"Pulling image: layer (\d+)/(\d+)")
+
+
+def _friendly_substep(msg: str) -> str:
+    """Convert a raw fisherman substep message to human-friendly text.
+
+    Called by __parse_progress_line() before setting progress_substep label.
+    Unknown messages are returned as-is to preserve forward-compatibility.
+    """
+    m = _RE_FRIENDLY_LAYER.match(msg)
+    if m:
+        done, total = m.group(1), m.group(2)
+        return _("Downloading\u2026 (%s of %s parts)") % (done, total)
+    if msg.startswith("Pulling container image"):
+        return _("Downloading system image\u2026")
+    if msg.startswith("Pulling image"):
+        return _("Downloading system image\u2026")
+    if "squash" in msg.lower() or "compress" in msg.lower():
+        return _("Compressing\u2026")
+    if "fstrim" in msg.lower() or "fsfreeze" in msg.lower():
+        return _("Optimizing drive\u2026")
+    return msg
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/progress.ui")
@@ -583,7 +584,7 @@ class BootcProgress(Gtk.Box):
             (0.6,  0.02, "Setting up your drive\u2026"),
             (0.9,  0.04, "Preparing the boot system\u2026"),
             (1.2,  0.05, "Formatting your drive\u2026"),
-            (1.5,  0.06, "Almost ready\u2026"),
+            (1.5,  0.06, "Mounting your drive\u2026"),
             (2.0,  0.10, "Installing Bluefin\u2026"),
             (3.5,  0.45, "Installing Bluefin\u2026"),
             (5.2,  0.86, "Installing Bluefin\u2026"),
