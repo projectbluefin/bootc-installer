@@ -574,7 +574,11 @@ class BootcWindow(Adw.ApplicationWindow):
         self.__view_done.set_result(result, terminal, boot_id, elapsed_secs,
                                     image_ref=image_ref)
 
-        if result and self.__install_is_encrypted:
+        if result and self.__install_is_encrypted and self.__install_recovery_key:
+            # Only show the recovery key screen when fisherman actually emitted a
+            # random recovery key (tpm2-luks only). luks-passphrase and
+            # tpm2-luks-passphrase use the user's own passphrase — no random key
+            # is generated, so there is nothing to display here.
             self.__view_recovery_key.set_recovery_key(self.__install_recovery_key)
             self.__go_to_page(self.__view_recovery_key)
             return
