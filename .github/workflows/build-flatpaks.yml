@@ -85,22 +85,25 @@ jobs:
           RELEASE_TAG: ${{ steps.release_tag.outputs.tag }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          # Delete and recreate pre-release for branch pushes.
-          # If the tag is protected by a ruleset (immutable release), fall back
-          # to uploading the asset to the existing release instead.
+          # Delete old release (ignore errors — may not exist or tag may be protected).
           gh release delete $RELEASE_TAG --yes --cleanup-tag 2>&1 || true
           git push origin :refs/tags/$RELEASE_TAG 2>&1 || true
-          if gh release create $RELEASE_TAG \
+          # Create or update the release. Use a two-step approach:
+          # 1. Try to create. If it fails because tag already exists (protected tag),
+          #    fall through to step 2.
+          # 2. Ensure the release exists (create it if needed), then upload assets.
+          if ! gh release create $RELEASE_TAG \
               --title "Build $RELEASE_TAG" \
               --prerelease \
               --notes "Multi-variant bootc-installer Flatpak build" \
-              ${{ matrix.variant.app_id }}.flatpak 2>/dev/null; then
-            echo "Release created"
-          else
-            gh release view $RELEASE_TAG --json assets --jq '.assets[].name' | \
-              xargs -I{} gh release delete-asset $RELEASE_TAG {} --yes 2>/dev/null || true
+              ${{ matrix.variant.app_id }}.flatpak; then
+            echo "gh release create failed — ensuring release exists and uploading asset"
+            # Make sure a release exists for the tag (in case tag exists but release doesn't)
+            gh release create $RELEASE_TAG \
+              --title "Build $RELEASE_TAG" \
+              --prerelease \
+              --notes "Multi-variant bootc-installer Flatpak build" 2>/dev/null || true
             gh release upload $RELEASE_TAG ${{ matrix.variant.app_id }}.flatpak --clobber
-            echo "Release assets updated via clobber"
           fi
 
       - name: Upload Flatpak to artifacts
