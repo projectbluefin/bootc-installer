@@ -40,30 +40,17 @@ jobs:
           path: org.bootcinstaller.Installer.flatpak
           retention-days: 30
 
-      - name: Delete existing latest-stable release (prod branch)
-        if: github.ref == 'refs/heads/prod'
-        run: |
-          gh release delete latest-stable --yes --cleanup-tag 2>&1 || true
-          git push origin :refs/tags/latest-stable 2>&1 || true
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Publish stable pre-release (prod branch)
+      - name: Attach stable asset to latest versioned release (prod branch)
         if: github.ref == 'refs/heads/prod'
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          if ! gh release create latest-stable \
-              --title "Continuous Build" \
-              --prerelease \
-              --notes "Latest build from the \`prod\` branch. Updated automatically on every push." \
-              org.bootcinstaller.Installer.flatpak; then
-            echo "Create failed — ensuring release exists and uploading asset"
-            gh release create latest-stable \
-              --title "Continuous Build" \
-              --prerelease \
-              --notes "Latest build from the \`prod\` branch." 2>/dev/null || true
-            gh release upload latest-stable org.bootcinstaller.Installer.flatpak --clobber
-          fi
+          # The stable channel uses GitHub's /releases/latest/download/ redirect,
+          # which auto-resolves to the newest non-prerelease versioned tag.
+          # We no longer maintain a rolling 'latest-stable' tag — its name is
+          # permanently banned by a GitHub ruleset after an immutable release.
+          # The versioned tag release already has the asset attached by the
+          # 'Attach bundle to tagged release' step below; nothing to do here.
+          echo "Stable channel served via releases/latest/download/ → $(gh release list --repo ${{ github.repository }} --limit 1 --json tagName --jq '.[0].tagName')"
         env:
           GH_TOKEN: ${{ github.token }}
 
