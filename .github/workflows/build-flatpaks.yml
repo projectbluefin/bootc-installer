@@ -71,7 +71,8 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
             TAG="${{ github.ref_name }}"
           elif [[ "${{ github.ref }}" == "refs/heads/prod" ]]; then
-            TAG="latest-stable"
+            # Stable channel uses /releases/latest/download/ — no rolling tag needed.
+            TAG="skip"
           else
             TAG="latest-dev"
           fi
@@ -79,7 +80,7 @@ jobs:
           echo "Build tag: $TAG"
 
       - name: Create or update release
-        if: "!startsWith(github.ref, 'refs/tags/')"
+        if: "!startsWith(github.ref, 'refs/tags/') && steps.release_tag.outputs.tag != 'skip'"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release_tag.outputs.tag }}
