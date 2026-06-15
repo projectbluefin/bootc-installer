@@ -84,14 +84,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release_tag.outputs.tag }}
         run: |
-          # Delete and recreate pre-release for branch pushes
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # Delete and recreate pre-release for branch pushes.
+          # If the tag is protected by a ruleset (immutable release), fall back
+          # to uploading the asset to the existing release instead.
           gh release delete $RELEASE_TAG --yes --cleanup-tag 2>&1 || true
           git push origin :refs/tags/$RELEASE_TAG 2>&1 || true
-          gh release create $RELEASE_TAG \
-            --title "Build $RELEASE_TAG" \
-            --prerelease \
-            --notes "Multi-variant bootc-installer Flatpak build" \
-            ${{ matrix.variant.app_id }}.flatpak
+          if gh release create $RELEASE_TAG \
+              --title "Build $RELEASE_TAG" \
+              --prerelease \
+              --notes "Multi-variant bootc-installer Flatpak build" \
+              ${{ matrix.variant.app_id }}.flatpak 2>/dev/null; then
+            echo "Release created"
+          else
+            gh release view $RELEASE_TAG --json assets --jq '.assets[].name' | \
+              xargs -I{} gh release delete-asset $RELEASE_TAG {} --yes 2>/dev/null || true
+            gh release upload $RELEASE_TAG ${{ matrix.variant.app_id }}.flatpak --clobber
+            echo "Release assets updated via clobber"
+          fi
 
       - name: Upload Flatpak to artifacts
         uses: actions/upload-artifact@v4
