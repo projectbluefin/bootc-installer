@@ -154,14 +154,13 @@ class TestProgressScreen:
                 json.dumps({"type": "substep", "message": "Pulling image: layer 5/10"})
             )
 
-        assert progress.progressbar_text.get_label() == (
-            "Step 6/9: Installing system image — Pulling image: layer 5/10"
-        )
+        assert progress.progressbar_text.get_label() == "Installing system image"
         assert progress.progress_percentage.get_label() == "66%"
         assert progress.progress_elapsed.get_label() == "2:00 elapsed"
         assert progress.progress_eta.get_label().startswith("~")
         assert "remaining" in progress.progress_eta.get_label()
-        assert progress.progress_substep.get_label() == "Pulling image: layer 5/10"
+        # substep widget shows friendly-mapped raw message
+        assert progress.progress_substep.get_label() == "Downloading\u2026 (5 of 10 parts)"
 
         progress._BootcProgress__parse_progress_line(
             json.dumps({"type": "complete", "boot_id": "boot-123", "recovery_key": "rk-1"})
