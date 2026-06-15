@@ -52,20 +52,17 @@ jobs:
         if: github.ref == 'refs/heads/prod'
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          # Try delete+recreate first; if that fails (immutable release / tag ruleset),
-          # fall back to uploading the asset directly to the existing release.
-          if gh release create latest-stable \
+          if ! gh release create latest-stable \
               --title "Continuous Build" \
               --prerelease \
               --notes "Latest build from the \`prod\` branch. Updated automatically on every push." \
-              org.bootcinstaller.Installer.flatpak 2>/dev/null; then
-            echo "Release created"
-          else
-            # Release already exists — delete all existing assets and re-upload
-            gh release view latest-stable --json assets --jq '.assets[].name' | \
-              xargs -I{} gh release delete-asset latest-stable {} --yes 2>/dev/null || true
+              org.bootcinstaller.Installer.flatpak; then
+            echo "Create failed — ensuring release exists and uploading asset"
+            gh release create latest-stable \
+              --title "Continuous Build" \
+              --prerelease \
+              --notes "Latest build from the \`prod\` branch." 2>/dev/null || true
             gh release upload latest-stable org.bootcinstaller.Installer.flatpak --clobber
-            echo "Release assets updated"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
