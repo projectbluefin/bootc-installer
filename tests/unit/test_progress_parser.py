@@ -68,8 +68,10 @@ class TestStepEvent:
     def test_step_sets_label(self):
         state = new_progress_state()
         update = apply_progress_event(_step(step=3, total=8, name="Mounting filesystem"), state)
-        assert "Step 3/8" in update["label"]
-        assert "Mounting filesystem" in update["label"]
+        # Friendly label for "Mounting filesystem"
+        assert "Almost ready" in update["label"]
+        # Must not contain nerdy Step N/M: prefix
+        assert "Step 3/8" not in update["label"]
 
     def test_step_advances_state(self):
         state = new_progress_state()
@@ -96,6 +98,27 @@ class TestStepEvent:
         apply_progress_event(_step(step=2), state)
         assert len(state["seen_substeps"]) == 0
 
+    def test_step_label_is_friendly(self):
+        """Step labels use human-friendly text, not 'Step N/M: ...' format."""
+        state = new_progress_state()
+        update = apply_progress_event(
+            _step(step=1, total=9, name="Partitioning disk"),
+            state,
+        )
+        assert update is not None
+        assert "Step 1/9" not in update["label"]
+        assert "Setting up your drive" in update["label"]
+
+    def test_unknown_step_name_falls_back_to_raw(self):
+        """Steps with no friendly mapping fall back to the raw step_name."""
+        state = new_progress_state()
+        update = apply_progress_event(
+            _step(step=1, total=9, name="Some future step"),
+            state,
+        )
+        assert update is not None
+        assert "Some future step" in update["label"]
+
 
 # ── Substep events ─────────────────────────────────────────────────────────────
 
@@ -105,7 +128,8 @@ class TestSubstepEvent:
         apply_progress_event(_step(step=5, name="Installing OS", cumulative_pct=1, weight_pct=87), state)
         update = apply_progress_event(_substep("Pulling container image"), state)
         assert update is not None
-        assert "Pulling container image" in update["label"]
+        # Main label shows the step's friendly text; raw message goes to progress_substep widget
+        assert "Installing Bluefin" in update["label"]
 
     def test_duplicate_substep_no_label(self):
         state = new_progress_state()

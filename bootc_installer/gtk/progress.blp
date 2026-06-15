@@ -49,44 +49,77 @@ template $BootcProgress: Box {
       Box video_fallback_box {
         visible: false;
         orientation: vertical;
-        spacing: 12;
         valign: center;
         halign: center;
         margin-start: 32;
         margin-end: 32;
         margin-top: 32;
         margin-bottom: 32;
-        width-request: 420;
+        width-request: 440;
 
-        Image {
-          icon-name: "video-display-symbolic";
-          pixel-size: 64;
+        Box {
+          orientation: vertical;
+          spacing: 16;
+          margin-start: 28;
+          margin-end: 28;
+          margin-top: 28;
+          margin-bottom: 28;
 
-          styles [
-            "dim-label",
-          ]
-        }
+          Picture fallback_dino {
+            height-request: 120;
+            content-fit: contain;
+            can-shrink: true;
+          }
 
-        Label {
-          label: _("Install video unavailable");
-          justify: center;
-          wrap: true;
+          Label {
+            label: _("Installation Video Coming Soon!");
+            justify: center;
+            wrap: true;
 
-          styles [
-            "title-4",
-          ]
-        }
+            styles [
+              "title-4",
+            ]
+          }
 
-        Label {
-          label: _("Installation will continue normally. Open the console to follow along while we work.");
-          justify: center;
-          wrap: true;
-          max-width-chars: 42;
+          Label {
+            label: _("Installation will continue normally. Feel free to browse around. Rawr.");
+            justify: center;
+            wrap: true;
+            max-width-chars: 44;
 
-          styles [
-            "caption",
-            "dim-label",
-          ]
+            styles [
+              "caption",
+              "dim-label",
+            ]
+          }
+
+          Separator {
+            orientation: horizontal;
+            margin-top: 4;
+            margin-bottom: 4;
+
+            styles [
+              "dim-label",
+            ]
+          }
+
+          Label {
+            label: _("Get Bluefin gear");
+            justify: center;
+
+            styles [
+              "caption",
+              "dim-label",
+            ]
+          }
+
+          Picture fallback_store_qr {
+            height-request: 160;
+            width-request: 160;
+            halign: center;
+            content-fit: contain;
+            can-shrink: true;
+          }
         }
 
         styles [

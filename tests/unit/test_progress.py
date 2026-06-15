@@ -139,5 +139,41 @@ class TestMediaStreamReadiness(unittest.TestCase):
         self.assertTrue(self.mod._media_stream_is_prepared(media_stream))
 
 
+class TestFriendlySubstep(unittest.TestCase):
+    """Tests for _friendly_substep — a pure string function; no GTK required."""
+
+    def setUp(self):
+        import importlib
+        # Remove cached module so we get a fresh import with mocked GTK.
+        for key in list(sys.modules.keys()):
+            if "bootc_installer.views.progress" in key:
+                sys.modules.pop(key)
+        with patch.dict("sys.modules", _mock_gtk_imports()):
+            mod = importlib.import_module("bootc_installer.views.progress")
+        self.fn = mod._friendly_substep
+
+    def test_layer_progress_pattern(self):
+        result = self.fn("Pulling image: layer 23/71")
+        assert "23" in result
+        assert "71" in result
+
+    def test_pulling_container_image(self):
+        result = self.fn("Pulling container image")
+        assert result != "Pulling container image"  # was mapped
+        assert "Download" in result or "download" in result
+
+    def test_pulling_image_fallback(self):
+        result = self.fn("Pulling image sha256:abc123")
+        assert result != "Pulling image sha256:abc123"  # was mapped
+
+    def test_unknown_passthrough(self):
+        result = self.fn("Some totally unknown substep message")
+        assert result == "Some totally unknown substep message"
+
+    def test_fstrim_message(self):
+        result = self.fn("Running fstrim on /mnt/target")
+        assert result != "Running fstrim on /mnt/target"  # was mapped
+
+
 if __name__ == "__main__":
     unittest.main()

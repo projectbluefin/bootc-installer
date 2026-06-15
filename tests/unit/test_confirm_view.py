@@ -38,6 +38,27 @@ def _build_gi_stubs():
     adw_mod.ActionRow = _StubBase
     adw_mod.ExpanderRow = _StubBase
 
+    class _EntryRowStub(_StubBase):
+        def __init__(self, *args, **kwargs):
+            self._text = ""
+
+        def set_text(self, t):
+            self._text = t
+
+        def get_text(self):
+            return self._text
+
+        def set_title(self, t):
+            pass
+
+        def set_show_apply_button(self, v):
+            pass
+
+        def connect(self, *a, **kw):
+            return None
+
+    adw_mod.EntryRow = _EntryRowStub
+
     gobject_mod = types.ModuleType("gi.repository.GObject")
     gobject_mod.Property = lambda *a, **kw: (lambda f: property(f))
     gobject_mod.SignalFlags = types.SimpleNamespace(RUN_FIRST=0)
@@ -210,6 +231,122 @@ class TestConfirmUpdate(unittest.TestCase):
         obj.update([{"hostname": "host2"}])
         # Second call resets list; should have same widget count.
         self.assertEqual(len(obj.active_widgets), count_first)
+
+
+def _import_BootcConfirm_fresh():
+    """Return a freshly-imported confirm module with stubs active.
+
+    Rebuilds gi stubs, pops the cached module, then reimports so the
+    module-level GTK template decoration runs against our stub Adw.EntryRow.
+    """
+    import importlib
+
+    _build_gi_stubs()
+    # Pop both the submodule and any parent package cache so Python reimports.
+    for key in list(sys.modules.keys()):
+        if "bootc_installer.views.confirm" in key:
+            del sys.modules[key]
+    # Also ensure confirm_data stub is in place.
+    if "bootc_installer.views.confirm_data" not in sys.modules:
+        cd_stub = types.ModuleType("bootc_installer.views.confirm_data")
+        cd_stub._ENC_LABELS = {}
+        cd_stub._SENNA_QUOTES = ["Senna quote"]
+        sys.modules["bootc_installer.views.confirm_data"] = cd_stub
+    fresh = importlib.import_module("bootc_installer.views.confirm")
+    fresh.BootcChoiceEntry = lambda title, subtitle, icon, **kw: MagicMock()
+    fresh.BootcChoiceExpanderEntry = lambda title, subtitle, icon, **kw: MagicMock()
+    return fresh
+
+
+class TestHostnameEditableRow(unittest.TestCase):
+    """Tests for the editable hostname EntryRow on the confirm screen."""
+
+    def setUp(self):
+        self._orig = sys.modules.get("bootc_installer.core.system")
+        sys.modules["bootc_installer.core.system"] = _core_system_stub
+
+    def tearDown(self):
+        if self._orig is None:
+            sys.modules.pop("bootc_installer.core.system", None)
+        else:
+            sys.modules["bootc_installer.core.system"] = self._orig
+
+    def test_hostname_row_is_editable_entry(self):
+        """Hostname appears as an editable Adw.EntryRow on the confirm screen."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+
+        finals = [{"hostname": "my-machine-a1b2"}]
+        confirm.active_widgets = []
+        confirm.update(finals)
+
+        override = confirm.get_hostname_override()
+        assert override == "my-machine-a1b2"
+
+    def test_get_hostname_override_returns_none_when_no_hostname(self):
+        """get_hostname_override() returns None when no hostname was in finals."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+
+        finals = [{"users": {"username": "jorge", "fullname": "Jorge"}}]
+        confirm.active_widgets = []
+        confirm.update(finals)
+
+        override = confirm.get_hostname_override()
+        assert override is None
+
+    def test_hostname_user_edit_is_returned(self):
+        """Editing the entry value after update() is reflected in get_hostname_override()."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+        confirm.active_widgets = []
+
+        finals = [{"hostname": "original-host"}]
+        confirm.update(finals)
+
+        # Simulate the user typing a new hostname
+        confirm._hostname_entry_row.set_text("edited-host")
+
+        assert confirm.get_hostname_override() == "edited-host"
+
+    def test_hostname_whitespace_returns_none(self):
+        """Whitespace-only hostname is treated as no override."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+        confirm.active_widgets = []
+
+        finals = [{"hostname": "original-host"}]
+        confirm.update(finals)
+
+        confirm._hostname_entry_row.set_text("   ")
+
+        assert confirm.get_hostname_override() is None
+
+    def test_get_hostname_override_before_update_is_safe(self):
+        """Calling get_hostname_override() before update() returns None safely."""
+        mod = _import_BootcConfirm_fresh()
+        confirm = mod.BootcConfirm.__new__(mod.BootcConfirm)
+        confirm.group_changes = MagicMock()
+        confirm.page_header = MagicMock()
+        confirm.btn_confirm = MagicMock()
+        # Never call update() — mimics a code path that calls get_hostname_override early
+        # Manually initialize as __init__ would
+        confirm._hostname_entry_row = None
+
+        result = confirm.get_hostname_override()
+        assert result is None
 
 
 if __name__ == "__main__":

@@ -7,6 +7,24 @@ BootcProgress and for unit tests.
 import json
 import re
 
+# Human-friendly labels for each fisherman step name.
+# Keys must match the step_name strings emitted by fisherman exactly.
+# Unknown step names fall back to the raw step_name.
+_FRIENDLY_STEP_LABELS: dict[str, str] = {
+    "Preparing disk":               "Checking your drive…",
+    "Partitioning disk":            "Setting up your drive…",
+    "Formatting EFI partition":     "Preparing the boot system…",
+    "Setting up disk encryption":   "Securing your drive…",
+    "Formatting root filesystem":   "Formatting your drive…",
+    "Mounting filesystem":          "Almost ready…",
+    "Formatting data disk (/var)":  "Preparing data storage…",
+    "Installing OS":                "Installing Bluefin…",
+    "Enrolling TPM2 auto-unlock":   "Setting up auto-unlock…",
+    "Copying system Flatpaks":      "Installing your apps…",
+    "Configuring installed system": "Configuring your system…",
+    "Finalizing installation":      "Finishing up…",
+}
+
 # Matches "Pulling image: layer 23/71" substep messages from fisherman.
 _RE_LAYER_PROGRESS = re.compile(r"Pulling image: layer (\d+)/(\d+)")
 
@@ -60,9 +78,10 @@ def apply_progress_event(line: str, state: dict) -> dict | None:
         state["current_step_name"] = name
         state["seen_substeps"].clear()
         state["pulse_active"] = False
+        friendly = _FRIENDLY_STEP_LABELS.get(name, name)
         return {
             "fraction": cumulative_pct / 100.0,
-            "label": "Step %d/%d: %s" % (step, total, name),
+            "label": friendly,
             "pulse": False,
             "complete": False,
         }
@@ -89,12 +108,8 @@ def apply_progress_event(line: str, state: dict) -> dict | None:
         state["seen_substeps"].add(msg)
         label = None
         if state["current_step"]:
-            label = "Step %d/%d: %s — %s" % (
-                state["current_step"],
-                state["current_total"],
-                state["current_step_name"],
-                msg,
-            )
+            friendly = _FRIENDLY_STEP_LABELS.get(state["current_step_name"], state["current_step_name"])
+            label = friendly
         return {"fraction": fraction, "label": label, "pulse": False, "complete": False}
 
     if event_type == "recovery_key":

@@ -142,7 +142,7 @@ class TestDemoEndToEnd:
             scheduler.drain()
 
             done = _view(window, "done")
-            assert done.page_header.title == "Dakota is installed"
+            assert done.page_header.title == "Bluefin is installed"
             assert (
                 done.page_header.subtitle
                 == "Restart now to complete the installation."
