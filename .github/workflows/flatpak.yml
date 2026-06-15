@@ -51,6 +51,7 @@ jobs:
       - name: Publish stable pre-release (prod branch)
         if: github.ref == 'refs/heads/prod'
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           # Try delete+recreate first; if that fails (immutable release / tag ruleset),
           # fall back to uploading the asset directly to the existing release.
           if gh release create latest-stable \
@@ -119,6 +120,7 @@ jobs:
       - name: Publish dev pre-release (dev branch)
         if: github.ref == 'refs/heads/dev'
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           if gh release create latest-dev \
               --title "Dev Build" \
               --prerelease \
