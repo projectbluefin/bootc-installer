@@ -86,7 +86,8 @@
             "name": "md4c",
             "buildsystem": "cmake-ninja",
             "config-opts": [
-                "-DBUILD_MD2HTML_EXECUTABLE=Off"
+                "-DBUILD_MD2HTML_EXECUTABLE=Off",
+                "-DCMAKE_INSTALL_LIBDIR=lib"
             ],
             "cleanup": [
                 "/include",
