@@ -3,27 +3,17 @@
 This document describes the architecture, dev workflow, and key commands needed
 to work on this project as an AI agent. Read it before making changes.
 
-**Skills index:** [`docs/skills/INDEX.md`](docs/skills/INDEX.md) — engineering gotchas, architectural facts, composefs-native path layout, GTK testing patterns.
-
 ---
 
 ## Repository layout
 
 ```
 bootc-installer/               ← this repo (projectbluefin/bootc-installer)
-├── bootc_installer/          ← Python installer GUI (GTK4/Adwaita + Qt/KDE variants)
-│   ├── core/                 ← shared business logic (disks, system, keymaps, locales)
-│   ├── defaults/             ← wizard step widgets (disk, encryption, user, image, slurp…)
-│   ├── views/                ← screens: progress.py, done.py, confirm.py, confirm_data.py, recovery_key.py, tour.py
-│   ├── widgets/              ← reusable GTK4 widgets (page_header.py)
-│   ├── windows/              ← main_window.py + dialogs (credits, output, poweroff, recovery)
-│   │                           + hardware warning windows (window_cpu, window_ram, window_unsupported)
-│   ├── layouts/              ← generic layout wrappers (yes_no.py, preferences.py)
-│   ├── utils/                ← builder.py, processor.py, recipe.py, finals.py, codec_check.py, phone_companion.py…
-│   ├── gtk/                  ← Blueprint UI files (.blp) for GNOME/XFCE variant
-│   ├── kde/                  ← QML UI + Python backend for KDE/Kirigami variant
-│   ├── main.py               ← GTK4/Adwaita entry point (GNOME + XFCE)
-│   └── main_qt.py            ← Qt/Kirigami entry point (KDE)
+├── bootc_installer/          ← Python GTK4/Adwaita GUI (the Flatpak app)
+│   └── views/
+│       ├── progress.py       ← fisherman launcher, log-file watcher, progress JSON parser
+│       ├── done.py           ← final screen (reboot / log viewer)
+│       └── confirm.py        ← confirmation screen before install
 ├── fisherman/                ← git submodule → projectbluefin/fisherman (Go backend)
 │   └── fisherman/
 │       ├── cmd/fisherman/main.go          ← install pipeline (steps 1-9)
@@ -37,18 +27,9 @@ bootc-installer/               ← this repo (projectbluefin/bootc-installer)
 │           ├── slurp/        ← Windows data migration (wallpapers, scan, extract)
 │           └── runner/       ← Run() helper (exec + set-x logging)
 ├── flatpak/
-│   ├── org.bootcinstaller.Installer.json        ← GNOME Flatpak manifest (GNOME 50 runtime)
-│   ├── org.bootcinstaller.Installer.Devel.json  ← GNOME Devel manifest
-│   ├── org.xfceinstaller.Installer.json         ← XFCE variant (xfce-platform runtime)
-│   └── org.kdeinstaller.Installer.json          ← KDE variant (kde-platform runtime)
-├── data/                     ← GSchema, desktop files, icons, polkit policies (all three variants)
-├── docs/                     ← feature docs, test plans, live-iso.md, superpowers specs
+│   └── org.bootcinstaller.Installer.json   ← Flatpak manifest (GNOME 50 runtime)
+├── data/                     ← GSchema, desktop file, icons
 ├── po/                       ← translations
-├── dev.sh                    ← Flatpak dev loop (build + run via flatpak-builder --run, no install needed)
-├── run-dev.sh                ← legacy toolbox dev launcher (kept for reference)
-├── BUILD_ALL_VARIANTS.sh     ← build GNOME + XFCE + KDE Flatpaks in one shot
-├── MULTI_VARIANT_BUILD.md    ← guide for the three-variant build system
-├── QUALIFY_SOFTWARE.sh       ← software-only release qualification script
 └── .github/workflows/flatpak.yml   ← CI: builds + publishes "continuous" pre-release
 ```
 
@@ -97,16 +78,7 @@ disk install pipeline. It emits newline-delimited JSON progress to stdout:
   `PartitionEncrypted()` produce the same 3-partition GPT table; the difference
   is that encrypted installs additionally set up LUKS on p3.
 
-### bootc-installer (Python, multi-variant GUI)
-
-The installer ships in three desktop-environment variants that share the same
-Python core, fisherman backend, and wizard step logic:
-
-| Variant | Entry point | Flatpak ID | Runtime |
-|---------|-------------|------------|---------|
-| **GNOME** (default) | `main.py` (GTK4/Adwaita) | `org.bootcinstaller.Installer` | GNOME 50 |
-| **XFCE** | `main.py` (GTK4) | `org.xfceinstaller.Installer` | xfce-platform |
-| **KDE** | `main_qt.py` (Qt/Kirigami) | `org.kdeinstaller.Installer` | kde-platform |
+### bootc-installer (Python, GTK4/Adwaita)
 
 The GUI collects user choices and writes a recipe JSON, then launches fisherman
 and tails its JSON log output (via a `GLib.timeout_add` polling loop in
@@ -185,10 +157,6 @@ git push
 ```bash
 cd /path/to/bootc-installer
 # edit bootc_installer/views/*.py or other files
-
-# Lint before committing
-python3 -m ruff check bootc_installer/ tests/
-
 git add -A && git commit -m "fix: describe the change"
 git push
 ```
@@ -219,39 +187,10 @@ ssh user@<machine> \
 ### Running the installer (on a live machine)
 
 ```bash
-flatpak run org.bootcinstaller.Installer
-# XFCE variant:
-flatpak run org.xfceinstaller.Installer
-# KDE variant:
-flatpak run org.kdeinstaller.Installer
+flatpak run org.bootcos.Installer
 # Or with a local fisherman binary (dev/test):
-BOOTC_FISHERMAN_PATH=/path/to/fisherman flatpak run org.bootcinstaller.Installer
+BOOTC_FISHERMAN_PATH=/path/to/fisherman flatpak run org.bootcos.Installer
 ```
-
-### Local dev loop (Flatpak)
-
-```bash
-# First-time build (~5-10 min; everything cached after)
-flatpak run org.flatpak.Builder --ccache --force-clean \
-  _build flatpak/org.bootcinstaller.Installer.Devel.json
-
-# Daily iteration
-./dev.sh           # rebuild if .py/.blp/.xml changed, then launch (BOOTC_DEMO=1)
-./dev.sh --rebuild # force full rebuild
-./dev.sh --run     # skip rebuild, launch immediately
-./dev.sh --screen progress  # preview a single screen
-./dev.sh --logs    # tail debug log only
-```
-
-`BOOTC_DEMO=1` runs a fake 5-step progress sequence — no fisherman launched, no disk touched.  
-Debug log (inside sandbox): `~/.var/app/org.bootcinstaller.Installer.Devel/cache/bootc-installer/installer-debug.log`
-
-**How it works:** `dev.sh` uses `flatpak run org.flatpak.Builder --run _build manifest.json sh -c '/app/bin/bootc-installer'`. The `--run` subcommand applies the manifest's `finish-args` (Wayland, host filesystem, polkit) but executes from the local `_build/` directory. No user/system install needed.
-
-⚠️ **PATH in `--run` mode:** `/app/bin` is NOT in `PATH` by default — always invoke as `/app/bin/bootc-installer`, not `bootc-installer`.
-
-# Build all three variants as Flatpaks in one shot
-./BUILD_ALL_VARIANTS.sh --install
 
 ### Invoking fisherman directly (for testing)
 
@@ -273,8 +212,8 @@ ssh james@192.168.0.119 "tail -f ~/.cache/bootc-installer/fisherman-output.log"
 
 - **Every push to `dev`** triggers `.github/workflows/flatpak.yml` which builds
   the Flatpak and publishes it as the `continuous-dev` pre-release on GitHub (pushes to `prod` publish the `continuous` pre-release).
-- **`.github/workflows/python-test.yml`** runs on every push: 665+ unit tests
-  (no display) + GTK UI integration tests (Xvfb). Coverage gate: 47% unit.
+- **`.github/workflows/python-test.yml`** runs on every push: 210+ unit tests
+  (no display) + 14 GTK UI integration tests (Xvfb).
 - **Tagged pushes** (`v*`) publish a named release.
 - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
 - The submodule is checked out recursively by CI (`submodules: recursive`).
@@ -290,125 +229,28 @@ Always verify CI passes after pushing both submodule + parent repo commits.
 ```
 tests/
 ├── unit/
-│   ├── test_processor.py       ← 185+ pure-Python tests for processor.py (no display)
-│   ├── test_image_helpers.py   ← 55+ tests for defaults/image.py pure helpers (_imgref_to_pretty_name, _count_leaves, _fetch_remote_flatpak_list, _load_manifest overrides)
-│   ├── test_system.py          ← 40 tests for core/system.py (generate_hostname, has_nvidia_gpu, is_uefi, is_ram_enough)
+│   ├── test_processor.py       ← 153+ pure-Python tests for processor.py (no display)
 │   ├── test_confirm_helpers.py ← 21 tests for confirm.py pure logic (_ENC_LABELS, quotes)
-│   ├── test_slurp_helpers.py   ← 45+ tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
-│   ├── test_defaults_misc.py   ← tests for vm, nvidia, theme, network, conn_check defaults
-│   ├── test_conn_check.py      ← tests for conn_check.py: should_show() offline/online, async check, env bypass
-│   ├── test_codec_check.py     ← tests for utils/codec_check.py: GStreamer VP9/AV1 probe logic (100% coverage)
-│   ├── test_done.py            ← D-Bus reboot contract, apply_icon, warmup_registry, icon extraction
-│   ├── test_recipe.py          ← tests for utils/recipe.py RecipeLoader (100% coverage)
+│   ├── test_slurp_helpers.py   ← 23 tests for slurp.py pure logic (_fmt_bytes, get_finals, etc.)
+│   ├── test_defaults_misc.py   ← tests for conn_check, vm, nvidia, theme, network defaults
+│   ├── test_done.py            ← tests for views/done.py: D-Bus reboot contract, apply_icon, warmup_registry
 │   ├── test_recipe_loader.py   ← tests for utils/recipe loader logic incl. Flatpak live-ISO path
 │   ├── test_run_async.py       ← tests for utils/run_async helpers
-│   ├── test_recovery_key.py    ← set_recovery_key, ack_toggled, on_copy, on_continue (79% coverage)
-│   ├── test_welcome.py         ← _needs_bluetooth_pairing() all branches, get_finals, should_show (68% coverage)
-│   ├── test_user_validation.py ← username derivation, password strength, get_finals()
-│   ├── test_locale.py          ← tests for defaults/locale.py keyboard/locale enumeration
-│   ├── test_diskutils.py       ← core/disks.py: Disk/Partition/DisksManager via __new__ + injection (99% coverage)
-│   ├── test_disks.py           ← DisksManager boot-disk filtering: excludes boot disk, removable media
-│   ├── test_keymaps.py         ← tests for keymaps module layout
-│   ├── test_main_args.py       ← tests for __main__.py CLI argument parsing
-│   ├── test_main_window.py     ← main_window navigation regression: page.delta getattr safety
-│   ├── test_meson_sources.py   ← guard: every .py in each subpackage must be listed in meson.build
-│   ├── test_network_helpers.py ← defaults/network.py pure logic (NM-stubbed, no D-Bus)
-│   ├── test_pastry_compat.py   ← tests for libpastry integration compat layer
-│   ├── test_progress.py        ← views/progress.py: _fisherman_argv_direct, staged binary helpers
-│   ├── test_progress_parser.py ← utils/progress_parser.py: apply_progress_event, new_progress_state (100% coverage)
-│   ├── test_qr_companion.py    ← tests for qr_companion.py / phone_companion.py (CompanionServer, get_local_ip, QR step logic)
-│   ├── test_phone_companion.py ← CompanionServer lifecycle, get_local_ip, TLS setup, handler GET/POST (all mocked — no network)
-│   ├── test_finals.py          ← _extract_icon_and_name() edge cases (empty, split fields, first-occurrence)
-│   ├── test_builder.py         ← Builder class: load, display-conditions, get_finals, distro_info (99% coverage)
-│   ├── test_disk.py            ← defaults/disk.py pure logic: should_show, get_finals, auto_select, partition recipe
-│   ├── test_timezone.py        ← BootcDefaultTimezone get_finals, timezone_verify, gen/del_deltas
-│   ├── test_language.py        ← BootcDefaultLanguage get_finals, gen/del_deltas
-│   ├── test_keyboard.py        ← BootcDefaultKeyboard get_finals, layout selection
-│   ├── test_encryption.py      ← BootcDefaultEncryption get_finals, passphrase strength (Weak/Fair/Strong), btn_next logic
-│   ├── test_dialog_recovery.py ← _host_binary_exists() subprocess helper (61% coverage)
-│   ├── test_layouts.py         ← BootcLayoutYesNo/BootcLayoutPreferences: get_finals, should_show, __next_step, __on_response, __on_info
-│   ├── test_tour_helpers.py    ← BootcTour.__build_ui() asset URI routing (resource:///, resource://, abs path, GResource path)
-│   └── test_branding_parity.py ← parity guard: all wizard steps must be importable
-├── ui/
-│   ├── conftest.py             ← GResource loader + Adw.init() for headless GTK
-│   ├── test_wizard.py          ← GTK integration tests (real widgets via Xvfb)
-│   ├── test_should_show.py     ← tests for should_show() step visibility pattern
-│   ├── test_done_credits.py    ← tests for done screen and credits dialog
-│   ├── test_demo_e2e.py        ← end-to-end demo flow tests
-│   └── test_confirm_progress.py ← GTK integration: confirm.py screen rendering + BootcProgress widget
-└── integration/
-    └── test_e2e_install.py     ← end-to-end fisherman install tests (requires root + QEMU/NBD; not run in standard CI)
+│   └── test_recovery_key.py    ← tests for views/recovery_key pure logic
+└── ui/
+    ├── conftest.py          ← GResource loader + Adw.init() for headless GTK
+    └── test_wizard.py       ← 14 GTK integration tests (real widgets via Xvfb)
 ```
 
 Run unit tests:
 ```bash
-pytest tests/unit/ -q
+pytest tests/unit/ -v
 ```
 
 Run UI tests (requires a display — use Xvfb in CI or a live X session locally):
 ```bash
-xvfb-run -a pytest tests/ui/ -q
+xvfb-run -a pytest tests/ui/ -v
 ```
-
-Run integration tests (requires root, fisherman binary, QEMU+NBD):
-```bash
-# See tests/integration/test_e2e_install.py for full prerequisites
-sudo FISHERMAN_BIN=/tmp/fisherman-test pytest tests/integration/ -v -s
-```
-
-### Coverage baseline
-
-Current measured coverage (as of 2026-06-10, post quality audit):
-- **Unit tests**: 53% of `bootc_installer/` (707 tests, 5421 stmts) — CI gate: `--cov-fail-under=51`
-- **UI tests**: not measured locally (requires meson/ninja build for GResources)
-
-Key per-module baselines:
-| Module | Coverage |
-|--------|----------|
-| `utils/processor.py` | 100% |
-| `utils/progress_parser.py` | 100% |
-| `utils/codec_check.py` | 100% |
-| `utils/finals.py` | 100% |
-| `utils/recipe.py` | 100% |
-| `views/confirm_data.py` | 100% |
-| `core/system.py` | 100% |
-| `core/disks.py` | 99% |
-| `utils/builder.py` | 99% |
-| `utils/phone_companion.py` | 97% |
-| `utils/run_async.py` | 94% |
-| `utils/pastry_compat.py` | 93% |
-| `views/tour.py` | 83% |
-| `defaults/timezone.py` | 85% |
-| `views/recovery_key.py` | 79% |
-| `defaults/welcome.py` | 68% |
-| `defaults/language.py` | 69% |
-| `defaults/nvidia.py` | 69% |
-| `defaults/user.py` | 65% |
-| `defaults/image.py` | 61% |
-| `defaults/keyboard.py` | 62% |
-| `windows/dialog_recovery.py` | 61% |
-| `layouts/preferences.py` | 61% |
-| `defaults/qr_companion.py` | 59% |
-| `defaults/theme.py` | 59% |
-| `layouts/yes_no.py` | 58% |
-| `views/done.py` | 53% |
-| `windows/dialog_credits.py` | 45% |
-| `defaults/conn_check.py` | 72% |
-| `defaults/encryption.py` | 73% |
-| `defaults/vm.py` | 67% |
-| `views/progress.py` | 20% (GTK-heavy, unit-test only via mocks) |
-| `defaults/disk.py` | 31% (GTK-heavy) |
-| `defaults/slurp.py` | 29% (GTK-heavy) |
-| `defaults/network.py` | 26% (GTK-heavy) |
-| `windows/main_window.py` | 0% (GTK-heavy, covered by UI tests) |
-| `main_qt.py` | 0% (KDE variant — covered manually) |
-
-The CI coverage gate (`--cov-fail-under`) is a ratchet — it should only go up. To measure before raising the gate:
-```bash
-pytest tests/unit/ -q --cov=bootc_installer --cov-report=term-missing 2>&1 | tail -5
-xvfb-run -a pytest tests/ui/ -q --cov=bootc_installer --cov-report=term-missing 2>&1 | tail -5
-```
-Never raise the gate above the *measured* value — use the actual number as the new floor, not an aspirational target.
 
 ### Rules for keeping tests in sync with UI changes
 
@@ -418,47 +260,15 @@ Never raise the gate above the *measured* value — use the actual number as the
   parametrized test asserting the correct JSON value in the output recipe.
 
 **When you change `bootc_installer/utils/finals.py`:**
-- Update `tests/unit/test_finals.py` — covers all `_extract_icon_and_name()` edge cases
-  (empty list, non-dict entries, fields split across dicts, first-occurrence wins, early break).
-
-**When you add or change `bootc_installer/utils/codec_check.py`:**
-- Update `tests/unit/test_codec_check.py` — covers GStreamer element probe, missing-codec error path, and fallback behavior.
-
-**When you change `bootc_installer/defaults/image.py` pure helpers:**
-- Update `tests/unit/test_image_helpers.py` — covers `_find_icon_for_imgref`, `_resolve_aliases`, `_imgref_to_pretty_name`, `_count_leaves`, `_fetch_remote_flatpak_list`, and `_load_manifest` override paths.
-- Note: `_imgref_to_pretty_name` returns slashless input unchanged (not title-cased).
-
-**When you change `bootc_installer/core/system.py`:**
-- Update `tests/unit/test_system.py` — covers `generate_hostname` (DMI + fallbacks), `has_nvidia_gpu`, `is_uefi`, `is_ram_enough`, `is_cpu_enough`.
+- Update `tests/unit/test_done.py::TestMainWindowIconExtraction` — it imports
+  `_extract_icon_and_name` directly and tests all edge cases (non-dict entries,
+  fields split across dicts, first-occurrence wins, empty list).
 
 **When you change a wizard step's `get_finals()` output (e.g. `defaults/image.py`,
 `defaults/disk.py`, `defaults/encryption.py`, `defaults/user.py`):**
-- Update the corresponding `tests/unit/test_disk.py`, `test_encryption.py`, etc. if the
-  changed step has a dedicated test file.
 - Update `tests/ui/test_wizard.py` if the changed step is covered there.
 - If a new `get_finals()` key is added, add an assertion for it in the
   relevant `TestXxxStep` class.
-
-**When you add or change `bootc_installer/utils/recipe.py`:**
-- Update `tests/unit/test_recipe.py` — covers RecipeLoader (100% coverage).
-
-**When you add or change meson.build source lists:**
-- `tests/unit/test_meson_sources.py` automatically validates that every `.py` in each subpackage is listed. Fix the meson.build, not the test.
-
-**When you change `bootc_installer/defaults/network.py` pure helpers:**
-- Update `tests/unit/test_network_helpers.py` — NM is stubbed, no D-Bus required.
-
-**When you change `bootc_installer/core/disks.py` boot-disk logic:**
-- Update `tests/unit/test_disks.py` (boot disk filtering) AND `tests/unit/test_diskutils.py` (Disk/Partition/DisksManager via `__new__`).
-
-**When you change `bootc_installer/utils/progress_parser.py`:**
-- Update `tests/unit/test_progress_parser.py` — covers `apply_progress_event` and `new_progress_state` (100% coverage).
-
-**When you change `bootc_installer/views/progress.py` argv/staging helpers:**
-- Update `tests/unit/test_progress.py` — covers `_fisherman_argv_direct` and staged binary path helpers without a display.
-
-**When you add a new `.py` file to any subpackage:**
-- Also add it to the `sources = [...]` list in the subpackage's `meson.build` — `test_meson_sources.py` will catch it otherwise.
 
 **When you add a new wizard step:**
 - Add the step to `_SYS_RECIPE["steps"]` in `tests/ui/test_wizard.py` only if
@@ -467,12 +277,6 @@ Never raise the gate above the *measured* value — use the actual number as the
   If in doubt, leave the step out of the test recipe and test via unit tests only.
 - Add unit test coverage in `test_processor.py` for any new recipe fields the
   step produces.
-- Add the step's module to `test_branding_parity.py` — that test guards that all
-  wizard step modules are importable without a display.
-
-**When you add a new defaults/ module with `should_show()` logic:**
-- Add a test in `test_conn_check.py` (or a peer file) covering both the True
-  and False branches, including any offline/env-flag bypass paths.
 
 **When you change `fisherman/fisherman/internal/recipe/recipe.go`:**
 - Update `fisherman/fisherman/internal/recipe/recipe_test.go` — add valid and
@@ -498,74 +302,22 @@ Never raise the gate above the *measured* value — use the actual number as the
 | `fisherman/fisherman/internal/slurp/data.go` | `ExtractData`/`InjectData` with RAM budget enforcement |
 | `fisherman/fisherman/internal/recipe/recipe.go` | Recipe struct, `SlurpSpec`, `Validate()` |
 | `bootc_installer/views/progress.py` | Video player, fisherman launch, JSON progress parsing |
-| `bootc_installer/views/confirm.py` | Pre-install confirmation screen |
-| `bootc_installer/views/confirm_data.py` | Data confirmation view helper |
 | `bootc_installer/views/recovery_key.py` | Recovery key screen (post-encrypted-install) |
 | `bootc_installer/views/done.py` | Final screen, reboot button, log viewer, `warmup_registry()` (post-install skopeo warmup) |
-| `bootc_installer/views/tour.py` | Post-install feature tour |
-| `bootc_installer/widgets/page_header.py` | Reusable page header widget |
 | `bootc_installer/defaults/conn_check.py` | Connection check — skipped when offline_install=True |
 | `bootc_installer/windows/main_window.py` | Wizard, `_is_offline_install()`, context builder, `update_finals()` |
-| `bootc_installer/windows/dialog_credits.py` | Credits dialog |
-| `bootc_installer/windows/dialog_output.py` | Output/log viewer dialog |
-| `bootc_installer/windows/dialog_poweroff.py` | Power-off confirmation dialog |
-| `bootc_installer/windows/dialog_recovery.py` | Recovery key display dialog |
-| `bootc_installer/windows/window_cpu.py` | CPU hardware warning window |
-| `bootc_installer/windows/window_ram.py` | RAM hardware warning window |
-| `bootc_installer/windows/window_unsupported.py` | Unsupported hardware warning window |
 | `bootc_installer/utils/processor.py` | Recipe assembly: slurpWallpapers, additionalImageStores |
 | `bootc_installer/utils/finals.py` | `_extract_icon_and_name()` — pure helper used by `main_window.update_finals()` |
-| `bootc_installer/utils/recipe.py` | `RecipeLoader` — loads and validates recipe.json from multiple override paths |
-| `bootc_installer/utils/codec_check.py` | GStreamer VP9/AV1 codec probe — called by progress.py before video playback |
-| `bootc_installer/utils/progress_parser.py` | Pure parser: `apply_progress_event()`, `new_progress_state()` — no GTK dependency |
-| `bootc_installer/defaults/qr_companion.py` | QR Phone Companion wizard step (`BootcDefaultQrCompanion`): starts CompanionServer, shows QR code, polls for phone config |
-| `bootc_installer/utils/phone_companion.py` | `CompanionServer` (HTTPS/8443), `get_local_ip()`, `CONFIG_RECEIVED_EVENT` — must be mocked in tests |
 | `bootc_installer/defaults/slurp.py` | Windows data slurp wizard step: async fisherman scan, category checkboxes, budget warning |
-| `bootc_installer/kde/` | Qt/Kirigami entry point and QML UI for KDE variant |
-| `bootc_installer/main_qt.py` | Qt/Kirigami Python entry point for KDE variant |
-| `flatpak/org.bootcinstaller.Installer.json` | GNOME Flatpak manifest (GNOME 50 runtime) |
 | `flatpak/org.bootcinstaller.Installer.Devel.json` | Devel Flatpak manifest (GNOME 50 runtime) |
-| `flatpak/org.xfceinstaller.Installer.json` | XFCE Flatpak manifest |
-| `flatpak/org.kdeinstaller.Installer.json` | KDE Flatpak manifest |
-| `dev.sh` | Flatpak dev loop: `flatpak-builder --run`, `BOOTC_DEMO=1`, `--rebuild`/`--run`/`--screen`/`--logs` flags |
-| `BUILD_ALL_VARIANTS.sh` | Build all three variants (GNOME + XFCE + KDE) as Flatpaks |
-| `MULTI_VARIANT_BUILD.md` | Guide for the multi-variant build system |
-| `QUALIFY_SOFTWARE.sh` | Software-only release qualification (all unit + UI tests + ruff) |
-| `docs/live-iso.md` | How to build a bootable live ISO with bootc-installer |
-| `docs/features/` | Per-feature design docs (GStreamer codec validation, libpastry, QR companion) |
-| `docs/test-plans/` | Test plans: E2E verification, encryption matrix, failure paths, release qualification |
 | `.github/workflows/flatpak.yml` | CI build + publish workflow |
 | `.github/workflows/python-test.yml` | CI unit + GTK UI integration tests |
-| `tests/unit/test_processor.py` | 185+ unit tests for processor paths, disk variants, image fallbacks (no display) |
-| `tests/unit/test_slurp_helpers.py` | 45+ unit tests for slurp.py pure logic (no display) |
-| `tests/unit/test_codec_check.py` | unit tests for GStreamer codec probe (no display) |
-| `tests/unit/test_conn_check.py` | unit tests for conn_check.py should_show() + offline bypass |
+| `tests/unit/test_processor.py` | 153+ unit tests for processor, progress, disks (no display) |
+| `tests/unit/test_slurp_helpers.py` | 23 unit tests for slurp.py pure logic (no display) |
 | `tests/unit/test_done.py` | D-Bus reboot contract, apply_icon, warmup_registry, icon extraction |
-| `tests/unit/test_finals.py` | _extract_icon_and_name() all edge cases (empty, split, first-wins) |
-| `tests/unit/test_builder.py` | Builder class: load, conditions, get_finals, distro_info (99% coverage) |
-| `tests/unit/test_phone_companion.py` | CompanionServer lifecycle + handler GET/POST; all network mocked |
-| `tests/unit/test_disk.py` | defaults/disk.py pure logic: should_show, get_finals, auto_select |
-| `tests/unit/test_encryption.py` | BootcDefaultEncryption: get_finals, passphrase strength, btn_next |
-| `tests/unit/test_timezone.py` | BootcDefaultTimezone: get_finals, gen/del_deltas |
-| `tests/unit/test_language.py` | BootcDefaultLanguage: get_finals, gen/del_deltas |
-| `tests/unit/test_keyboard.py` | BootcDefaultKeyboard: get_finals, layout selection |
-| `tests/unit/test_qr_companion.py` | QR step logic (mocked — no network) |
-| `tests/unit/test_diskutils.py` | core/disks.py: Disk/Partition/DisksManager pure logic (99% coverage) via `__new__` + injection |
-| `tests/unit/test_disks.py` | DisksManager boot-disk filtering (excludes boot disk + removable media) |
-| `tests/unit/test_recovery_key.py` | recovery_key.py: set_recovery_key, ack_toggled, on_copy, on_continue (79% coverage) |
-| `tests/unit/test_welcome.py` | welcome.py: _needs_bluetooth_pairing() all branches, get_finals, should_show |
-| `tests/unit/test_defaults_misc.py` | vm/nvidia/theme/conn_check/network step logic (no display) |
-| `tests/unit/test_network_helpers.py` | defaults/network.py pure logic (NM stubbed, no D-Bus) |
-| `tests/unit/test_progress.py` | views/progress.py: _fisherman_argv_direct, staged binary helpers |
-| `tests/unit/test_progress_parser.py` | utils/progress_parser.py: apply_progress_event + new_progress_state (100%) |
-| `tests/unit/test_recipe.py` | utils/recipe.py RecipeLoader: load, validate, override paths (100%) |
-| `tests/unit/test_main_window.py` | main_window.py navigation regression: page.delta getattr safety |
-| `tests/unit/test_meson_sources.py` | guard: every .py in each subpackage listed in meson.build |
 | `tests/ui/conftest.py` | GResource loader + `Adw.init()` for headless GTK tests |
 | `tests/ui/test_wizard.py` | GTK integration tests (image step finals, E2E recipe gen) |
 | `tests/ui/test_should_show.py` | Tests for should_show() step visibility pattern |
-| `tests/ui/test_confirm_progress.py` | GTK integration: confirm.py screen + BootcProgress widget |
-| `tests/integration/test_e2e_install.py` | E2E fisherman install tests (root + QEMU/NBD; not in standard CI) |
 
 ---
 
@@ -594,55 +346,10 @@ Never raise the gate above the *measured* value — use the actual number as the
      Assign `done_mod.Gio = gio_stub` in `setUp()` so `patch.object` always targets a
      controllable object and typos like `Gio.BusTyp` surface as failures.
   Fixed in #67 and hardened across `test_done.py` / `test_branding_parity.py`.
-- **`patch("module.Gio.method")` fails when real GIO is loaded first**: When
-  `test_builder.py` (or any module that imports real GTK) runs before a test that tries to
-  patch `bootc_installer.defaults.image.Gio.resources_lookup_data`, the patch silently
-  fails — the real C-extension method is called instead. **Fix**: use `_import_image_fresh()`
-  to reload the module with gi stubs, then set `fresh_mod.Gio.resources_lookup_data = MagicMock(...)`
-  directly on the reloaded module's attribute. Never use `patch("...Gio.some_method", ...)` 
-  when the test file might run after one that loads the real Gio. See
-  `tests/unit/test_image_helpers.py::TestLoadManifestOverrides` for the canonical pattern.
-  Fixed in PR #164.
-- **`CompanionServer.start()` global reset (fixed in #106)**: `GLOBAL_CONFIG = None`
+- **`CompanionServer.start()` global reset (fixed in #70)**: `GLOBAL_CONFIG = None`
   inside a method creates a local variable, not a module-level reset. Always add
   `global GLOBAL_CONFIG` before the assignment when resetting module-level state.
-- **Rebase + force-push for overlapping test PRs**: When merging multiple PRs that
-  all add to the same test files (`test_branding_parity.py`, `test_done.py`,
-  `test_network_helpers.py`, `test_slurp_helpers.py`), always rebase onto the latest
-  `dev` and **run `pytest tests/unit/ -q` after resolving any conflict** before
-  pushing. "Keeping both sides" of an additive conflict looks safe but can
-  introduce subtle import/indentation errors that only surface at runtime.
-- **GitHub Actions won't trigger `pull_request` events on conflicting branches**: If
-  a PR branch has merge conflicts with the target branch, GitHub silently skips the
-  `pull_request` event — no check runs appear. Always rebase onto `dev` before
-  investigating why CI isn't triggering.
-- **`CompanionServer` / `get_local_ip` must be mocked in UI tests**: Any test that
-  navigates past the QR Companion wizard step (via `window.next()` or `carousel.page-changed`)
-  will call `__start_companion()` which runs `openssl` subprocess + UDP socket to `8.8.8.8`.
-  Both block in CI. Always add to the patcher list:
-  `patch("bootc_installer.defaults.qr_companion.CompanionServer")` and
-  `patch("bootc_installer.defaults.qr_companion.get_local_ip", return_value="127.0.0.1")`.
-- **GTK widget unit testing — `__new__` + attribute injection**: GTK subclasses (`Adw.Bin`,
-  `Adw.ActionRow`, etc.) cannot be instantiated via `__init__` without a display. Use
-  `cls.__new__(cls)` then manually inject private attributes (Python name-mangling:
-  `obj._ClassName__attr = ...`) and mock widget children (`obj.hostname_entry = MagicMock()`).
-  Combined with `_build_gi_stubs()` at module level this lets you test `get_finals()`,
-  `should_show()`, passphrase strength logic, and other pure methods without Xvfb.
-  See `tests/unit/test_disk.py`, `test_encryption.py`, `test_timezone.py` for canonical examples.
-- **Dialog stub staleness across multiple `_build_gi_stubs()` calls**: Each call to
-  `_build_gi_stubs()` (one per `_import_X_fresh()`) creates a **new** `BootcDialog = MagicMock()`
-  and stores it in `sys.modules["bootc_installer.windows.dialog"]`. Modules that already ran
-  `from bootc_installer.windows.dialog import BootcDialog` hold the **old** reference. If a
-  test tracks the dialog via `sys.modules["bootc_installer.windows.dialog"].BootcDialog`, it
-  gets the current (newer) stub — which was never called — and the assertion fails. **Fix:**
-  Always reference the dialog mock via the module's own attribute: `_yn_mod.BootcDialog` (not
-  `sys.modules["bootc_installer.windows.dialog"].BootcDialog`). See `test_layouts.py` for
-  the canonical pattern.
-- **`pytest-cov --cov-fail-under` rounding quirk**: 47.57% is displayed as "48%" in terminal
-  output and the FAIL message prints "Total coverage: 47.57%" while exiting with code 0 when
-  `--cov-fail-under=48`. This is because pytest-cov 7.1.0 rounds the displayed value before
-  comparing. Set the gate one point below the displayed integer (e.g., `--cov-fail-under=47`
-  for 47.57% measured coverage) so the intent is unambiguous and the exit code is clean.
+
 ---
 
 ## Post-install "instant first boot" features
@@ -692,15 +399,15 @@ sudo umount /tmp/ir
 
 ## Future Architectural Considerations
 
-- **Multi-variant installer (Done)**: Single codebase now ships GNOME (GTK4/Adwaita), XFCE (GTK4), and KDE (Qt/Kirigami) variants. `meson_options.txt` controls the `variant=` selector. See `MULTI_VARIANT_BUILD.md` for the full build guide.
 - **Move `images.json` to `fisherman` (Done)**: The image registry (`fisherman/data/images.json`) now lives in the `fisherman` backend. This allows `fisherman` to act as a universal registry of BootC images, containing not just the OCI references but also the specific installation requirements for each image (e.g., whether it requires manual user creation, specific kernel arguments, or filesystem defaults).
 - **Universal BootC Registry**: Evolving the image manifest into a standard format that other installers or tools could consume to understand the "metadata" of a BootC image.
 - **Dynamic Installation Carousel**: Replaced with video playback (Gtk.Video + AV1/VP9). Distribution can provide a branded video via `/etc/bootc-installer/install-video.webm`.
 - **Windows Data Slurp (Done — #22)**: Backend (`fisherman scan`, `ExtractData`, `InjectData`) and GUI wizard step (`bootc_installer/defaults/slurp.py`) are fully implemented. The step runs an async scan, presents per-user category checkboxes with size estimates, and enforces a RAM budget warning. Wallpaper extraction also runs as an always-on easter egg.
 - **Offline-first Install (Done — #16)**: `_is_offline_install()` detects live ISO mode; `additionalImageStores` passes pre-baked OCI stores from the ISO to fisherman/podman.
-- **GStreamer VP9/AV1 codec validation (Done — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
-- **libpastry integration (Done — #71)**: Integrates libpastry for install-time configuration generation.
-- **QR Phone Companion MVP (Done — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`. `BootcDefaultQrCompanion` wizard step in `bootc_installer/defaults/qr_companion.py`.
+- **GStreamer VP9/AV1 codec validation (landing — #72)**: Validates that required video codecs are present before playback begins, surfacing a clear error instead of a silent blank video.
+- **libpastry integration (landing — #71)**: Integrates libpastry for install-time configuration generation.
+- **QR soundtrack codes (landing — #73)**: Pre-generates QR codes for soundtrack tracks at build time so they display instantly during the installation carousel.
+- **QR Phone Companion MVP (landing — #70)**: Serves a local HTTPS companion server during install; the user can scan a QR code with their phone to follow along. `CompanionServer` in `bootc_installer/utils/phone_companion.py`.
 - **DX groups on first install (Done — #74)**: `docker`, `incus-admin`, `libvirt`, and `dialout` added to `_DEFAULT_GROUPS` in `bootc_installer/defaults/user.py` so newly-created users have full developer access from first boot without needing `ujust dx-group`.
 
 ---
