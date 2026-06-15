@@ -23,6 +23,8 @@ def _pump():
 class _DummyWindow:
     def __init__(self):
         self.results = []
+        # progress.py __setup_fallback_panel reads window.recipe
+        self.recipe = {}
 
     def set_installation_result(self, *args):
         self.results.append(args)
@@ -60,9 +62,13 @@ class TestConfirmScreen:
         ):
             confirm.update(finals)
 
-        rows = {(widget.get_title(), widget.get_subtitle()) for widget in confirm.active_widgets}
+        def _row_key(widget):
+            # Adw.EntryRow (hostname) has no get_subtitle; use get_text instead.
+            subtitle = getattr(widget, 'get_text', None) or getattr(widget, 'get_subtitle', None)
+            return (widget.get_title(), subtitle() if callable(subtitle) else "")
+        rows = {_row_key(widget) for widget in confirm.active_widgets}
         assert confirm.page_header.subtitle == '"Go beyond it." — Ayrton Senna'
-        assert confirm.btn_confirm.get_label() == "( Become Legend )"
+        assert confirm.btn_confirm.get_label() == "Become Legend"
         assert ("Language", "pt_BR.UTF-8") in rows
         assert ("Keyboard 1", "us") in rows
         assert ("Keyboard 2", "br+abnt2") in rows
@@ -70,7 +76,7 @@ class TestConfirmScreen:
         assert ("Users", "jorge (Jorge Castro)") in rows
         assert ("Disk", "/dev/nvme0n1 (1 TB)") in rows
         assert ("Encryption", "Hardware-backed + passphrase fallback") in rows
-        assert ("Hostname", "legendary-box") in rows
+        assert ("Hostname", "legendary-box") in rows  # EntryRow, text via get_text
         assert ("Image", "Bluefin GTS") in rows
         assert ("Graphics", "AMD Radeon") in rows
         assert (
