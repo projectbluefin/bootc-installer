@@ -423,6 +423,27 @@ feature/xyz  ──►  dev  ──►  prod
 - Never open PRs directly against `prod`. Features land on `dev` first.
 - The merge queue is enabled for `dev`. Use `gh pr merge --squash <number>` or enqueue via the GitHub UI.
 
+## Verification requirements for installer changes
+
+**Unit tests passing is not sufficient for installer changes that affect the install path.**
+
+Before merging any change to:
+- Default filesystem (`disk.py`, `images.json`, `recipe.json`)
+- Encryption or bootloader defaults
+- fisherman post-install steps (hostname, flatpak copy, user creation)
+- `processor.py` recipe generation
+
+You must provide evidence of a **complete installation test** — not just that the UI works or the unit tests pass:
+
+```bash
+# In dakota-iso: run a full install E2E test
+just plain-e2e dakota   # or luks-e2e for encrypted
+```
+
+Or on real hardware: install, reboot, verify the installed system boots.
+
+**"Tests pass" ≠ "install works."** The unit tests mock fisherman. They cannot catch missing host tools (`mkfs.xfs`, `mkfs.btrfs`), wrong filesystem paths, or post-install failures that only occur during a real `bootc install to-filesystem` run. See issue [#190](https://github.com/projectbluefin/bootc-installer/issues/190).
+
 ### Querying features in flight (targeting `dev`)
 
 To view active pull requests and their current check status:
