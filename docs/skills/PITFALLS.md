@@ -388,3 +388,29 @@ gh api repos/projectbluefin/bootc-installer/branches/dev/protection
 ```
 
 If direct pushes to `dev` are blocked with "2 of 2 required status checks expected", the block comes from a ruleset, not classic protection. Delete the ruleset to allow direct pushes.
+
+---
+
+## Changing default filesystem requires live-env tool check (2026-06-15)
+
+**Symptom:** `fisherman: fatal: missing required host tool: "mkfs.xfs" not found in PATH`
+immediately after clicking Install. Affects every user on the new ISO.
+
+**Cause:** When the installer default changed from `btrfs` to `xfs`, fisherman's preflight
+check for `mkfs.xfs` became active. The live ISO environment (GnomeOS/freedesktop-sdk base)
+did not have `xfsprogs` installed — only `btrfs-progs` was present.
+
+**Fix in dakota-iso:** Copy `mkfs.xfs` from the Debian build stage into the final live image:
+```dockerfile
+COPY --from=initramfs-builder /usr/sbin/mkfs.xfs /usr/sbin/mkfs.xfs
+```
+
+**Rule:** Any change to the default filesystem (in `images.json`, `recipe.json`, or
+`defaults/disk.py`) MUST be followed by a full E2E install test in the target live
+environment. Unit tests mock fisherman — they cannot catch missing host tools.
+The check lives in `fisherman/cmd/fisherman/main.go` (the `checkRequiredTools` slice).
+Before changing a default, verify every tool in that slice is present in the live squashfs.
+
+**How to check:** `podman unshare bash -c "M=\$(podman image mount <installer-image>); ls \$M/usr/sbin/mkfs.xfs || echo MISSING"`
+
+See: https://github.com/ublue-os/bluefin/discussions/4754
