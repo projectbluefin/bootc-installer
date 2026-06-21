@@ -143,6 +143,105 @@ class TestWelcomeBluetoothLogic(unittest.TestCase):
         self.assertIn(["flatpak-spawn", "--host", "gnome-bluetooth-panel"], attempted)
         self.assertIn(["flatpak-spawn", "--host", "blueman-manager"], attempted)
 
+    def test_bluetooth_launcher_returns_on_first_successful_popen(self):
+        self.mod._IN_FLATPAK = False
+        from unittest.mock import MagicMock
+        popen_mock = MagicMock()
+        with patch.object(self.mod.subprocess, "Popen", return_value=popen_mock) as popen:
+            self.mod.BootcDefaultWelcome._BootcDefaultWelcome__on_bluetooth_clicked(object(), None)
+        self.assertEqual(popen.call_count, 1)
+
+    def test_bluetooth_launcher_stops_on_generic_exception(self):
+        self.mod._IN_FLATPAK = False
+        with patch.object(self.mod.subprocess, "Popen", side_effect=RuntimeError("fail")):
+            self.mod.BootcDefaultWelcome._BootcDefaultWelcome__on_bluetooth_clicked(object(), None)
+
+    def test_detection_skips_device_without_device_path(self):
+        """When device_path does not exist, the device is skipped (line 40 continue)."""
+        fs = {
+            "globs": {
+                ("/sys/class/bluetooth", "hci*"): ["/sys/class/bluetooth/hci0"],
+                ("/sys/class/input", "event*"): ["/sys/class/input/event0"],
+            },
+            "exists": set(),
+        }
+        with patch.object(self.mod.pathlib, "Path", side_effect=lambda path: _FakePath(fs, path)):
+            self.assertTrue(self.mod._needs_bluetooth_pairing())
+
+    def test_detection_skips_device_without_phys_file(self):
+        """When phys_file does not exist, the device is skipped (line 44 continue)."""
+        fs = {
+            "globs": {
+                ("/sys/class/bluetooth", "hci*"): ["/sys/class/bluetooth/hci0"],
+                ("/sys/class/input", "event*"): ["/sys/class/input/event0"],
+            },
+            "exists": {"/sys/class/input/event0/device"},
+        }
+        with patch.object(self.mod.pathlib, "Path", side_effect=lambda path: _FakePath(fs, path)):
+            self.assertTrue(self.mod._needs_bluetooth_pairing())
+
+    def test_detection_skips_device_when_phys_read_fails(self):
+        """When phys_file.read_text() raises OSError, continue (lines 48-49)."""
+        fs = {
+            "globs": {
+                ("/sys/class/bluetooth", "hci*"): ["/sys/class/bluetooth/hci0"],
+                ("/sys/class/input", "event*"): ["/sys/class/input/event0"],
+            },
+            "exists": {
+                "/sys/class/input/event0/device",
+                "/sys/class/input/event0/device/phys",
+            },
+        }
+        with patch.object(self.mod.pathlib, "Path", side_effect=lambda path: _FakePath(fs, path)):
+            self.assertTrue(self.mod._needs_bluetooth_pairing())
+
+    def test_detection_skips_device_without_cap_file(self):
+        """When cap_file does not exist, the device is skipped (line 56 continue)."""
+        fs = {
+            "globs": {
+                ("/sys/class/bluetooth", "hci*"): ["/sys/class/bluetooth/hci0"],
+                ("/sys/class/input", "event*"): ["/sys/class/input/event0"],
+            },
+            "exists": {
+                "/sys/class/input/event0/device",
+                "/sys/class/input/event0/device/phys",
+            },
+            "text": {
+                "/sys/class/input/event0/device/phys": "usb-0000:00:14.0/input0\n",
+            },
+        }
+        with patch.object(self.mod.pathlib, "Path", side_effect=lambda path: _FakePath(fs, path)):
+            self.assertTrue(self.mod._needs_bluetooth_pairing())
+
+    def test_detection_skips_device_when_caps_read_fails(self):
+        """When cap_file.read_text() raises OSError, continue (lines 60-61)."""
+        fs = {
+            "globs": {
+                ("/sys/class/bluetooth", "hci*"): ["/sys/class/bluetooth/hci0"],
+                ("/sys/class/input", "event*"): ["/sys/class/input/event0"],
+            },
+            "exists": {
+                "/sys/class/input/event0/device",
+                "/sys/class/input/event0/device/phys",
+                "/sys/class/input/event0/device/capabilities/ev",
+            },
+            "text": {
+                "/sys/class/input/event0/device/phys": "usb-0000:00:14.0/input0\n",
+            },
+        }
+        with patch.object(self.mod.pathlib, "Path", side_effect=lambda path: _FakePath(fs, path)):
+            self.assertTrue(self.mod._needs_bluetooth_pairing())
+
+    def test_get_finals_returns_empty(self):
+        """get_finals() returns an empty dict."""
+        fake = object.__new__(self.mod.BootcDefaultWelcome)
+        self.assertEqual(fake.get_finals(), {})
+
+    def test_should_show_always_true(self):
+        """should_show always returns True."""
+        fake = object.__new__(self.mod.BootcDefaultWelcome)
+        self.assertTrue(fake.should_show({}))
+
 
 if __name__ == "__main__":
     unittest.main()

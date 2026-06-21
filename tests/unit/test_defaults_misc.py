@@ -229,3 +229,26 @@ class TestNetworkDeviceStatus:
                 )
                 assert status == "Connecting"
                 assert connected is False
+
+
+class TestNvidiaInfoPopover:
+    def test_show_info_popover_calls_popup(self):
+        with _import_with_gi_stubs("bootc_installer.defaults.nvidia") as mod:
+            popover = MagicMock()
+            fake = SimpleNamespace(info_popover=popover)
+            mod.BootcDefaultNvidia.show_info_popover(fake, None)
+            popover.popup.assert_called_once()
+
+
+class TestVmGetFinals:
+    def test_get_finals_with_none_use_vm_tools(self):
+        with _import_with_gi_stubs("bootc_installer.defaults.vm") as mod:
+            fake = SimpleNamespace(use_vm_tools=None)
+            assert mod.BootcDefaultVm.get_finals(fake) == {"vm": {"use-vm-tools": None}}
+
+
+class TestThemeGetFinals:
+    def test_get_finals_returns_empty_dict(self):
+        with _import_with_gi_stubs("bootc_installer.defaults.theme") as mod:
+            fake = SimpleNamespace()
+            assert mod.BootcDefaultTheme.get_finals(fake) == {}

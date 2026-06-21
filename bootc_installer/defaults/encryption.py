@@ -15,8 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from gi.repository import Adw, GLib, Gtk
-import os
+from gettext import gettext as _
+
+from gi.repository import Adw, Gtk
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/default-encryption.ui")
 class BootcDefaultEncryption(Adw.Bin):
@@ -111,8 +112,6 @@ class BootcDefaultEncryption(Adw.Bin):
 
         # Real-time strength feedback
         if password:
-            classes = set(c for c in [password.lower(), password.upper()]
-                          if any(ch.isalpha() for ch in c))
             has_upper = any(c.isupper() for c in password)
             has_lower = any(c.islower() for c in password)
             has_digit = any(c.isdigit() for c in password)

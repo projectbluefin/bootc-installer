@@ -12,7 +12,6 @@ Run with:
 
 import json
 import os
-import sys
 import tempfile
 from unittest.mock import patch as _mock_patch
 
@@ -21,7 +20,7 @@ import pytest
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, GLib, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, GLib, Gio  # noqa: E402
 
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -117,7 +116,6 @@ class TestWindowSmoke:
 
     def test_window_has_steps(self, window):
         """The builder should have registered at least the welcome step."""
-        from bootc_installer.utils.builder import Builder
         # The window exposes the builder via .builder property.
         assert hasattr(window, "builder") or hasattr(window, "_BootcWindow__builder")
 

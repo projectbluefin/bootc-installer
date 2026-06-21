@@ -11,7 +11,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib  # noqa: E402
 
-from bootc_installer.windows.main_window import BootcWindow
+from bootc_installer.windows.main_window import BootcWindow  # noqa: E402
 
 _RECIPE_PATH = Path(__file__).resolve().parents[2] / "recipe.json"
 
@@ -142,7 +142,7 @@ class TestDemoEndToEnd:
             scheduler.drain()
 
             done = _view(window, "done")
-            assert done.page_header.title == "Dakota is installed"
+            assert done.page_header.title == "Bluefin is installed"
             assert (
                 done.page_header.subtitle
                 == "Restart now to complete the installation."

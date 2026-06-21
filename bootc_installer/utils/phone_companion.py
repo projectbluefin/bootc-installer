@@ -32,7 +32,7 @@ COMPANION_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dakota Installer Companion</title>
+    <title>Bluefin Installer Companion</title>
     <style>
         :root {
             --bg-color: #0b0b0f;
@@ -166,7 +166,7 @@ COMPANION_HTML = """<!DOCTYPE html>
 <body>
     <div class="container">
         <div class="card" id="form-state">
-            <h1>Dakota Setup</h1>
+            <h1>Bluefin Setup</h1>
             <p class="subtitle">Complete your installation settings from your phone</p>
             
             <div class="form-group">
@@ -186,7 +186,7 @@ COMPANION_HTML = """<!DOCTYPE html>
             
             <div class="form-group">
                 <label for="hostname">Hostname</label>
-                <input type="text" id="hostname" placeholder="e.g. dakota-desktop" value="dakota-desktop" required>
+                <input type="text" id="hostname" placeholder="e.g. bluefin-desktop" value="bluefin-desktop" required>
             </div>
             
             <div class="form-group">
@@ -267,6 +267,11 @@ class CompanionRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(COMPANION_HTML.encode('utf-8'))
+        elif self.path in ["/config", "/api/config"]:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(GLOBAL_CONFIG or {}).encode("utf-8"))
         else:
             self.send_error(404, "Not Found")
 
@@ -344,3 +349,6 @@ class CompanionServer:
             self.server.shutdown()
             self.server.server_close()
             logger.info("Stopped Phone Companion server")
+
+    def get_config(self):
+        return GLOBAL_CONFIG

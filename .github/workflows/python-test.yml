@@ -9,9 +9,41 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Detect whether this PR only touches documentation — if so, skip tests
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for non-docs changes
+        id: filter
+        run: |
+          # Never skip on direct pushes to dev/prod or merge_group — only skip on PRs
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.sha }}"
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Changed files:"
+          echo "$changed"
+          # If every changed file matches a docs pattern, skip tests
+          if echo "$changed" | grep -qvE '^(README\.md|AGENTS\.md|CLAUDE\.md|MULTI_VARIANT_BUILD\.md|[^/]+\.md|docs/|\.github/[^/]+\.md)'; then
+            echo "docs_only=false" >> $GITHUB_OUTPUT
+          else
+            echo "docs_only=true" >> $GITHUB_OUTPUT
+          fi
+
   # ── Job 1: Pure-logic unit tests (no display, no GTK) ─────────────────────
   unit:
     name: Unit Tests (no display)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -28,7 +60,7 @@ jobs:
         run: pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=28
+        run: pytest tests/unit/ -v --tb=short --cov=bootc_installer --cov-report=xml --cov-report=term-missing --cov-fail-under=51
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -37,9 +69,26 @@ jobs:
           path: coverage.xml
           retention-days: 30
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: unit
+          fail_ci_if_error: false
+
+  unit-docs-skip:
+    name: Unit Tests (no display)
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Documentation-only change — unit tests skipped ✓"
+
   # ── Job 2: GTK integration tests (offscreen backend + compiled resources) ──
   ui:
     name: UI Integration Tests (offscreen GTK)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -92,3 +141,11 @@ jobs:
           name: coverage-ui
           path: coverage.xml
           retention-days: 30
+
+  ui-docs-skip:
+    name: UI Integration Tests (offscreen GTK)
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Documentation-only change — UI tests skipped ✓"

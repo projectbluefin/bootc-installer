@@ -23,8 +23,6 @@ cd "$SCRIPT_DIR"
 run_step "Validating Flatpak manifest JSON" bash -c '
   python3 -m json.tool flatpak/org.bootcinstaller.Installer.json >/dev/null
   python3 -m json.tool flatpak/org.bootcinstaller.Installer.Devel.json >/dev/null
-  python3 -m json.tool flatpak/org.xfceinstaller.Installer.json >/dev/null
-  python3 -m json.tool flatpak/org.kdeinstaller.Installer.json >/dev/null
 '
 
 run_step "Running Python unit tests" pytest tests/unit -q

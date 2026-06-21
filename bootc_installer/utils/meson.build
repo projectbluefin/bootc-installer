@@ -9,7 +9,6 @@ sources = [
   'recipe.py',
   'builder.py',
   'progress_parser.py',
-  'pastry_compat.py',
   'codec_check.py',
   'phone_companion.py',
 ]

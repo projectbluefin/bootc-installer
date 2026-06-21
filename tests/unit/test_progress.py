@@ -1,8 +1,6 @@
 """Unit tests for progress.py — no display required."""
-import json
 import os
 import sys
-import types
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -120,51 +118,6 @@ class TestFishermanArgvDirect(unittest.TestCase):
         self.assertIn(self.mod._FISHERMAN_LOG_PATH, script)
 
 
-class TestSoundtrackQrAssets(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        with patch.dict("sys.modules", _mock_gtk_imports()):
-            import importlib
-            import bootc_installer.views.progress as mod
-            if not hasattr(mod, "_track_qr_resource_path"):
-                importlib.reload(mod)
-            cls.mod = mod
-
-        tracks_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "..",
-            "bootc_installer",
-            "data",
-            "tracks.json",
-        )
-        with open(tracks_path, encoding="utf-8") as f:
-            cls.tracks = json.load(f)
-
-    def test_all_tracks_declare_bundled_qr_assets(self):
-        missing = [track["title"] for track in self.tracks if not track.get("qr_asset")]
-        self.assertEqual(missing, [])
-
-    def test_qr_assets_map_to_gresource_paths(self):
-        for track in self.tracks:
-            resource_path = self.mod._track_qr_resource_path(track)
-            self.assertTrue(resource_path.startswith("/org/bootcinstaller/Installer/assets/qr/"))
-            self.assertTrue(resource_path.endswith(track["qr_asset"]))
-
-    def test_qr_assets_exist_in_dev_tree(self):
-        missing = []
-        for track in self.tracks:
-            dev_path = self.mod._track_qr_dev_path(track)
-            if dev_path is None or not dev_path.exists():
-                missing.append(track["qr_asset"])
-        self.assertEqual(missing, [])
-
-    def test_missing_qr_asset_returns_no_path(self):
-        track = {"title": "Broken track"}
-        self.assertIsNone(self.mod._track_qr_resource_path(track))
-        self.assertIsNone(self.mod._track_qr_dev_path(track))
-
-
 class TestMediaStreamReadiness(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -184,6 +137,42 @@ class TestMediaStreamReadiness(unittest.TestCase):
         self.assertFalse(self.mod._media_stream_is_prepared(media_stream))
         media_stream.is_prepared.return_value = True
         self.assertTrue(self.mod._media_stream_is_prepared(media_stream))
+
+
+class TestFriendlySubstep(unittest.TestCase):
+    """Tests for _friendly_substep — a pure string function; no GTK required."""
+
+    def setUp(self):
+        import importlib
+        # Remove cached module so we get a fresh import with mocked GTK.
+        for key in list(sys.modules.keys()):
+            if "bootc_installer.views.progress" in key:
+                sys.modules.pop(key)
+        with patch.dict("sys.modules", _mock_gtk_imports()):
+            mod = importlib.import_module("bootc_installer.views.progress")
+        self.fn = mod._friendly_substep
+
+    def test_layer_progress_pattern(self):
+        result = self.fn("Pulling image: layer 23/71")
+        assert "23" in result
+        assert "71" in result
+
+    def test_pulling_container_image(self):
+        result = self.fn("Pulling container image")
+        assert result != "Pulling container image"  # was mapped
+        assert "Download" in result or "download" in result
+
+    def test_pulling_image_fallback(self):
+        result = self.fn("Pulling image sha256:abc123")
+        assert result != "Pulling image sha256:abc123"  # was mapped
+
+    def test_unknown_passthrough(self):
+        result = self.fn("Some totally unknown substep message")
+        assert result == "Some totally unknown substep message"
+
+    def test_fstrim_message(self):
+        result = self.fn("Running fstrim on /mnt/target")
+        assert result != "Running fstrim on /mnt/target"  # was mapped
 
 
 if __name__ == "__main__":

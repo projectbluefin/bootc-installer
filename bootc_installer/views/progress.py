@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import io
 import json
 import logging
 import os
@@ -32,38 +31,14 @@ _IN_FLATPAK = os.path.exists("/.flatpak-info")
 _LIVE_ISO = not _IN_FLATPAK and os.path.exists("/run/ostree-booted")
 _RESOURCE_PREFIX = "/org/bootcinstaller/Installer"
 _ASSET_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets"
-_TRACK_QR_DIR = _ASSET_DIR / "qr"
-_TRACK_COVER_DIR = _ASSET_DIR / "covers"
 
 # Where to stage fisherman so the host can see it (shared via --filesystem=host)
 _FISHERMAN_CACHE_DIR = os.path.join(os.environ.get("HOME", "/tmp"), ".cache", "bootc-installer")
 _FISHERMAN_HOST_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman")
 _FISHERMAN_LOG_PATH = os.path.join(_FISHERMAN_CACHE_DIR, "fisherman-output.log")
 
-from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state
-from bootc_installer.utils.pastry_compat import new_grid_spinner
-from bootc_installer.utils.codec_check import check_codecs_present
-
-
-def _track_qr_resource_path(track: dict) -> str | None:
-    qr_asset = track.get("qr_asset")
-    if not qr_asset:
-        return None
-    return f"{_RESOURCE_PREFIX}/assets/qr/{qr_asset}"
-
-
-def _track_qr_dev_path(track: dict) -> pathlib.Path | None:
-    qr_asset = track.get("qr_asset")
-    if not qr_asset:
-        return None
-    return _TRACK_QR_DIR / qr_asset
-
-
-def _track_cover_dev_path(track: dict) -> pathlib.Path | None:
-    cover_asset = track.get("cover_art")
-    if not cover_asset:
-        return None
-    return _TRACK_COVER_DIR / cover_asset
+from bootc_installer.utils.progress_parser import apply_progress_event, new_progress_state, _RE_LAYER_PROGRESS  # noqa: E402
+from bootc_installer.utils.codec_check import check_codecs_present  # noqa: E402
 
 
 def _media_stream_is_prepared(media_stream) -> bool:
@@ -108,7 +83,29 @@ def _stage_fisherman_on_host() -> bool:
         logger.error(f"Failed to stage fisherman binary: {e}")
         return False
 
-from gi.repository import Gdk, Gio, GLib, Gtk, Adw
+from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+
+
+
+def _friendly_substep(msg: str) -> str:
+    """Convert a raw fisherman substep message to human-friendly text.
+
+    Called by __parse_progress_line() before setting progress_substep label.
+    Unknown messages are returned as-is to preserve forward-compatibility.
+    """
+    m = _RE_LAYER_PROGRESS.match(msg)
+    if m:
+        done, total = m.group(1), m.group(2)
+        return _("Downloading\u2026 (%s of %s parts)") % (done, total)
+    if msg.startswith("Pulling container image"):
+        return _("Downloading system image\u2026")
+    if msg.startswith("Pulling image"):
+        return _("Downloading system image\u2026")
+    if "squash" in msg.lower() or "compress" in msg.lower():
+        return _("Compressing\u2026")
+    if "fstrim" in msg.lower() or "fsfreeze" in msg.lower():
+        return _("Optimizing drive\u2026")
+    return msg
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/progress.ui")
@@ -116,12 +113,10 @@ class BootcProgress(Gtk.Box):
     __gtype_name__ = "BootcProgress"
 
     media_box = Gtk.Template.Child()
-    soundtrack_box = Gtk.Template.Child()
-    track_carousel = Gtk.Template.Child()
     install_video = Gtk.Template.Child()
     video_fallback_box = Gtk.Template.Child()
-    btn_video_mode = Gtk.Template.Child()
-    btn_soundtrack_mode = Gtk.Template.Child()
+    fallback_dino = Gtk.Template.Child()
+    fallback_store_qr = Gtk.Template.Child()
     progressbar = Gtk.Template.Child()
     progressbar_text = Gtk.Template.Child()
     progress_percentage = Gtk.Template.Child()
@@ -150,10 +145,6 @@ class BootcProgress(Gtk.Box):
         self.__start_time = None
         self.__elapsed_timer_id = None
         self.__last_fraction = 0.0  # for ETA computation
-        self.__current_media_mode = "video"
-        self.__syncing_mode_buttons = False
-        self._carousel_timer = None
-        self._tracks_loaded = False
         self._video_configured = False
         self._video_fallback_timeout_id = None
 
@@ -167,8 +158,6 @@ class BootcProgress(Gtk.Box):
         self.console_button.connect("clicked", self.__on_console_button)
         self.media_button.connect("clicked", self.__on_media_button)
         self.copy_log_button.connect("clicked", self.__on_copy_log)
-        self.btn_video_mode.connect("toggled", self.__on_video_mode_toggled)
-        self.btn_soundtrack_mode.connect("toggled", self.__on_soundtrack_mode_toggled)
 
 
     def __configure_install_video(self):
@@ -180,10 +169,8 @@ class BootcProgress(Gtk.Box):
         # Check if GStreamer VP9/AV1 decoders are available
         codecs = check_codecs_present()
         if not (codecs["vp9"] or codecs["av1"]):
-            logger.warning("GStreamer VP9 or AV1 decoders not available. Automatically falling back to soundtrack mode.")
-            self.btn_video_mode.set_sensitive(False)
+            logger.warning("GStreamer VP9 or AV1 decoders not available. Video playback not available.")
             GLib.idle_add(self.__show_video_fallback)
-            GLib.idle_add(lambda: self.__set_media_mode("soundtrack"))
             return
 
         self.__arm_video_fallback_timeout()
@@ -221,242 +208,6 @@ class BootcProgress(Gtk.Box):
         except Exception as e:
             logger.warning("Failed to extract installer video: %s", e)
             GLib.idle_add(self.__show_video_fallback)
-
-    def __configure_soundtrack(self):
-        self._carousel_timer = None
-        self._tracks_loaded = False
-        self.btn_soundtrack_mode.set_sensitive(False)
-        threading.Thread(target=self.__load_tracks, daemon=True).start()
-
-    def __load_tracks(self):
-        """Load soundtrack track list.
-
-        Resolution order:
-        1. ``recipe["soundtrack_data"]`` — a GResource path or filesystem path
-           supplied by the branding layer.
-        2. Built-in GResource ``/org/bootcinstaller/Installer/data/tracks.json``.
-        3. Filesystem fallback next to this module (dev mode).
-        """
-        tracks = []
-
-        # 1. Recipe-supplied override
-        recipe = getattr(self.__window, "recipe", {}) or {}
-        soundtrack_override = recipe.get("soundtrack_data", "")
-        if soundtrack_override:
-            if soundtrack_override.startswith("/org/"):
-                try:
-                    tracks_bytes = Gio.resources_lookup_data(
-                        soundtrack_override, Gio.ResourceLookupFlags.NONE
-                    )
-                    tracks = json.loads(tracks_bytes.get_data())
-                except Exception as e:
-                    logger.warning("Failed to load soundtrack from recipe GResource %s: %s", soundtrack_override, e)
-            else:
-                try:
-                    import pathlib
-                    tracks = json.loads(pathlib.Path(soundtrack_override).read_text())
-                except Exception as e:
-                    logger.warning("Failed to load soundtrack from recipe path %s: %s", soundtrack_override, e)
-
-        # 2. Built-in GResource
-        if not tracks:
-            try:
-                tracks_bytes = Gio.resources_lookup_data(
-                    "/org/bootcinstaller/Installer/data/tracks.json",
-                    Gio.ResourceLookupFlags.NONE,
-                )
-                tracks = json.loads(tracks_bytes.get_data())
-            except Exception as e:
-                logger.warning("Failed to load soundtrack from GResource: %s", e)
-                # 3. Filesystem fallback (dev mode)
-                import pathlib
-                dev_path = pathlib.Path(__file__).resolve().parent.parent / "data" / "tracks.json"
-                try:
-                    tracks = json.loads(dev_path.read_text())
-                except Exception as e2:
-                    logger.warning("Failed to load soundtrack from dev path: %s", e2)
-
-        GLib.idle_add(self.__populate_carousel, tracks)
-
-    def __populate_carousel(self, tracks):
-        for track in tracks:
-            self.track_carousel.append(self._build_track_card(track))
-        self._tracks_loaded = bool(tracks)
-        self.btn_soundtrack_mode.set_sensitive(bool(tracks))
-        if tracks:
-            self._start_carousel_timer()
-        self.__show_selected_media_view()
-        return False
-
-    def _build_track_card(self, track):
-        card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-        card.set_margin_start(24)
-        card.set_margin_end(24)
-        card.set_margin_top(16)
-        card.set_margin_bottom(16)
-        card.set_hexpand(True)
-        card.set_halign(Gtk.Align.FILL)
-        card.add_css_class("card")
-
-        # Album cover art (left)
-        cover = self.__build_cover_art(track)
-        cover.set_size_request(120, 120)
-        card.append(cover)
-
-        # Track metadata (center, expands)
-        meta = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        meta.set_valign(Gtk.Align.CENTER)
-        meta.set_hexpand(True)
-
-        title_lbl = Gtk.Label(label=track["title"])
-        title_lbl.add_css_class("title-2")
-        title_lbl.set_wrap(True)
-        title_lbl.set_xalign(0)
-
-        artist_lbl = Gtk.Label(label=track["artist"])
-        artist_lbl.add_css_class("dim-label")
-        artist_lbl.set_wrap(True)
-        artist_lbl.set_xalign(0)
-
-        album_lbl = Gtk.Label(label=track.get("album", ""))
-        album_lbl.add_css_class("caption")
-        album_lbl.add_css_class("dim-label")
-        album_lbl.set_wrap(True)
-        album_lbl.set_xalign(0)
-
-        caption = Gtk.Label(label=_("Scan to listen on your phone"))
-        caption.add_css_class("caption")
-        caption.add_css_class("dim-label")
-        caption.set_xalign(0)
-
-        meta.append(title_lbl)
-        meta.append(artist_lbl)
-        if track.get("album"):
-            meta.append(album_lbl)
-        meta.append(caption)
-        card.append(meta)
-
-        # QR code (right, smaller)
-        qr_widget = self.__build_bundled_track_qr(track)
-        if qr_widget is None:
-            qr_widget = self.__build_runtime_track_qr(track)
-        if qr_widget is None:
-            qr_widget = self.__build_track_qr_fallback(track)
-
-        qr_widget.set_size_request(100, 100)
-        card.append(qr_widget)
-
-        return card
-
-    def __build_cover_art(self, track):
-        """Build a 120×120 album cover picture widget."""
-        cover_asset = track.get("cover_art")
-        if cover_asset:
-            resource_path = f"{_RESOURCE_PREFIX}/assets/covers/{cover_asset}"
-            try:
-                Gio.resources_lookup_data(resource_path, Gio.ResourceLookupFlags.NONE)
-                picture = Gtk.Picture.new_for_resource(resource_path)
-                picture.set_can_shrink(True)
-                picture.set_content_fit(Gtk.ContentFit.COVER)
-                picture.add_css_class("card")
-                return picture
-            except Exception:
-                pass
-            # Dev-mode filesystem fallback
-            dev_path = _TRACK_COVER_DIR / cover_asset
-            if dev_path.exists():
-                picture = Gtk.Picture.new_for_file(Gio.File.new_for_path(str(dev_path)))
-                picture.set_can_shrink(True)
-                picture.set_content_fit(Gtk.ContentFit.COVER)
-                picture.add_css_class("card")
-                return picture
-
-        # Generic music note placeholder
-        icon = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic")
-        icon.set_pixel_size(64)
-        icon.add_css_class("dim-label")
-        box = Gtk.Box()
-        box.set_valign(Gtk.Align.CENTER)
-        box.set_halign(Gtk.Align.CENTER)
-        box.append(icon)
-        return box
-
-    def __build_bundled_track_qr(self, track):
-        resource_path = _track_qr_resource_path(track)
-        if resource_path:
-            try:
-                Gio.resources_lookup_data(resource_path, Gio.ResourceLookupFlags.NONE)
-                picture = Gtk.Picture.new_for_resource(resource_path)
-                picture.set_can_shrink(True)
-                picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-                return picture
-            except Exception as e:
-                logger.debug("Bundled QR unavailable in GResource for %s: %s", track.get("title", "track"), e)
-
-        dev_path = _track_qr_dev_path(track)
-        if dev_path and dev_path.exists():
-            try:
-                picture = Gtk.Picture.new_for_file(Gio.File.new_for_path(str(dev_path)))
-                picture.set_can_shrink(True)
-                picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-                return picture
-            except Exception as e:
-                logger.debug("Bundled QR unavailable in dev path for %s: %s", track.get("title", "track"), e)
-
-        return None
-
-    def __build_runtime_track_qr(self, track):
-        try:
-            import segno
-
-            qr = segno.make(track["url"], error="M")
-            buf = io.BytesIO()
-            qr.save(buf, kind="png", scale=6, dark="#ffffff", light="#1e1e2e")
-            buf.seek(0)
-            texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(buf.read()))
-            picture = Gtk.Picture.new_for_paintable(texture)
-            picture.set_can_shrink(True)
-            picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-            return picture
-        except Exception as e:
-            logger.debug("Runtime QR generation unavailable for %s: %s", track.get("title", "track"), e)
-            return None
-
-    def __build_track_qr_fallback(self, track):
-        fallback_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        fallback_box.set_valign(Gtk.Align.CENTER)
-        fallback_box.set_halign(Gtk.Align.CENTER)
-        icon = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic")
-        icon.set_pixel_size(64)
-        icon.add_css_class("dim-label")
-        fallback_box.append(icon)
-        url_label = Gtk.Label(label=track.get("url", ""))
-        url_label.set_wrap(True)
-        url_label.set_max_width_chars(20)
-        url_label.add_css_class("caption")
-        url_label.add_css_class("dim-label")
-        url_label.set_selectable(True)
-        fallback_box.append(url_label)
-        return fallback_box
-
-    def _start_carousel_timer(self):
-        self.__stop_carousel_timer()
-        self._carousel_timer = GLib.timeout_add_seconds(50, self.__advance_carousel)
-
-    def __stop_carousel_timer(self):
-        if self._carousel_timer:
-            GLib.source_remove(self._carousel_timer)
-            self._carousel_timer = None
-
-    def __advance_carousel(self):
-        n_pages = self.track_carousel.get_n_pages()
-        if n_pages == 0:
-            return True
-        next_pos = (int(self.track_carousel.get_position()) + 1) % n_pages
-        page = self.track_carousel.get_nth_page(next_pos)
-        if page is not None:
-            self.track_carousel.scroll_to(page, True)
-        return True
 
     def __on_media_stream_changed(self, *_args):
         """Called when the Gtk.Video gets its MediaStream. Hook into prepared
@@ -529,35 +280,18 @@ class BootcProgress(Gtk.Box):
     def __hide_video_fallback(self):
         self.video_fallback_box.set_visible(False)
 
-    def __set_media_mode(self, mode: str, sync_buttons: bool = True):
-        self.__current_media_mode = mode
-        if sync_buttons:
-            self.__syncing_mode_buttons = True
-            self.btn_video_mode.set_active(mode == "video")
-            self.btn_soundtrack_mode.set_active(mode == "soundtrack")
-            self.__syncing_mode_buttons = False
-        self.__show_selected_media_view()
-
     def __show_selected_media_view(self):
         self.console_box.set_visible(False)
         self.media_button.set_visible(False)
         self.console_button.set_visible(True)
-
-        show_soundtrack = self.__current_media_mode == "soundtrack" and self._tracks_loaded
-        self.media_box.set_visible(not show_soundtrack)
-        self.soundtrack_box.set_visible(show_soundtrack)
-
-        if show_soundtrack:
-            self.__pause_install_video()
-        else:
-            self.__play_install_video()
+        self.media_box.set_visible(True)
+        self.__play_install_video()
 
     def __show_media_view(self):
         self.__show_selected_media_view()
 
     def __show_console_view(self):
         self.media_box.set_visible(False)
-        self.soundtrack_box.set_visible(False)
         self.console_box.set_visible(True)
         self.media_button.set_visible(True)
         self.console_button.set_visible(False)
@@ -568,32 +302,6 @@ class BootcProgress(Gtk.Box):
 
     def __on_media_button(self, *args):
         self.__show_selected_media_view()
-
-    def __on_video_mode_toggled(self, btn):
-        if self.__syncing_mode_buttons:
-            return
-        if btn.get_active():
-            self.__syncing_mode_buttons = True
-            self.btn_soundtrack_mode.set_active(False)
-            self.__syncing_mode_buttons = False
-            self.__set_media_mode("video", sync_buttons=False)
-        elif not self.btn_soundtrack_mode.get_active():
-            self.__syncing_mode_buttons = True
-            btn.set_active(True)
-            self.__syncing_mode_buttons = False
-
-    def __on_soundtrack_mode_toggled(self, btn):
-        if self.__syncing_mode_buttons:
-            return
-        if btn.get_active():
-            self.__syncing_mode_buttons = True
-            self.btn_video_mode.set_active(False)
-            self.__syncing_mode_buttons = False
-            self.__set_media_mode("soundtrack", sync_buttons=False)
-        elif not self.btn_video_mode.get_active():
-            self.__syncing_mode_buttons = True
-            btn.set_active(True)
-            self.__syncing_mode_buttons = False
 
     def __on_copy_log(self, *args):
         """Copy the fisherman log to the clipboard."""
@@ -619,23 +327,38 @@ class BootcProgress(Gtk.Box):
 
     def __build_ui(self):
         self.__install_progress_css()
-        self.__build_pastry_spinner()
-        self.__configure_soundtrack()
-        self.__set_media_mode("video")
+        self.__setup_fallback_panel()
 
-    def __build_pastry_spinner(self):
-        self._media_overlay = self.media_box.get_first_child()
-        self._video_spinner = new_grid_spinner()
-        if self._video_spinner is not None and self._media_overlay is not None:
-            self._media_overlay.add_overlay(self._video_spinner)
+    def __setup_fallback_panel(self):
+        """Populate the video-unavailable fallback panel with the dino image and store QR."""
+        recipe = self.__window.recipe
+
+        # Dinosaur image — use the tour welcome image from the recipe (set by live ISO),
+        # fall back to the bundled dakota.png if not configured.
+        dino_path = (
+            recipe.get("tour", {}).get("welcome", {}).get("image", "")
+            if isinstance(recipe.get("tour"), dict)
+            else ""
+        )
+        if dino_path and os.path.exists(dino_path):
+            self.fallback_dino.set_filename(dino_path)
+        else:
+            self.fallback_dino.set_resource(
+                "/org/bootcinstaller/Installer/images/dakota.png"
+            )
+
+        # Store QR code — same source as the done screen.
+        qr_resource = recipe.get(
+            "store_qr_resource",
+            "/org/bootcinstaller/Installer/assets/store-qr.svg",
+        )
+        self.fallback_store_qr.set_resource(qr_resource)
 
     def __show_video_spinner(self):
-        if self._video_spinner is not None:
-            self._video_spinner.set_visible(True)
+        pass
 
     def __hide_video_spinner(self):
-        if self._video_spinner is not None:
-            self._video_spinner.set_visible(False)
+        pass
 
     def __install_progress_css(self):
         display = Gdk.Display.get_default()
@@ -793,7 +516,6 @@ class BootcProgress(Gtk.Box):
         if self.__start_time is not None:
             elapsed_secs = int(time.monotonic() - self.__start_time)
         self.__stop_elapsed_timer()
-        self.__stop_carousel_timer()
         self.__cancel_video_fallback_timeout()
         self.__pause_install_video()
         # Securely delete the recipe file — it contains plaintext passphrases
@@ -848,13 +570,13 @@ class BootcProgress(Gtk.Box):
         if event.get("type") == "step":
             self.progress_substep.set_label("")
         elif event.get("type") == "substep":
-            self.progress_substep.set_label(event.get("message", ""))
+            raw_msg = event.get("message", "")
+            self.progress_substep.set_label(_friendly_substep(raw_msg))
         if not update["pulse"]:
             self.__pulse_active = False
 
         if update["complete"]:
             self.__stop_elapsed_timer()
-            self.__stop_carousel_timer()
             self.__cancel_video_fallback_timeout()
             self.__pause_install_video()
             self.progress_substep.set_label("")
@@ -879,16 +601,22 @@ class BootcProgress(Gtk.Box):
         No fisherman is launched. No disk is touched.
         """
         logger.info("start_demo() called")
+        # Demo steps: (delay_seconds, bar_fraction, label)
+        # Mirrors real-install proportions: disk prep is fast (<10%),
+        # OS install dominates (~87% of bar, most of the time),
+        # then a quick burst to 100% for apps + config.
         _STEPS = [
-            (0.4,  0.11, "Step 1/9: Partitioning disk"),
-            (0.8,  0.22, "Step 2/9: Formatting EFI partition"),
-            (1.2,  0.33, "Step 3/9: Setting up encryption"),
-            (1.6,  0.44, "Step 4/9: Formatting root filesystem"),
-            (2.0,  0.55, "Step 5/9: Mounting filesystems"),
-            (2.8,  0.66, "Step 6/9: Installing system image"),
-            (3.6,  0.77, "Step 7/9: Copying flatpaks"),
-            (4.2,  0.88, "Step 8/9: Writing configuration"),
-            (4.8,  0.99, "Step 9/9: Finalizing"),
+            (0.3,  0.01, "Checking your drive\u2026"),
+            (0.6,  0.02, "Setting up your drive\u2026"),
+            (0.9,  0.04, "Preparing the boot system\u2026"),
+            (1.2,  0.05, "Formatting your drive\u2026"),
+            (1.5,  0.06, "Mounting your drive\u2026"),
+            (2.0,  0.10, "Installing Bluefin\u2026"),
+            (3.5,  0.45, "Installing Bluefin\u2026"),
+            (5.2,  0.86, "Installing Bluefin\u2026"),
+            (5.8,  0.93, "Installing your apps\u2026"),
+            (6.3,  0.97, "Configuring your system\u2026"),
+            (6.8,  0.99, "Finishing up\u2026"),
         ]
         self.__pulse_active = False
         self.__set_progress_fraction(0.0)

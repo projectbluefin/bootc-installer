@@ -92,13 +92,6 @@ for _mod in (
 ):
     sys.modules.setdefault(_mod, MagicMock())
 
-# pastry_compat needs real stubs (not MagicMock) so imports work
-_pastry = types.ModuleType("bootc_installer.utils.pastry_compat")
-_pastry.wrap_glass = lambda w: w
-_pastry.add_glass_root = lambda w: None
-_pastry.new_grid_spinner = MagicMock(return_value=MagicMock())
-sys.modules["bootc_installer.utils.pastry_compat"] = _pastry
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures
@@ -114,7 +107,6 @@ DAKOTA_RECIPE = {
     "store_url": "https://store.projectbluefin.io",
     "store_qr_resource": "/org/bootcinstaller/Installer/assets/store-qr.svg",
     "credits_data": "/org/bootcinstaller/Installer/data/credits.json",
-    "soundtrack_data": "/org/bootcinstaller/Installer/data/tracks.json",
     "images": [
         {
             "name": "Dakota",
@@ -233,84 +225,6 @@ class TestDoneStoreQR(unittest.TestCase):
             done_mod.BootcDone._BootcDone__maybe_show_store(obj)
         obj.store_qr.set_resource.assert_called_once_with(
             "/org/bootcinstaller/Installer/assets/store-qr.svg"
-        )
-
-
-# ---------------------------------------------------------------------------
-# progress.py — __load_tracks logic
-# ---------------------------------------------------------------------------
-
-def _import_progress():
-    _build_gi_stubs()
-    sys.modules.pop("bootc_installer.views.progress", None)
-    try:
-        import bootc_installer.views as views_pkg
-        views_pkg.__dict__.pop("progress", None)
-    except Exception:
-        pass
-    gio = sys.modules.get("gi.repository.Gio")
-    if gio is not None and not hasattr(gio, "ResourceLookupFlags"):
-        class _ResourceLookupFlags:
-            NONE = 0
-        gio.ResourceLookupFlags = _ResourceLookupFlags
-    if gio is not None and not hasattr(gio, "resources_lookup_data"):
-        gio.resources_lookup_data = MagicMock()
-    return importlib.import_module("bootc_installer.views.progress")
-
-
-def _make_progress_obj(recipe):
-    prog_mod = _import_progress()
-    window = MagicMock()
-    window.recipe = recipe
-    obj = object.__new__(prog_mod.BootcProgress)
-    obj._BootcProgress__window = window
-    obj._BootcProgress__populate_carousel = MagicMock()
-    prog_mod.GLib.idle_add = lambda fn, *args: fn(*args)
-    return obj, prog_mod
-
-
-class TestProgressSoundtrackData(unittest.TestCase):
-    """__load_tracks must prefer recipe['soundtrack_data'] over the built-in path."""
-
-    def test_uses_recipe_soundtrack_data_filesystem_path(self):
-        tracks = [{"title": "Test Track", "artist": "Test Artist"}]
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(tracks, f)
-            tmp_path = f.name
-        try:
-            recipe = dict(DAKOTA_RECIPE, soundtrack_data=tmp_path)
-            obj, prog_mod = _make_progress_obj(recipe)
-            # GResource lookup should not be reached
-            prog_mod.Gio.resources_lookup_data = MagicMock(side_effect=Exception("no resource"))
-            prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
-            obj._BootcProgress__populate_carousel.assert_called_once_with(tracks)
-        finally:
-            os.unlink(tmp_path)
-
-    def test_falls_back_to_builtin_when_no_soundtrack_data(self):
-        tracks = [{"title": "Builtin Track", "artist": "Builtin Artist"}]
-        recipe = dict(GENERIC_RECIPE)  # no soundtrack_data key
-        obj, prog_mod = _make_progress_obj(recipe)
-        mock_bytes = MagicMock()
-        mock_bytes.get_data.return_value = json.dumps(tracks).encode()
-        prog_mod.Gio.resources_lookup_data = MagicMock(return_value=mock_bytes)
-        # Mock pathlib.Path.read_text for dev-mode fallback path
-        with patch("pathlib.Path.read_text", side_effect=FileNotFoundError):
-            prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
-        obj._BootcProgress__populate_carousel.assert_called_once_with(tracks)
-
-    def test_recipe_soundtrack_data_gresource_path(self):
-        """A soundtrack_data starting with /org/ is loaded via Gio.resources_lookup_data."""
-        tracks = [{"title": "GResource Track", "artist": "GResource Artist"}]
-        recipe = dict(DAKOTA_RECIPE)  # soundtrack_data = "/org/bootcinstaller/..."
-        obj, prog_mod = _make_progress_obj(recipe)
-        mock_bytes = MagicMock()
-        mock_bytes.get_data.return_value = json.dumps(tracks).encode()
-        prog_mod.Gio.resources_lookup_data = MagicMock(return_value=mock_bytes)
-        prog_mod.BootcProgress._BootcProgress__load_tracks(obj)
-        prog_mod.Gio.resources_lookup_data.assert_called_with(
-            DAKOTA_RECIPE["soundtrack_data"],
-            prog_mod.Gio.ResourceLookupFlags.NONE,
         )
 
 

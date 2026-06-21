@@ -25,7 +25,7 @@ from gettext import gettext as _
 from operator import attrgetter
 from threading import Lock, Timer
 
-from gi.repository import NM, NMA4, Adw, GLib, Gtk
+from gi.repository import NM, Adw, GLib, Gtk
 
 from bootc_installer.utils.run_async import RunAsync
 

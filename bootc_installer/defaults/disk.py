@@ -31,7 +31,7 @@ from typing import Union
 import logging
 import os
 
-from gi.repository import Adw, GLib, GObject, Gtk
+from gi.repository import Adw, GObject, Gtk
 
 from bootc_installer.core.disks import DisksManager, Diskutils, Partition
 from bootc_installer.core.system import Systeminfo
@@ -780,6 +780,7 @@ class BootcDefaultDisk(Adw.Bin):
         self.__filesystem_options = ["xfs"]
         self.__window.carousel.connect("page-changed", self.__on_carousel_page_changed)
         self.__refresh_from_image_step()
+        self.__set_default_hostname()
         self.auto_select_single_disk()
 
         # Auto-select virtual disk if still no physical disks are available
@@ -792,6 +793,20 @@ class BootcDefaultDisk(Adw.Bin):
         if carousel.get_nth_page(idx) is self:
             self.__refresh_from_image_step()
             self.__check_battery()
+
+    def __set_default_hostname(self):
+        """Seed the hostname field with a hardware-derived name when no image
+        step has provided a better default, so users see a unique, meaningful
+        value rather than the generic 'localhost' placeholder."""
+        current = self.hostname_entry.get_text().strip()
+        if current not in ("", "localhost"):
+            return
+        try:
+            generated = Systeminfo.generate_hostname()
+            if generated:
+                self.hostname_entry.set_text(generated)
+        except Exception:
+            logger.debug("Could not generate hostname", exc_info=True)
 
     def __check_battery(self):
         on_battery = False
@@ -838,7 +853,15 @@ class BootcDefaultDisk(Adw.Bin):
             default_hostname = ""
         current = self.hostname_entry.get_text().strip()
         if default_hostname and current in ("", "localhost"):
-            self.hostname_entry.set_text(default_hostname)
+            # Append a short hardware-derived suffix so the default hostname is
+            # unique per machine (e.g. "bluefin-a7c3" instead of "bluefin").
+            try:
+                generated = Systeminfo.generate_hostname()
+                suffix = generated.rsplit("-", 1)[-1] if "-" in generated else generated[-4:]
+                unique_hostname = f"{default_hostname}-{suffix}"
+            except Exception:
+                unique_hostname = default_hostname
+            self.hostname_entry.set_text(unique_hostname)
         self.__setup_filesystem_row(supported)
 
     # Maps filesystem type → (required tool, package name)
@@ -1055,7 +1078,7 @@ class BootcDefaultDisk(Adw.Bin):
             disk["btrfsSubvolumes"] = (fs == "btrfs")
         result = {
             "disk": disk,
-            "hostname": self.hostname_entry.get_text().strip() or "localhost",
+            "hostname": self.hostname_entry.get_text().strip() or "",
         }
         if self.__use_virtual_disk:
             result["virtual_disk_img"] = self._VIRTUAL_DISK_IMG

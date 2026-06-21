@@ -1,29 +1,33 @@
 {
     "log_file": "/var/log/bootc-installer.log",
-    "distro_name": "Dakota",
+    "distro_name": "Bluefin",
     "distro_logo": "resource:///org/bootcinstaller/Installer/images/dakota.png",
     "imgref": "ghcr.io/projectbluefin/dakota:latest",
     "images": [
         {
-            "name": "Dakota",
+            "name": "Bluefin",
             "imgref": "ghcr.io/projectbluefin/dakota:latest",
             "bootloader": "systemd",
-            "filesystem": "btrfs",
+            "filesystem": "xfs",
             "composefs": true,
             "needs_user_creation": false,
-            "flatpak_var_path": "state/os/default/var"
+            "flatpak_var_path": "state/os/default/var",
+            "filesystems": [
+                "xfs",
+                "btrfs"
+            ]
         }
     ],
-    "welcome_title": "Welcome to Dakota",
+    "welcome_title": "Welcome to Bluefin",
     "store_url": "https://store.projectbluefin.io",
     "store_qr_resource": "/org/bootcinstaller/Installer/assets/store-qr.svg",
     "credits_data": "/org/bootcinstaller/Installer/data/credits.json",
     "soundtrack_data": "/org/bootcinstaller/Installer/data/tracks.json",
-    "welcome_subtitle": "A GNOME workstation built on GnomeOS — composefs, atomic updates, no package manager.",
+    "welcome_subtitle": "A GNOME workstation built on GnomeOS \u2014 composefs, atomic updates, no package manager.",
     "tour": {
         "welcome": {
             "resource": "/org/bootcinstaller/Installer/assets/welcome.png",
-            "title": "Installing Dakota",
+            "title": "Installing Bluefin",
             "description": "A GNOME workstation built on GnomeOS. This will take a few minutes."
         },
         "completed": {

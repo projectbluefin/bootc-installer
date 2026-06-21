@@ -137,9 +137,6 @@ class RecipeLoader:
             logger.warning(f"bootc status failed: {e}")
         return ""
 
-        logger.error(f"No valid recipe found. Tried: {self.recipe_paths}")
-        sys.exit(1)
-
     def __validate(self):
         essential_keys = ["log_file", "distro_name", "distro_logo", "steps"]
         if not isinstance(self.__recipe, dict):

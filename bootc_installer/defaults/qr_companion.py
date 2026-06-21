@@ -1,16 +1,12 @@
 import logging
-import os
-import pathlib
 import tempfile
 from gettext import gettext as _
-from gi.repository import Adw, GLib, Gtk, Gio
+from gi.repository import Adw, GLib, Gtk
 
-from bootc_installer.utils.run_async import RunAsync
 from bootc_installer.utils.phone_companion import (
     CompanionServer,
     get_local_ip,
-    CONFIG_RECEIVED_EVENT,
-    GLOBAL_CONFIG
+    CONFIG_RECEIVED_EVENT
 )
 
 try:

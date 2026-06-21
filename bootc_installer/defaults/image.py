@@ -41,6 +41,12 @@ logger = logging.getLogger("Installer::Image")
 def _load_manifest():
     import pathlib
 
+    # When running inside a Flatpak sandbox, /etc is reserved by the runtime
+    # and inaccessible.  The host filesystem /etc is available at /run/host/etc
+    # instead.  Apply the same prefix used by RecipeLoader in recipe.py.
+    _in_flatpak = os.path.exists("/.flatpak-info")
+    _etc = "/run/host/etc" if _in_flatpak else "/etc"
+
     # 1. Per-user override (useful for testing custom catalogs without root).
     xdg_config = pathlib.Path(
         os.environ.get("XDG_CONFIG_HOME", pathlib.Path.home() / ".config")
@@ -55,7 +61,9 @@ def _load_manifest():
             logger.warning(f"Failed to parse user override {user_override}: {e}")
 
     # 2. System-wide override (distros drop their catalog here).
-    system_override = pathlib.Path("/etc/bootc-installer/images.json")
+    # Inside a Flatpak sandbox the host /etc is at /run/host/etc — use the
+    # same prefix that RecipeLoader applies so live-ISO images.json is found.
+    system_override = pathlib.Path(f"{_etc}/bootc-installer/images.json")
     if system_override.exists():
         try:
             manifest = json.loads(system_override.read_text())
@@ -171,6 +179,8 @@ def _imgref_to_pretty_name(imgref: str) -> str:
     First word: Title Case. Subsequent words: ALL CAPS.
     """
     try:
+        if "/" not in imgref:
+            return imgref
         slug = imgref.split("/")[-1].split(":")[0]   # e.g. "bluefin-dx"
         parts = slug.replace("_", "-").split("-")
         return " ".join(

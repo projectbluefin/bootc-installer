@@ -9,9 +9,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import GLib  # noqa: E402
 
-from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401
-from bootc_installer.views.confirm import BootcConfirm
-from bootc_installer.views.progress import BootcProgress
+from bootc_installer.widgets.page_header import BootcPageHeader  # noqa: F401, E402
+from bootc_installer.views.confirm import BootcConfirm  # noqa: E402
+from bootc_installer.views.progress import BootcProgress  # noqa: E402
 
 
 def _pump():
@@ -23,6 +23,8 @@ def _pump():
 class _DummyWindow:
     def __init__(self):
         self.results = []
+        # progress.py __setup_fallback_panel reads window.recipe
+        self.recipe = {}
 
     def set_installation_result(self, *args):
         self.results.append(args)
@@ -60,9 +62,13 @@ class TestConfirmScreen:
         ):
             confirm.update(finals)
 
-        rows = {(widget.get_title(), widget.get_subtitle()) for widget in confirm.active_widgets}
+        def _row_key(widget):
+            # Adw.EntryRow (hostname) has no get_subtitle; use get_text instead.
+            subtitle = getattr(widget, 'get_text', None) or getattr(widget, 'get_subtitle', None)
+            return (widget.get_title(), subtitle() if callable(subtitle) else "")
+        rows = {_row_key(widget) for widget in confirm.active_widgets}
         assert confirm.page_header.subtitle == '"Go beyond it." — Ayrton Senna'
-        assert confirm.btn_confirm.get_label() == "( Become Legend )"
+        assert confirm.btn_confirm.get_label() == "Become Legend"
         assert ("Language", "pt_BR.UTF-8") in rows
         assert ("Keyboard 1", "us") in rows
         assert ("Keyboard 2", "br+abnt2") in rows
@@ -70,7 +76,7 @@ class TestConfirmScreen:
         assert ("Users", "jorge (Jorge Castro)") in rows
         assert ("Disk", "/dev/nvme0n1 (1 TB)") in rows
         assert ("Encryption", "Hardware-backed + passphrase fallback") in rows
-        assert ("Hostname", "legendary-box") in rows
+        assert ("Hostname", "legendary-box") in rows  # EntryRow, text via get_text
         assert ("Image", "Bluefin GTS") in rows
         assert ("Graphics", "AMD Radeon") in rows
         assert (
@@ -110,14 +116,7 @@ class TestProgressScreen:
         progress, _window = self._make_progress()
 
         assert not progress.console_box.get_visible()
-        assert progress.btn_video_mode.get_active()
-        assert progress.btn_soundtrack_mode.get_sensitive()
-        assert progress.track_carousel.get_n_pages() > 0
-
-        progress.btn_soundtrack_mode.set_active(True)
-        _pump()
-        assert progress.soundtrack_box.get_visible()
-        assert not progress.media_box.get_visible()
+        assert progress.media_box.get_visible()
 
         progress.console_button.emit("clicked")
         _pump()
@@ -125,19 +124,13 @@ class TestProgressScreen:
         assert progress.media_button.get_visible()
         assert not progress.console_button.get_visible()
         assert not progress.media_box.get_visible()
-        assert not progress.soundtrack_box.get_visible()
 
         progress.media_button.emit("clicked")
         _pump()
         assert not progress.console_box.get_visible()
         assert not progress.media_button.get_visible()
         assert progress.console_button.get_visible()
-        assert progress.soundtrack_box.get_visible()
-
-        progress.btn_video_mode.set_active(True)
-        _pump()
         assert progress.media_box.get_visible()
-        assert not progress.soundtrack_box.get_visible()
 
     def test_progress_events_update_labels_percentage_eta_and_completion(self):
         progress, _window = self._make_progress()
@@ -161,14 +154,13 @@ class TestProgressScreen:
                 json.dumps({"type": "substep", "message": "Pulling image: layer 5/10"})
             )
 
-        assert progress.progressbar_text.get_label() == (
-            "Step 6/9: Installing system image — Pulling image: layer 5/10"
-        )
+        assert progress.progressbar_text.get_label() == "Installing system image"
         assert progress.progress_percentage.get_label() == "66%"
         assert progress.progress_elapsed.get_label() == "2:00 elapsed"
         assert progress.progress_eta.get_label().startswith("~")
         assert "remaining" in progress.progress_eta.get_label()
-        assert progress.progress_substep.get_label() == "Pulling image: layer 5/10"
+        # substep widget shows friendly-mapped raw message
+        assert progress.progress_substep.get_label() == "Downloading\u2026 (5 of 10 parts)"
 
         progress._BootcProgress__parse_progress_line(
             json.dumps({"type": "complete", "boot_id": "boot-123", "recovery_key": "rk-1"})

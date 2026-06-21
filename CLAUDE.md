@@ -6,7 +6,7 @@ bootc-installer is a GTK4/Libadwaita Flatpak GUI installer for BootcOS and Unive
 
 ```bash
 # Build and install Flatpak locally (~10 min first time, cached after)
-flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcos.Installer.json
+flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json
 
 # fisherman (Go submodule)
 cd fisherman/fisherman
@@ -34,11 +34,11 @@ GTK4/Adwaita GUI that collects user choices, writes a recipe JSON, launches fish
 
 ## fisherman submodule workflow
 
-fisherman is a separate repo (`tuna-os/fisherman`). Changes must be committed and pushed **separately**, then the parent repo's submodule pointer updated:
+fisherman is a separate repo (`projectbluefin/fisherman`). Changes must be committed and pushed **separately**, then the parent repo's submodule pointer updated:
 
 ```bash
 cd fisherman/fisherman && git add -A && git commit -m "..." && git push
-cd /var/home/james/dev/bootc-installer
+cd ~/src/bootc-installer
 git add fisherman && git commit -m "chore: update fisherman submodule (...)" && git push
 ```
 
@@ -47,7 +47,7 @@ CI checks out submodules recursively — always verify CI passes after both push
 ## Known issues
 
 - **UI freeze during blob download**: `__on_vte_contents_changed` in `progress.py` scrapes the entire VTE buffer on every character change.
-- **TPM2 enrolment failure**: `systemd-cryptenroll --unlock-key-file=-` fails with "Reading keyfile /var/roothome/- failed". Non-fatal; password fallback works.
+- **TPM2 enrolment:** Fixed in fisherman v0.2.0-34 — recovery key now emitted and shown in GUI.
 
 ## Don'ts
 
@@ -58,5 +58,5 @@ CI checks out submodules recursively — always verify CI passes after both push
 
 ## References
 - `fisherman/data/images.json` — recursive distro image catalog
-- `flatpak/org.bootcos.Installer.json` — Flatpak manifest
+- `flatpak/org.bootcinstaller.Installer.json` — Flatpak manifest
 - Recipe JSON fields: `disk`, `filesystem`, `encryption`, `image`, `targetImgref`, `hostname`, `flatpaks[]`

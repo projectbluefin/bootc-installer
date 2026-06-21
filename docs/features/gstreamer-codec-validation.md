@@ -7,7 +7,7 @@ Validate that GStreamer VP9 and AV1 codecs are present in the Flatpak runtime be
 
 ### Proposed approach
 1. Add codec detection at startup using GStreamer `GstRegistry` or `gst-inspect-1.0`
-2. If VP9/AV1 missing: show warning, fall back to soundtrack-only mode
+2. If VP9/AV1 missing: show warning, video playback unavailable
 3. If codecs present: proceed with video playback as normal
 4. Log detected codecs for debugging
 

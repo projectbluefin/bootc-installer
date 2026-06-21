@@ -1,251 +1,238 @@
 {
-  "app-id": "org.bootcinstaller.Installer",
-  "runtime": "org.gnome.Platform",
-  "runtime-version": "50",
-  "sdk": "org.gnome.Sdk",
-  "command": "bootc-installer",
-  "finish-args": [
-    "--share=network",
-    "--share=ipc",
-    "--socket=wayland",
-    "--socket=fallback-x11",
-    "--device=all",
-    "--filesystem=host",
-    "--talk-name=org.freedesktop.Flatpak",
-    "--system-talk-name=org.freedesktop.login1",
-    "--system-talk-name=org.freedesktop.PolicyKit1",
-    "--allow=devel"
-  ],
-  "build-options": {
-    "env": {
-      "PATH": "/app/go/bin:/usr/bin:/bin",
-      "GOPATH": "/run/build/go-path",
-      "GOCACHE": "/run/build/go-cache",
-      "GONOSUMDB": "*",
-      "GOFLAGS": "",
-      "GOPROXY": "off"
-    }
-  },
-  "modules": [
-    {
-      "name": "mutter-schemas",
-      "buildsystem": "simple",
-      "build-commands": [
-        "install -Dm644 org.gnome.mutter.gschema.xml /app/share/glib-2.0/schemas/org.gnome.mutter.gschema.xml",
-        "glib-compile-schemas /app/share/glib-2.0/schemas/"
-      ],
-      "sources": [
-        {
-          "type": "file",
-          "path": "org.gnome.mutter.gschema.xml"
-        }
-      ]
-    },
-    {
-      "name": "go",
-      "buildsystem": "simple",
-      "build-commands": [
-        "cp -r go /app/go"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://go.dev/dl/go1.26.1.linux-amd64.tar.gz",
-          "sha256": "031f088e5d955bab8657ede27ad4e3bc5b7c1ba281f05f245bcc304f327c987a",
-          "strip-components": 0
-        }
-      ]
-    },
-    {
-      "name": "fisherman",
-      "buildsystem": "simple",
-      "build-commands": [
-        "go build -C fisherman -o /app/bin/fisherman ./cmd/fisherman"
-      ],
-      "sources": [
-        {
-          "type": "dir",
-          "path": "../fisherman"
-        }
-      ]
-    },
-    {
-      "name": "blueprint-compiler",
-      "buildsystem": "meson",
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://gitlab.gnome.org/GNOME/blueprint-compiler/-/archive/v0.16.0/blueprint-compiler-v0.16.0.tar.gz",
-          "sha256": "01feb8263fe7a450b0a9fed0fd54cf88947aaf00f86cc7da345f8b39a0e7bd30"
-        }
-      ]
-    },
-    {
-      "name": "python3-segno",
-      "buildsystem": "simple",
-      "build-commands": [
-        "pip3 install --prefix=/app --no-deps segno-1.6.1-py3-none-any.whl"
-      ],
-      "sources": [
-        {
-          "type": "file",
-          "url": "https://files.pythonhosted.org/packages/27/7c/abc460494640767edfce9c920da3e03df22327fc5e3d51c7857f50fd89c4/segno-1.6.1-py3-none-any.whl",
-          "sha256": "e90c6ff82c633f757a96d4b1fb06cc932589b5237f33be653f52252544ac64df"
-        }
-      ]
-    },
-    {
-      "name": "md4c",
-      "buildsystem": "cmake-ninja",
-      "config-opts": [
-        "-DBUILD_MD2HTML_EXECUTABLE=Off"
-      ],
-      "cleanup": [
-        "/include",
-        "/lib/pkgconfig",
-        "*.a",
-        "*.la"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://github.com/mity/md4c/archive/refs/tags/release-0.5.2.tar.gz",
-          "sha256": "55d0111d48fb11883aaee91465e642b8b640775a4d6993c2d0e7a8092758ef21"
-        }
-      ]
-    },
-    {
-      "name": "libsass",
-      "buildsystem": "simple",
-      "build-commands": [
-        "autoreconf -fi",
-        "./configure --prefix=/app --disable-static",
-        "make -j${FLATPAK_BUILDER_N_JOBS}",
-        "make install"
-      ],
-      "cleanup": [
-        "*.a",
-        "*.la"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://github.com/sass/libsass/archive/refs/tags/3.6.6.tar.gz",
-          "sha256": "11f0bb3709a4f20285507419d7618f3877a425c0131ea8df40fe6196129df15d"
-        }
-      ]
-    },
-    {
-      "name": "sassc",
-      "buildsystem": "meson",
-      "cleanup": [
-        "/include",
-        "/lib/pkgconfig",
-        "*.a",
-        "*.la"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://github.com/lazka/sassc/archive/refs/heads/meson.tar.gz",
-          "sha256": "2acbe0989788f5ddd655bf1f87e91c4dbc370b4c649ee229c515b2fdedb87c7e"
-        }
-      ]
-    },
-    {
-      "name": "libbge",
-      "buildsystem": "simple",
-      "build-commands": [
-        "meson setup _flatpak_build --prefix=/app -Dbge_only=true",
-        "meson compile -C _flatpak_build",
-        "meson install -C _flatpak_build",
-        "ln -sf bge-0.7.15.pc /app/lib/pkgconfig/libbge.pc"
-      ],
-      "cleanup": [
-        "*.a",
-        "*.la"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://github.com/bazaar-org/bazaar/archive/refs/tags/v0.7.15.tar.gz",
-          "sha256": "5c62780794314656167196f2433e50ecee22eb2b7596c71efa6429454a3a73bb"
-        }
-      ]
-    },
-    {
-      "name": "libpastry",
-      "buildsystem": "simple",
-      "build-options": {
+    "app-id": "org.bootcinstaller.Installer",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "50",
+    "sdk": "org.gnome.Sdk",
+    "command": "bootc-installer",
+    "finish-args": [
+        "--share=network",
+        "--share=ipc",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--device=all",
+        "--filesystem=host",
+        "--talk-name=org.freedesktop.Flatpak",
+        "--system-talk-name=org.freedesktop.login1",
+        "--system-talk-name=org.freedesktop.PolicyKit1",
+        "--allow=devel"
+    ],
+    "build-options": {
         "env": {
-          "PATH": "/app/bin:/usr/bin:/bin"
+            "PATH": "/app/go/bin:/usr/bin:/bin",
+            "GOPATH": "/run/build/go-path",
+            "GOCACHE": "/run/build/go-cache",
+            "GONOSUMDB": "*",
+            "GOFLAGS": "",
+            "GOPROXY": "off"
         }
-      },
-      "build-commands": [
-        "sed -i \"/subdir('demo')/d\" meson.build",
-        "sed -i \"/subdir('demo')/d\" subprojects/bazaar/bge/meson.build",
-        "meson setup _flatpak_build --prefix=/app",
-        "meson compile -C _flatpak_build",
-        "meson install -C _flatpak_build"
-      ],
-      "cleanup": [
-        "/include",
-        "/lib/pkgconfig",
-        "*.a",
-        "*.la"
-      ],
-      "sources": [
+    },
+    "modules": [
         {
-          "type": "archive",
-          "url": "https://github.com/kolunmi/libpastry/archive/5368c6c73e15a299c60ef0a4feb6216076c168da.tar.gz",
-          "sha256": "c69c9c156b42854e96170a27807c8c07fbcbc1ac01d2b5117cdfce7c7f46de19"
+            "name": "mutter-schemas",
+            "buildsystem": "simple",
+            "build-commands": [
+                "install -Dm644 org.gnome.mutter.gschema.xml /app/share/glib-2.0/schemas/org.gnome.mutter.gschema.xml",
+                "glib-compile-schemas /app/share/glib-2.0/schemas/"
+            ],
+            "sources": [
+                {
+                    "type": "file",
+                    "path": "org.gnome.mutter.gschema.xml"
+                }
+            ]
         },
         {
-          "type": "archive",
-          "url": "https://github.com/bazaar-org/bazaar/archive/refs/tags/v0.7.15.tar.gz",
-          "sha256": "5c62780794314656167196f2433e50ecee22eb2b7596c71efa6429454a3a73bb",
-          "dest": "subprojects/bazaar",
-          "strip-components": 1
+            "name": "go",
+            "buildsystem": "simple",
+            "build-commands": [
+                "cp -r go /app/go"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://go.dev/dl/go1.26.1.linux-amd64.tar.gz",
+                    "sha256": "031f088e5d955bab8657ede27ad4e3bc5b7c1ba281f05f245bcc304f327c987a",
+                    "strip-components": 0
+                }
+            ]
         },
         {
-          "type": "file",
-          "url": "https://media.githubusercontent.com/media/kolunmi/libpastry/main/src/sfx/controllerconnect.wav",
-          "sha256": "58706a058c120ec7932225d2c0e4293721417bd10e1ce498d8722c5ad128d2fe",
-          "dest": "src/sfx",
-          "dest-filename": "controllerconnect.wav"
-        }
-      ]
-    },
-    {
-      "name": "bootc-installer",
-      "buildsystem": "meson",
-      "config-opts": [
-        "-Dbuild-fisherman=false"
-      ],
-      "build-options": {
-        "env": {
-          "PATH": "/app/bin:/usr/bin:/bin"
-        }
-      },
-      "sources": [
+            "name": "fisherman",
+            "buildsystem": "simple",
+            "build-commands": [
+                "go build -C fisherman -o /app/bin/fisherman ./cmd/fisherman"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "../fisherman"
+                }
+            ]
+        },
         {
-          "type": "dir",
-          "path": ".."
-        }
-      ]
-    },
-    {
-      "name": "polkit-action",
-      "buildsystem": "simple",
-      "build-commands": [
-        "install -Dm644 data/polkit/org.bootcinstaller.Installer.policy /app/share/polkit-1/actions/org.bootcinstaller.Installer.policy"
-      ],
-      "sources": [
+            "name": "blueprint-compiler",
+            "buildsystem": "meson",
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://gitlab.gnome.org/GNOME/blueprint-compiler/-/archive/v0.16.0/blueprint-compiler-v0.16.0.tar.gz",
+                    "sha256": "01feb8263fe7a450b0a9fed0fd54cf88947aaf00f86cc7da345f8b39a0e7bd30"
+                }
+            ]
+        },
         {
-          "type": "dir",
-          "path": ".."
+            "name": "md4c",
+            "buildsystem": "cmake-ninja",
+            "config-opts": [
+                "-DBUILD_MD2HTML_EXECUTABLE=Off",
+                "-DCMAKE_INSTALL_LIBDIR=lib"
+            ],
+            "cleanup": [
+                "/include",
+                "/lib/pkgconfig",
+                "*.a",
+                "*.la"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/mity/md4c/archive/refs/tags/release-0.5.2.tar.gz",
+                    "sha256": "55d0111d48fb11883aaee91465e642b8b640775a4d6993c2d0e7a8092758ef21"
+                }
+            ]
+        },
+        {
+            "name": "libsass",
+            "buildsystem": "simple",
+            "build-commands": [
+                "autoreconf -fi",
+                "./configure --prefix=/app --disable-static",
+                "make -j${FLATPAK_BUILDER_N_JOBS}",
+                "make install"
+            ],
+            "cleanup": [
+                "*.a",
+                "*.la"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/sass/libsass/archive/refs/tags/3.6.6.tar.gz",
+                    "sha256": "11f0bb3709a4f20285507419d7618f3877a425c0131ea8df40fe6196129df15d"
+                }
+            ]
+        },
+        {
+            "name": "sassc",
+            "buildsystem": "meson",
+            "cleanup": [
+                "/include",
+                "/lib/pkgconfig",
+                "*.a",
+                "*.la"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/lazka/sassc/archive/refs/heads/meson.tar.gz",
+                    "sha256": "2acbe0989788f5ddd655bf1f87e91c4dbc370b4c649ee229c515b2fdedb87c7e"
+                }
+            ]
+        },
+        {
+            "name": "libbge",
+            "buildsystem": "simple",
+            "build-commands": [
+                "meson setup _flatpak_build --prefix=/app -Dbge_only=true",
+                "meson compile -C _flatpak_build",
+                "meson install -C _flatpak_build",
+                "ln -sf bge-0.7.15.pc /app/lib/pkgconfig/libbge.pc"
+            ],
+            "cleanup": [
+                "*.a",
+                "*.la"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/bazaar-org/bazaar/archive/refs/tags/v0.7.15.tar.gz",
+                    "sha256": "5c62780794314656167196f2433e50ecee22eb2b7596c71efa6429454a3a73bb"
+                }
+            ]
+        },
+        {
+            "name": "libpastry",
+            "buildsystem": "simple",
+            "build-options": {
+                "env": {
+                    "PATH": "/app/bin:/usr/bin:/bin"
+                }
+            },
+            "build-commands": [
+                "sed -i \"/subdir('demo')/d\" meson.build",
+                "sed -i \"/subdir('demo')/d\" subprojects/bazaar/bge/meson.build",
+                "meson setup _flatpak_build --prefix=/app",
+                "meson compile -C _flatpak_build",
+                "meson install -C _flatpak_build"
+            ],
+            "cleanup": [
+                "/include",
+                "/lib/pkgconfig",
+                "*.a",
+                "*.la"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/kolunmi/libpastry/archive/5368c6c73e15a299c60ef0a4feb6216076c168da.tar.gz",
+                    "sha256": "c69c9c156b42854e96170a27807c8c07fbcbc1ac01d2b5117cdfce7c7f46de19"
+                },
+                {
+                    "type": "archive",
+                    "url": "https://github.com/bazaar-org/bazaar/archive/refs/tags/v0.7.15.tar.gz",
+                    "sha256": "5c62780794314656167196f2433e50ecee22eb2b7596c71efa6429454a3a73bb",
+                    "dest": "subprojects/bazaar",
+                    "strip-components": 1
+                },
+                {
+                    "type": "file",
+                    "url": "https://media.githubusercontent.com/media/kolunmi/libpastry/main/src/sfx/controllerconnect.wav",
+                    "sha256": "58706a058c120ec7932225d2c0e4293721417bd10e1ce498d8722c5ad128d2fe",
+                    "dest": "src/sfx",
+                    "dest-filename": "controllerconnect.wav"
+                }
+            ]
+        },
+        {
+            "name": "bootc-installer",
+            "buildsystem": "meson",
+            "config-opts": [
+                "-Dbuild-fisherman=false"
+            ],
+            "build-options": {
+                "env": {
+                    "PATH": "/app/bin:/usr/bin:/bin"
+                }
+            },
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": ".."
+                }
+            ]
+        },
+        {
+            "name": "polkit-action",
+            "buildsystem": "simple",
+            "build-commands": [
+                "install -Dm644 data/polkit/org.bootcinstaller.Installer.policy /app/share/polkit-1/actions/org.bootcinstaller.Installer.policy"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": ".."
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }

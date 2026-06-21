@@ -10,8 +10,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import GLib, Gtk  # noqa: E402
 
-from bootc_installer.views.done import BootcDone
-from bootc_installer.windows.dialog_credits import BootcCreditsWindow
+from bootc_installer.views.done import BootcDone  # noqa: E402
+from bootc_installer.windows.dialog_credits import BootcCreditsWindow  # noqa: E402
 
 _CREDITS_JSON = (
     Path(__file__).resolve().parents[2] / "bootc_installer" / "data" / "credits.json"

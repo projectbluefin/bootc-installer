@@ -68,8 +68,10 @@ class TestStepEvent:
     def test_step_sets_label(self):
         state = new_progress_state()
         update = apply_progress_event(_step(step=3, total=8, name="Mounting filesystem"), state)
-        assert "Step 3/8" in update["label"]
-        assert "Mounting filesystem" in update["label"]
+        # Friendly label for "Mounting filesystem"
+        assert "Almost ready" in update["label"]
+        # Must not contain nerdy Step N/M: prefix
+        assert "Step 3/8" not in update["label"]
 
     def test_step_advances_state(self):
         state = new_progress_state()
@@ -96,6 +98,27 @@ class TestStepEvent:
         apply_progress_event(_step(step=2), state)
         assert len(state["seen_substeps"]) == 0
 
+    def test_step_label_is_friendly(self):
+        """Step labels use human-friendly text, not 'Step N/M: ...' format."""
+        state = new_progress_state()
+        update = apply_progress_event(
+            _step(step=1, total=9, name="Partitioning disk"),
+            state,
+        )
+        assert update is not None
+        assert "Step 1/9" not in update["label"]
+        assert "Setting up your drive" in update["label"]
+
+    def test_unknown_step_name_falls_back_to_raw(self):
+        """Steps with no friendly mapping fall back to the raw step_name."""
+        state = new_progress_state()
+        update = apply_progress_event(
+            _step(step=1, total=9, name="Some future step"),
+            state,
+        )
+        assert update is not None
+        assert "Some future step" in update["label"]
+
 
 # ── Substep events ─────────────────────────────────────────────────────────────
 
@@ -105,7 +128,8 @@ class TestSubstepEvent:
         apply_progress_event(_step(step=5, name="Installing OS", cumulative_pct=1, weight_pct=87), state)
         update = apply_progress_event(_substep("Pulling container image"), state)
         assert update is not None
-        assert "Pulling container image" in update["label"]
+        # Main label shows the step's friendly text; raw message goes to progress_substep widget
+        assert "Installing Bluefin" in update["label"]
 
     def test_duplicate_substep_no_label(self):
         state = new_progress_state()
@@ -217,7 +241,7 @@ class TestFullSequence:
             _complete(boot_id="0003"),
         ]
         state = new_progress_state()
-        updates = [apply_progress_event(l, state) for l in log_lines]
+        updates = [apply_progress_event(line, state) for line in log_lines]
         non_none = [u for u in updates if u is not None]
 
         # Must reach completion
@@ -228,3 +252,33 @@ class TestFullSequence:
         assert state["current_step"] == 8
         # Bar at 100% at end
         assert non_none[-1]["fraction"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Edge cases that extend branch coverage
+# ---------------------------------------------------------------------------
+
+def test_substep_empty_message_returns_none():
+    """Substep event with an empty message string is silently ignored."""
+    state = new_progress_state()
+    line = json.dumps({"type": "substep", "message": ""})
+    result = apply_progress_event(line, state)
+    assert result is None
+
+
+def test_duplicate_layer_substep_returns_fraction():
+    """A repeated layer-progress substep still returns the updated fraction."""
+    state = new_progress_state()
+    # Prime state with a step that has weight_pct set
+    apply_progress_event(_step(step=6, total=9, cumulative_pct=50, weight_pct=20), state)
+    layer_msg = "Pulling image: layer 10/40"
+    # First occurrence — adds to seen_substeps
+    apply_progress_event(_substep(layer_msg), state)
+    # Second occurrence — msg is already in seen_substeps; fraction is computed
+    # because it matches _RE_LAYER_PROGRESS and weight_pct > 0
+    result = apply_progress_event(_substep(layer_msg), state)
+    assert result is not None
+    assert result["fraction"] is not None
+    assert result["label"] is None
+    assert result["pulse"] is False
+    assert result["complete"] is False

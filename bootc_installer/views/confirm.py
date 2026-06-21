@@ -14,13 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import re
 from gettext import gettext as _
 
 from bootc_installer.views.confirm_data import _ENC_LABELS, _SENNA_QUOTES
 
-from gi.repository import Adw, GLib, GObject, Gtk
+from gi.repository import Adw, GObject, Gtk
 
 
 @Gtk.Template(resource_path="/org/bootcinstaller/Installer/gtk/widget-choice.ui")
@@ -68,8 +67,10 @@ class BootcConfirm(Adw.Bin):
     def __init__(self, window, **kwargs):
         super().__init__(**kwargs)
         self.delta = False
+        self._hostname_entry_row = None
 
     def update(self, finals):
+        self._hostname_entry_row = None  # reset on every update
         try:
             for widget in self.active_widgets:
                 self.group_changes.remove(widget)
@@ -77,7 +78,6 @@ class BootcConfirm(Adw.Bin):
             pass
         self.active_widgets = []
 
-        pretty_name = None
         selected_language = None
 
         for final in finals:
@@ -157,16 +157,14 @@ class BootcConfirm(Adw.Bin):
                         )
                     )
                 elif key == "hostname":
-                    self.active_widgets.append(
-                        BootcChoiceEntry(
-                            _("Hostname"),
-                            value,
-                            "network-server-symbolic",
-                        )
-                    )
+                    entry_row = Adw.EntryRow()
+                    entry_row.set_title(_("Hostname"))
+                    entry_row.set_text(value or "")
+                    entry_row.set_show_apply_button(False)
+                    self._hostname_entry_row = entry_row
+                    self.active_widgets.append(entry_row)
                 elif key == "selected_image":
                     pn = final.get("pretty_name") or value
-                    pretty_name = pn
                     self.active_widgets.append(
                         BootcChoiceEntry(
                             _("Image"),
@@ -175,8 +173,6 @@ class BootcConfirm(Adw.Bin):
                         )
                     )
                 elif key == "custom_image":
-                    pn = final.get("pretty_name") or value
-                    pretty_name = pn
                     self.active_widgets.append(
                         BootcChoiceEntry(
                             _("Image"),
@@ -205,7 +201,7 @@ class BootcConfirm(Adw.Bin):
         else:
             self.page_header.subtitle = _("\"Indeed.\" — Commander Zavala")
 
-        self.btn_confirm.set_label(_("( Become Legend )"))
+        self.btn_confirm.set_label(_("Become Legend"))
 
         for widget in self.active_widgets:
             self.group_changes.add(widget)
@@ -216,6 +212,17 @@ class BootcConfirm(Adw.Bin):
 
     def test_auto_advance(self):
         self.btn_confirm.emit("clicked")
+
+    def get_hostname_override(self):
+        """Return the hostname the user typed on the confirm screen, or None.
+
+        Returns None if the confirm screen was never shown a hostname field
+        (e.g. the disk step is hidden or no hostname was in finals).
+        """
+        if self._hostname_entry_row is None:
+            return None
+        text = self._hostname_entry_row.get_text().strip()
+        return text if text else None
 
     def __on_confirm(self, widget):
         self.emit("installation-confirmed")

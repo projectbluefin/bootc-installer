@@ -3,11 +3,10 @@ Unit tests for done.py — reboot logic and icon application.
 No display required; GTK widgets are not instantiated.
 """
 
-import subprocess
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, sentinel
 
 def _build_gi_stubs():
     gi_mod = types.ModuleType("gi")
@@ -43,8 +42,9 @@ def _build_gi_stubs():
 
     gio_mod = types.ModuleType("gi.repository.Gio")
     gio_mod.bus_get_sync = MagicMock()
-    gio_mod.BusType = types.SimpleNamespace(SYSTEM=0)
-    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=0)
+    # Use SimpleNamespace so typos like .BusTyp raise AttributeError immediately.
+    gio_mod.BusType = types.SimpleNamespace(SYSTEM=sentinel.SYSTEM_BUS)
+    gio_mod.DBusCallFlags = types.SimpleNamespace(NONE=sentinel.DBUS_FLAGS_NONE)
     gio_mod.ResourceLookupFlags = _ResourceLookupFlags
     gio_mod.resources_lookup_data = MagicMock()
     gio_mod.File = MagicMock()
@@ -76,7 +76,6 @@ if "bootc_installer.windows.dialog_output" not in sys.modules:
 from bootc_installer.views.done import (  # noqa: E402
     BootcDone,
     apply_icon,
-    do_reboot,
     warmup_registry,
 )
 
@@ -93,6 +92,8 @@ class TestDoReboot(unittest.TestCase):
         # do_reboot and the patch("...Gio.bus_get_sync") target the same object.
         _build_gi_stubs()
         sys.modules.pop("bootc_installer.views.done", None)
+        import bootc_installer.views as views_pkg
+        views_pkg.__dict__.pop("done", None)
         import bootc_installer.views.done  # noqa: F401 — re-populates sys.modules
 
     def test_reboot_via_dbus_success(self):
@@ -102,6 +103,19 @@ class TestDoReboot(unittest.TestCase):
             result = done_mod.do_reboot(in_flatpak=True)
         self.assertTrue(result)
         conn.call_sync.assert_called_once()
+
+    def test_dbus_reboot_calls_correct_method(self):
+        """D-Bus contract: must call org.freedesktop.login1 Reboot method."""
+        import bootc_installer.views.done as done_mod
+        conn = MagicMock()
+        with patch("bootc_installer.views.done.Gio.bus_get_sync", return_value=conn):
+            done_mod.do_reboot(in_flatpak=True)
+        call_args = conn.call_sync.call_args
+        # Positional args: bus_name, object_path, interface_name, method_name, params, ...
+        args = call_args[0]
+        self.assertIn("login1", args[0])          # bus name
+        self.assertIn("Manager", args[2])          # interface
+        self.assertEqual(args[3], "Reboot")        # method name
 
     def test_reboot_falls_back_to_subprocess_when_dbus_fails(self):
         import bootc_installer.views.done as done_mod
@@ -241,7 +255,7 @@ class TestRegistryWarmup(unittest.TestCase):
 class TestFailureHintExtraction(unittest.TestCase):
 
     def _extract_hint(self, log_data=None, open_side_effect=None):
-        import bootc_installer.views.done as done_mod
+        import bootc_installer.views.done as done_mod  # noqa: F401
 
         progress_mod = types.SimpleNamespace(_FISHERMAN_LOG_PATH="/unused/fisherman.log")
         done_page = BootcDone.__new__(BootcDone)

@@ -563,6 +563,159 @@ class TestNvidiaAutoDetect:
 
 # ── Hostname generation tests ─────────────────────────────────────────────────
 
+class TestManualPartitionLayout:
+    """Tests for manual partition mode (all keys start with /dev/)."""
+
+    def _manual_finals(self, partitions, image="ghcr.io/t/img:latest", hostname="h"):
+        return [{
+            "disk": partitions,
+            "selected_image": image,
+            "hostname": hostname,
+            "encryption": {"use_encryption": False},
+        }]
+
+    def test_custom_mounts_populated(self):
+        finals = self._manual_finals({
+            "/dev/sda1": {"fs": "fat32", "mp": "/boot/efi"},
+            "/dev/sda2": {"fs": "xfs", "mp": "/"},
+        })
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert "customMounts" in r
+        mounts = {m["partition"]: m for m in r["customMounts"]}
+        assert mounts["/dev/sda1"]["target"] == "/boot/efi"
+        assert mounts["/dev/sda2"]["fstype"] == "xfs"
+
+    def test_partition_without_mountpoint_skipped(self):
+        """Partitions with no mp= are silently skipped."""
+        finals = self._manual_finals({
+            "/dev/sda1": {"fs": "swap", "mp": ""},
+            "/dev/sda2": {"fs": "xfs", "mp": "/"},
+        })
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        mounts = r.get("customMounts", [])
+        partitions = [m["partition"] for m in mounts]
+        assert "/dev/sda1" not in partitions
+        assert "/dev/sda2" in partitions
+
+    def test_all_partitions_no_mountpoint_no_custom_mounts_key(self):
+        """If every partition lacks a mountpoint, customMounts is omitted."""
+        finals = self._manual_finals({
+            "/dev/sda1": {"fs": "swap", "mp": ""},
+        })
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert "customMounts" not in r
+
+
+class TestDiskInfoVariants:
+    """Tests for alternate disk_info shapes (dict with 'disk'/'device' key, plain string)."""
+
+    def test_disk_key_in_dict(self):
+        finals = [{
+            "disk": {"disk": "/dev/nvme0n1", "filesystem": "xfs"},
+            "selected_image": "ghcr.io/t/img:latest",
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["disk"] == "/dev/nvme0n1"
+
+    def test_device_key_in_dict(self):
+        finals = [{
+            "disk": {"device": "/dev/sdb", "filesystem": "xfs"},
+            "selected_image": "ghcr.io/t/img:latest",
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["disk"] == "/dev/sdb"
+
+    def test_disk_as_plain_string(self):
+        finals = [{
+            "disk": "/dev/vda",
+            "selected_image": "ghcr.io/t/img:latest",
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+        r = _load(path)
+        assert r["disk"] == "/dev/vda"
+
+
+class TestImageFallbackPaths:
+    """Tests for image resolution from sys_recipe fallback paths."""
+
+    def test_default_marked_image_used_when_no_selected(self):
+        """When no image in finals, fall back to the default-marked entry in sys_recipe."""
+        finals = [{
+            "disk": {"auto": {"disk": "/dev/vda"}},
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        sys_recipe = {
+            "images": [
+                {"imgref": "ghcr.io/org/base:latest", "default": False},
+                {"imgref": "ghcr.io/org/preferred:latest", "default": True},
+            ]
+        }
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/org/preferred:latest"
+
+    def test_first_image_used_when_none_default_marked(self):
+        """If no entry is default-marked, use the first entry in sys_recipe images."""
+        finals = [{
+            "disk": {"auto": {"disk": "/dev/vda"}},
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        sys_recipe = {
+            "images": [
+                {"imgref": "ghcr.io/org/first:latest"},
+                {"imgref": "ghcr.io/org/second:latest"},
+            ]
+        }
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["image"] == "ghcr.io/org/first:latest"
+
+    def test_local_imgref_overrides_install_source(self):
+        """local_imgref in sys_recipe overrides the install image while target_imgref stays remote."""
+        finals = _auto_finals(image="ghcr.io/org/image:latest")
+        sys_recipe = {
+            "imgref": "ghcr.io/org/image:latest",
+            "local_imgref": "containers-storage:ghcr.io/org/image:latest",
+        }
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["image"] == "containers-storage:ghcr.io/org/image:latest"
+        assert r["targetImgref"] == "ghcr.io/org/image:latest"
+
+    def test_additional_image_stores_propagated(self):
+        """additionalImageStores from sys_recipe passes through to the recipe."""
+        finals = _auto_finals()
+        sys_recipe = {"additionalImageStores": ["/run/media/iso/ostree/repo"]}
+        path = Processor.gen_install_recipe("log", finals, sys_recipe)
+        r = _load(path)
+        assert r["additionalImageStores"] == ["/run/media/iso/ostree/repo"]
+
+    def test_no_image_available_leaves_image_empty(self):
+        """If finals and sys_recipe provide no image, recipe keeps empty image fields."""
+        finals = [{
+            "disk": {"auto": {"disk": "/dev/vda"}},
+            "hostname": "h",
+            "encryption": {"use_encryption": False},
+        }]
+        path = Processor.gen_install_recipe("log", finals, {})
+        r = _load(path)
+        assert r["image"] == ""
+        assert r["targetImgref"] == ""
+ 
+ 
 class TestHardwareHostname:
     def test_explicit_hostname_used(self):
         """User-provided hostname takes priority over hardware-derived."""
@@ -588,5 +741,139 @@ class TestHardwareHostname:
         path = Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
         r = _load(path)
         assert r["hostname"] == "framework-13-a7c3"
+
+
+class TestFindNvidiaImgref:
+    """Tests for _find_nvidia_imgref_for() — the manifest-walk helper."""
+
+    def _inject_manifest(self, monkeypatch, manifest: dict):
+        """Inject a fake _MANIFEST via sys.modules without importing the real image module."""
+        import sys
+        import types
+
+        fake_image = types.ModuleType("bootc_installer.defaults.image")
+        fake_image._MANIFEST = manifest
+        monkeypatch.setitem(sys.modules, "bootc_installer.defaults.image", fake_image)
+
+    def test_returns_empty_when_import_fails(self, monkeypatch):
+        """If _MANIFEST cannot be imported, return empty string instead of crashing."""
+        import sys
+        import types
+
+        # A module with no _MANIFEST attribute — accessing it raises AttributeError.
+        broken = types.ModuleType("bootc_installer.defaults.image")
+        monkeypatch.setitem(sys.modules, "bootc_installer.defaults.image", broken)
+
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/anything:latest")
+        assert result == ""
+
+    def test_finds_direct_match(self, monkeypatch):
+        """Returns nvidia_imgref when the imgref is a direct leaf node."""
+        self._inject_manifest(monkeypatch, {
+            "images": [
+                {
+                    "imgref": "ghcr.io/org/base:latest",
+                    "nvidia_imgref": "ghcr.io/org/base-nvidia:latest",
+                }
+            ]
+        })
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/base:latest")
+        assert result == "ghcr.io/org/base-nvidia:latest"
+
+    def test_finds_nested_match(self, monkeypatch):
+        """Returns inherited nvidia_imgref when imgref is inside a children list."""
+        self._inject_manifest(monkeypatch, {
+            "images": [
+                {
+                    "nvidia_imgref": "ghcr.io/org/group-nvidia:latest",
+                    "children": [
+                        {"imgref": "ghcr.io/org/child:latest"},
+                    ],
+                }
+            ]
+        })
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/child:latest")
+        assert result == "ghcr.io/org/group-nvidia:latest"
+
+    def test_returns_empty_when_not_found(self, monkeypatch):
+        """Returns empty string when imgref is absent from the manifest."""
+        self._inject_manifest(monkeypatch, {
+            "images": [{"imgref": "ghcr.io/org/other:latest"}]
+        })
+        from bootc_installer.utils.processor import _find_nvidia_imgref_for
+        result = _find_nvidia_imgref_for("ghcr.io/org/missing:latest")
+        assert result == ""
+
+
+class TestFlatpakCacheDir:
+    """Tests for the flatpak cache_dir path in gen_install_recipe."""
+
+    def test_flatpak_recipe_written_to_cache_dir(self, monkeypatch, tmp_path):
+        """In flatpak mode, the recipe JSON is written inside ~/.cache/bootc-installer/."""
+        import os as _os
+        import bootc_installer.utils.processor as proc_mod
+
+        cache_dir = tmp_path / ".cache" / "bootc-installer"
+        monkeypatch.setattr(_os.path, "exists", lambda p: p == "/.flatpak-info")
+        monkeypatch.setenv("HOME", str(tmp_path))
+
+        finals = _auto_finals()
+        path = proc_mod.Processor.gen_install_recipe("log", finals, _SYS_RECIPE)
+
+        assert str(cache_dir) in path
+        assert _os.path.isfile(path)
+
+
+class TestLiveISOFallback:
+    """Tests for the live-ISO images.json fallback in gen_install_recipe (lines 236-243)."""
+
+    def test_filesystem_read_from_images_json(self, monkeypatch, tmp_path):
+        """When merged has no image_filesystem and sys_recipe has no images key,
+        gen_install_recipe reads /etc/bootc-installer/images.json for the filesystem."""
+        import io
+        import json as _json
+        import bootc_installer.utils.processor as proc_mod
+
+        images_json_content = _json.dumps({"images": [{"filesystem": "btrfs"}]})
+        images_json_path = "/etc/bootc-installer/images.json"
+
+        real_open = open
+
+        def fake_open(path, *args, **kwargs):
+            if path == images_json_path:
+                return io.StringIO(images_json_content)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", fake_open)
+        # Ensure not in flatpak so path is /etc (not /run/host/etc)
+        monkeypatch.setattr("os.path.exists", lambda p: False)
+
+        # image_filesystem="" so the fallback branch is triggered
+        finals = _auto_finals(image_filesystem="")
+        path = proc_mod.Processor.gen_install_recipe("log", finals, {})
+        r = _load(path)
+        assert r["filesystem"] == "btrfs"
+
+    def test_fallback_handles_missing_images_json(self, monkeypatch):
+        """When images.json is absent, gen_install_recipe logs a warning and continues."""
+        import bootc_installer.utils.processor as proc_mod
+
+        monkeypatch.setattr("os.path.exists", lambda p: False)
+        real_open = open
+
+        def raise_for_images_json(path, *args, **kwargs):
+            if "bootc-installer/images.json" in str(path):
+                raise FileNotFoundError("no file")
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", raise_for_images_json)
+
+        finals = _auto_finals(image_filesystem="")
+        # Should not raise — just log a warning
+        path = proc_mod.Processor.gen_install_recipe("log", finals, {})
+        assert path  # recipe file still written
 
 
