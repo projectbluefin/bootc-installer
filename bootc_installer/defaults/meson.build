@@ -4,9 +4,6 @@ defaultsdir = join_paths(pkgdatadir, 'bootc_installer/defaults')
 sources = [
   '__init__.py',
   'welcome.py',
-  'language.py',
-  'keyboard.py',
-  'timezone.py',
   'disk.py',
   'slurp.py',
   'encryption.py',
