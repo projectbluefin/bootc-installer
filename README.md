@@ -108,7 +108,7 @@ When the installer detects it is running on a live ISO (via `/etc/bootc-installe
 
 ```bash
 curl -Lo installer.flatpak \
-  https://github.com/projectbluefin/bootc-installer/releases/download/latest-stable/org.bootcinstaller.Installer.flatpak \
+  https://github.com/projectbluefin/bootc-installer/releases/latest/download/org.bootcinstaller.Installer.flatpak \
   && sudo flatpak uninstall -y org.bootcinstaller.Installer org.bootcos.Installer 2>/dev/null; sudo flatpak install --bundle -y installer.flatpak
 ```
 
@@ -435,6 +435,7 @@ PRs to add new images, icons, or flatpak lists are very welcome!
 ### Flatpak (recommended)
 
 ```bash
+git submodule update --init --recursive
 flatpak run org.flatpak.Builder --force-clean --user --install _build flatpak/org.bootcinstaller.Installer.json
 flatpak run org.bootcinstaller.Installer
 ```
@@ -442,6 +443,7 @@ flatpak run org.bootcinstaller.Installer
 ### Meson (development)
 
 ```bash
+git submodule update --init --recursive
 meson setup build
 ninja -C build
 sudo ninja -C build install
