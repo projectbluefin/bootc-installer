@@ -53,7 +53,7 @@ Full dev, test, and release workflow for `projectbluefin/bootc-installer`.
 
 ## Architecture
 
-### Two-Component Model
+## Two-Component Model
 
 ```
 Python GUI  →  wizard finals  →  Processor  →  recipe.json
@@ -305,10 +305,8 @@ The ISO overrides branding at runtime via:
 | Loop devices in k8s pods | `BLKRRPART` ioctl fails in containers; fisherman's `loopRescan()` doesn't create partition nodes in Argo pods — test infra limitation only, not a real-install bug |
 | `DefaultDeploymentDir` never tested | `DeploymentDirFn` was mocked in every test; `DefaultDeploymentDir` itself was never called. `ostree admin --print-current-dir` always exits 1 on a freshly-installed target → fatal crash on every real install. Fixed in v2.7.4 with glob fallback. See PITFALLS.md. |
 
+---
+
 ## Pitfalls Reference
 
-For detailed GTK testing patterns, stub contamination, Gio patching, ruff gotchas, conn_check socket pattern, TPM2 preflight rules, and loop device container limitations:
-
-```bash
-cat ~/src/bootc-installer/docs/skills/PITFALLS.md
-```
+For detailed GTK testing patterns, stub contamination, Gio patching, ruff gotchas, conn_check socket pattern, TPM2 preflight rules, and loop device container limitations see `docs/skills/PITFALLS.md`.

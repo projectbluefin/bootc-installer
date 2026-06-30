@@ -360,7 +360,7 @@ it end-to-end. Stub-only coverage is no coverage.
 The `scripts/fisherman-install.sh` wrapper in `dakota-iso` was written to patch
 around the hostname-write crash at the CI level. It detects the specific
 `"ostree admin --print-current-dir"` error in the log, re-mounts the installed
-disk, and writes `/etc/hostname` directly.
+`disk`, and writes `/etc/hostname` directly.
 
 This pattern is dangerous: it lets broken releases ship because CI appears green.
 If you see a wrapper script that catches a specific fatal error and patches

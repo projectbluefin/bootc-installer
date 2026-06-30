@@ -12,7 +12,7 @@ Complete reference for all CI workflows, release process, and the release qualif
 
 | Job | What it does |
 |-----|-------------|
-| `unit` | `pytest tests/unit/` with coverage (`--cov-fail-under=47`) — no display required |
+| `unit` | `pytest tests/unit/` with coverage (`--cov-fail-under=51`) — no display required |
 | `ui` | `pytest tests/ui/` via Xvfb + compiled GResources (meson/ninja) |
 
 Coverage gate is a **ratchet** — never lower `--cov-fail-under`. Measure with `pytest tests/unit/ -q --cov=bootc_installer 2>&1 | tail -5` before raising it.
@@ -44,17 +44,15 @@ Uses `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` container with `--p
 
 ---
 
-### `build-flatpaks.yml` — Multi-Variant Flatpak Build
+### `build-flatpaks.yml` — GNOME Flatpak Build
 
 **Triggers:** push to `dev`/`prod`, `v*` tags, manual dispatch
 
-Builds all three variants in parallel via a matrix:
+Builds the GNOME flatpak release bundle:
 
 | Variant | App ID | Manifest |
 |---------|--------|---------|
 | GNOME | `org.bootcinstaller.Installer` | `flatpak/org.bootcinstaller.Installer.json` |
-| XFCE | `org.xfceinstaller.Installer` | `flatpak/org.xfceinstaller.Installer.json` |
-| KDE | `org.kdeinstaller.Installer` | `flatpak/org.kdeinstaller.Installer.json` |
 
 Publishes Flatpaks as GitHub release assets under the same `continuous` / `continuous-dev` / `v*` tags.
 
@@ -66,7 +64,7 @@ Publishes Flatpaks as GitHub release assets under the same `continuous` / `conti
 
 - Validates all manifests are well-formed JSON
 - Checks required fields: `app-id`, `runtime`, `command`
-- Verifies app-id consistency per variant (GNOME / XFCE / KDE)
+- Verifies app-id consistency
 - Posts a ✅ comment on the PR when all pass
 
 ---

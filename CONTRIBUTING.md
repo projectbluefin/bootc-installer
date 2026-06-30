@@ -1,6 +1,6 @@
 # Contributing to bootc-installer
 
-bootc-installer is a GTK4/Libadwaita Flatpak installer for [bootc](https://containers.github.io/bootc/) container-native OS images. It ships three desktop-environment variants (GNOME, XFCE, KDE) from a single Python codebase, backed by the `fisherman` Go install backend.
+bootc-installer is a GTK4/Libadwaita Flatpak installer for [bootc](https://containers.github.io/bootc/) container-native OS images, backed by the `fisherman` Go install backend.
 
 ## Getting started
 
@@ -55,7 +55,7 @@ python3 -m ruff check bootc_installer/ tests/   # Lint
 ./QUALIFY_SOFTWARE.sh                           # Full qualification suite
 ```
 
-CI gate: `--cov-fail-under=47` (minimum unit test coverage).
+CI gate: `--cov-fail-under=51` (minimum unit test coverage).
 
 ## Branch workflow
 
@@ -70,39 +70,12 @@ The image catalog lives in [`fisherman/data/images.json`](fisherman/data/images.
 
 > `fisherman/` is a git submodule pointing to [`projectbluefin/fisherman`](https://github.com/projectbluefin/fisherman). Changes to the catalog must be committed and pushed **separately** to the fisherman repo, then the submodule pointer updated here.
 
-## Variants
-
-| Variant | Flatpak ID | Entry point |
-|---|---|---|
-| GNOME (default) | `org.bootcinstaller.Installer` | GTK4/Libadwaita |
-| XFCE | `org.xfceinstaller.Installer` | GTK4 |
-| KDE | `org.kdeinstaller.Installer` | Qt/Kirigami |
-
-Install commands for each variant:
-
-```bash
-# GNOME
-curl -Lo installer.flatpak \
-  https://github.com/projectbluefin/bootc-installer/releases/download/latest-stable/org.bootcinstaller.Installer.flatpak \
-  && sudo flatpak install --bundle -y installer.flatpak
-
-# XFCE
-curl -Lo installer.flatpak \
-  https://github.com/projectbluefin/bootc-installer/releases/download/latest-stable/org.xfceinstaller.Installer.flatpak \
-  && sudo flatpak install --bundle -y installer.flatpak
-
-# KDE
-curl -Lo installer.flatpak \
-  https://github.com/projectbluefin/bootc-installer/releases/download/latest-stable/org.kdeinstaller.Installer.flatpak \
-  && sudo flatpak install --bundle -y installer.flatpak
-```
-
 ## Architecture overview
 
 | Component | Language | Role |
 |---|---|---|
 | `fisherman/fisherman/` | Go | Root-level CLI; reads JSON recipe, executes 9-step disk install pipeline |
-| `bootc_installer/` | Python | Multi-variant GUI; collects user choices, writes recipe JSON, drives fisherman |
+| `bootc_installer/` | Python | GTK4/Adwaita GUI; collects user choices, writes recipe JSON, drives fisherman |
 
 See [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md) for deeper architecture documentation.
 

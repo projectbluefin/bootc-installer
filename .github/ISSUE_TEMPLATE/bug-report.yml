@@ -13,8 +13,6 @@ body:
       label: Installer variant
       options:
         - GNOME (org.bootcinstaller.Installer)
-        - XFCE (org.xfceinstaller.Installer)
-        - KDE (org.kdeinstaller.Installer)
         - Native (meson install)
     validations:
       required: true
