@@ -19,9 +19,6 @@
     <file>gtk/dialog-poweroff.ui</file>
     <file>gtk/default-theme.ui</file>
     <file>gtk/default-welcome.ui</file>
-    <file>gtk/default-language.ui</file>
-    <file>gtk/default-keyboard.ui</file>
-    <file>gtk/default-timezone.ui</file>
     <file>gtk/default-users.ui</file>
     <file>gtk/default-disk.ui</file>
     <file>gtk/default-slurp.ui</file>
@@ -38,9 +35,6 @@
     <file>gtk/widget-disk.ui</file>
     <file>gtk/widget-partition-row.ui</file>
     <file>gtk/widget-partition.ui</file>
-    <file>gtk/widget-language.ui</file>
-    <file>gtk/widget-keyboard.ui</file>
-    <file>gtk/widget-timezone.ui</file>
     <file>gtk/wireless-row.ui</file>
     <file>gtk/layout-preferences.ui</file>
     <file>gtk/layout-yes-no.ui</file>
@@ -55,7 +49,6 @@
     <file>assets/unsupported.svg</file>
     <file alias="images.json">../fisherman/data/images.json</file>
     <file alias="data/credits.json">data/credits.json</file>
-    <file alias="data/dinosaurs.json">data/dinosaurs.json</file>
     <file alias="images/bluefin.png">../fisherman/data/images/bluefin.png</file>
     <file alias="images/bluefin-lts.png">../fisherman/data/images/bluefin-lts.png</file>
     <file alias="images/dakota.png">../fisherman/data/images/dakota.png</file>

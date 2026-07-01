@@ -3,6 +3,5 @@ datadir = join_paths(pkgdatadir, 'bootc_installer/data')
 
 install_data(
   'credits.json',
-  'dinosaurs.json',
   install_dir: datadir,
 )
